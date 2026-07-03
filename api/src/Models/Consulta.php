@@ -1,10 +1,19 @@
 <?php
-class Consulta extends Publicacion {
-    private bool $resuelta = false;
-    private ?int $idRespuestaDestacada = null;
+require_once __DIR__ . '/Publicacion.php';
 
-    public function marcarComoResuelta(int $idRespuesta): void {
-        $this->resuelta = true;
-        $this->idRespuestaDestacada = $idRespuesta;
+class Consulta extends Publicacion {
+    private bool $estadoResuelta;
+
+    public function __construct(Usuario $redactor, string $texto, Universidad $universidad, bool $estadoResuelta = false) {
+        parent::__construct($redactor, $texto, $universidad);
+        $this->estadoResuelta = $estadoResuelta;
+    }
+
+    public function marcarComoResuelta(): void {
+        $this->estadoResuelta = true;
+    }
+
+    public function getEstadoResuelta(): bool {
+        return $this->estadoResuelta;
     }
 }

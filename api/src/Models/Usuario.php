@@ -1,19 +1,21 @@
 <?php
-class Usuario {
+require_once __DIR__ . '/Persona.php';
+require_once __DIR__ . '/Credencial.php';
+
+class Usuario extends Persona {
     private ?int $idUsuario;
-    private string $nombre;
-    private string $apellido;
-    private string $email;
-    private string $password;
-    private string $fNac;
+    private Credencial $credencial;
     private string $tipoPerfil;
-    private int $idCiudad;
+    private int $idCiudad; // Mantendremos el ID por practicidad con BD, o idealmente `private Ciudad $ciudad;`
     
     // Optional properties
     private ?string $fotoPerfil;
-    private ?string $celular;
     private ?string $descripcion;
     private ?string $trayectoria;
+
+    // Relaciones
+    private array $amigos = [];         // Arreglo de instancias de Amistad
+    private array $publicaciones = [];  // Arreglo de instancias de Publicacion
 
     public function __construct(
         string $nombre, 
@@ -29,46 +31,55 @@ class Usuario {
         ?string $descripcion = null,
         ?string $trayectoria = null
     ) {
-        $this->nombre = $nombre;
-        $this->apellido = $apellido;
-        $this->email = $email;
-        $this->password = $password;
-        $this->fNac = $fNac;
+        parent::__construct($nombre, $apellido, $fNac, $celular);
+        
+        // Composición con Credencial
+        $this->credencial = new Credencial($email, $password);
+        
         $this->tipoPerfil = $tipoPerfil;
         $this->idCiudad = $idCiudad;
         $this->idUsuario = $idUsuario;
         $this->fotoPerfil = $fotoPerfil;
-        $this->celular = $celular;
         $this->descripcion = $descripcion;
         $this->trayectoria = $trayectoria;
     }
 
     public function getIdUsuario(): ?int { return $this->idUsuario; }
-    public function getNombre(): string { return $this->nombre; }
-    public function getApellido(): string { return $this->apellido; }
-    public function getNombreCompleto(): string { return $this->nombre . ' ' . $this->apellido; }
-    public function getEmail(): string { return $this->email; }
-    public function getPassword(): string { return $this->password; }
-    public function getFnac(): string { return $this->fNac; }
+    
+    // Delegación a Credencial
+    public function getEmail(): string { return $this->credencial->getEmail(); }
+    public function getPassword(): string { return $this->credencial->getPasswordHash(); }
+    public function getCredencial(): Credencial { return $this->credencial; }
+
+    public function getFnac(): string { return $this->fechaNacimiento; }
     public function getTipoPerfil(): string { return $this->tipoPerfil; }
     public function getIdCiudad(): int { return $this->idCiudad; }
     public function getFotoPerfil(): ?string { return $this->fotoPerfil; }
-    public function getCelular(): ?string { return $this->celular; }
     public function getDescripcion(): ?string { return $this->descripcion; }
     public function getTrayectoria(): ?string { return $this->trayectoria; }
+
+    public function actualizarBiografia(string $desc, string $tray): void {
+        $this->descripcion = $desc;
+        $this->trayectoria = $tray;
+    }
+
+    public function getAmigos(): array { return $this->amigos; }
+    public function agregarAmigo($amistad): void { $this->amigos[] = $amistad; }
+
+    public function getPublicaciones(): array { return $this->publicaciones; }
+    public function agregarPublicacion($publicacion): void { $this->publicaciones[] = $publicacion; }
 
     public function esEstudianteValidado(): bool {
         return $this->tipoPerfil === 'Estudiante';
     }
 
-    // Convert object to associative array for JSON encoding
     public function toArray(): array {
         return [
             'idUsuario' => $this->idUsuario,
             'nombre' => $this->nombre,
             'apellido' => $this->apellido,
-            'email' => $this->email,
-            'fNac' => $this->fNac,
+            'email' => $this->credencial->getEmail(),
+            'fNac' => $this->fechaNacimiento,
             'tipoPerfil' => $this->tipoPerfil,
             'idCiudad' => $this->idCiudad,
             'fotoPerfil' => $this->fotoPerfil,

@@ -46,12 +46,14 @@ CREATE TABLE `carreras` (
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `carrerassedes`
+--
+-- Estructura de tabla para la tabla `oferta_academica`
 --
 
-CREATE TABLE `carrerassedes` (
+CREATE TABLE `oferta_academica` (
   `idCarrera` int(11) NOT NULL,
   `idSede` int(11) NOT NULL,
+  `fechaImplementacion` date DEFAULT NULL,
   `descripcion` text DEFAULT NULL,
   `email` varchar(255) DEFAULT NULL,
   `web` varchar(255) DEFAULT NULL,
@@ -219,6 +221,64 @@ CREATE TABLE `universidades` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `experiencias`
+--
+
+CREATE TABLE `experiencias` (
+  `idExperiencia` int(11) NOT NULL,
+  `idUsuario` int(11) NOT NULL,
+  `fecha` date NOT NULL,
+  `hora` time NOT NULL,
+  `idUniversidad` int(11) NOT NULL,
+  `idSede` int(11) NOT NULL,
+  `idCarrera` int(11) NOT NULL,
+  `texto` text NOT NULL,
+  `likes` int(11) DEFAULT 0,
+  `puntuacionClima` int(11) NOT NULL,
+  `puntuacionInfraestructura` int(11) NOT NULL,
+  `puntuacionAcademica` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `grupos_permiso`
+--
+
+CREATE TABLE `grupos_permiso` (
+  `idGrupoPermiso` int(11) NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `descripcion` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `permisos`
+--
+
+CREATE TABLE `permisos` (
+  `idPermiso` int(11) NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `codigoAccion` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `detalle_grupo_permiso`
+--
+
+CREATE TABLE `detalle_grupo_permiso` (
+  `idDetalle` int(11) NOT NULL,
+  `idUsuario` int(11) NOT NULL,
+  `idGrupoPermiso` int(11) NOT NULL,
+  `fechaAsignacion` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `usuarios`
 --
 
@@ -241,6 +301,34 @@ CREATE TABLE `usuarios` (
 --
 -- Índices para tablas volcadas
 --
+-- Indices de la tabla `detalle_grupo_permiso`
+--
+ALTER TABLE `detalle_grupo_permiso`
+  ADD PRIMARY KEY (`idDetalle`),
+  ADD KEY `fk_dgp_usuario` (`idUsuario`),
+  ADD KEY `fk_dgp_grupo` (`idGrupoPermiso`);
+
+--
+-- Indices de la tabla `experiencias`
+--
+ALTER TABLE `experiencias`
+  ADD PRIMARY KEY (`idExperiencia`),
+  ADD KEY `fk_experiencia_usuario` (`idUsuario`),
+  ADD KEY `fk_experiencia_uni` (`idUniversidad`),
+  ADD KEY `fk_experiencia_sede` (`idSede`),
+  ADD KEY `fk_experiencia_carrera` (`idCarrera`);
+
+--
+-- Indices de la tabla `grupos_permiso`
+--
+ALTER TABLE `grupos_permiso`
+  ADD PRIMARY KEY (`idGrupoPermiso`);
+
+--
+-- Indices de la tabla `permisos`
+--
+ALTER TABLE `permisos`
+  ADD PRIMARY KEY (`idPermiso`);
 
 --
 -- Indices de la tabla `amigos`
@@ -256,9 +344,9 @@ ALTER TABLE `carreras`
   ADD PRIMARY KEY (`idCarrera`);
 
 --
--- Indices de la tabla `carrerassedes`
+-- Indices de la tabla `oferta_academica`
 --
-ALTER TABLE `carrerassedes`
+ALTER TABLE `oferta_academica`
   ADD PRIMARY KEY (`idCarrera`,`idSede`),
   ADD KEY `fk_cs_sede` (`idSede`);
 
@@ -355,6 +443,28 @@ ALTER TABLE `usuarios`
 --
 -- AUTO_INCREMENT de las tablas volcadas
 --
+-- AUTO_INCREMENT de la tabla `detalle_grupo_permiso`
+--
+ALTER TABLE `detalle_grupo_permiso`
+  MODIFY `idDetalle` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `experiencias`
+--
+ALTER TABLE `experiencias`
+  MODIFY `idExperiencia` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `grupos_permiso`
+--
+ALTER TABLE `grupos_permiso`
+  MODIFY `idGrupoPermiso` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `permisos`
+--
+ALTER TABLE `permisos`
+  MODIFY `idPermiso` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `carreras`
@@ -446,9 +556,9 @@ ALTER TABLE `amigos`
   ADD CONSTRAINT `fk_amigo_u2` FOREIGN KEY (`idAmigo`) REFERENCES `usuarios` (`idUsuario`);
 
 --
--- Filtros para la tabla `carrerassedes`
+-- Filtros para la tabla `oferta_academica`
 --
-ALTER TABLE `carrerassedes`
+ALTER TABLE `oferta_academica`
   ADD CONSTRAINT `fk_cs_carrera` FOREIGN KEY (`idCarrera`) REFERENCES `carreras` (`idCarrera`) ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_cs_sede` FOREIGN KEY (`idSede`) REFERENCES `sedes` (`idSede`) ON UPDATE CASCADE;
 

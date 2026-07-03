@@ -19,7 +19,7 @@ class UsuarioRepository {
             ':ape'    => $usuario->getApellido(),
             ':fnac'   => $usuario->getFnac(),
             ':email'  => $usuario->getEmail(),
-            ':pass'   => $usuario->getPassword(),
+            ':pass'   => password_hash($usuario->getPassword(), PASSWORD_DEFAULT),
             ':foto'   => $usuario->getFotoPerfil(),
             ':cel'    => $usuario->getCelular(),
             ':tipo'   => $usuario->getTipoPerfil(),
@@ -37,31 +37,40 @@ class UsuarioRepository {
                 apellido = :ape,
                 fNac = :fnac,
                 email = :email,
-                password = :pass,
                 fotoPerfil = :foto,
                 celular = :cel,
                 tipoPerfil = :tipo,
                 descripcion = :desc,
                 trayectoria = :trayec,
-                idCiudad = :ciudad
-              WHERE idUsuario = :id";
+                idCiudad = :ciudad";
+
+        if (!empty($usuario->getPassword())) {
+            $sql .= ", password = :pass";
+        }
+        
+        $sql .= " WHERE idUsuario = :id";
         
         $stmt = $this->db->prepare($sql);
         
-        return $stmt->execute([
+        $params = [
             ':id'     => $usuario->getIdUsuario(),
             ':nom'    => $usuario->getNombre(),
             ':ape'    => $usuario->getApellido(),
             ':fnac'   => $usuario->getFnac(),
             ':email'  => $usuario->getEmail(),
-            ':pass'   => $usuario->getPassword(),
             ':foto'   => $usuario->getFotoPerfil(),
             ':cel'    => $usuario->getCelular(),
             ':tipo'   => $usuario->getTipoPerfil(),
             ':desc'   => $usuario->getDescripcion(),
             ':trayec' => $usuario->getTrayectoria(),
             ':ciudad' => $usuario->getIdCiudad()
-        ]);
+        ];
+
+        if (!empty($usuario->getPassword())) {
+            $params[':pass'] = password_hash($usuario->getPassword(), PASSWORD_DEFAULT);
+        }
+        
+        return $stmt->execute($params);
     }
 
     public function buscarPorId(int $idUsuario): ?Usuario {

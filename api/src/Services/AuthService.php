@@ -18,18 +18,18 @@ class AuthService {
     
     // Método de autenticación
     public function login($email, $password) {
-        // Obtenemos la conexión desde el singleton de la base de datos
         $db = db::getInstance()->getConnection();
-        $sql = "SELECT * FROM usuarios WHERE email = :email AND password = :password";
+        $sql = "SELECT * FROM usuarios WHERE email = :email";
         
         $stmt = $db->prepare($sql);
         $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':password', $password);
         $stmt->execute();
         
         if ($stmt->rowCount() > 0) {
-            // Retorna los datos del usuario si las credenciales son válidas
-            return $stmt->fetchAll(PDO::FETCH_OBJ);
+            $user = $stmt->fetch(PDO::FETCH_OBJ);
+            if (password_verify($password, $user->password)) {
+                return [$user];
+            }
         }
         return false;
     }
@@ -89,7 +89,7 @@ class AuthService {
             ':apellido' => $datos['apellido'],
             ':fNac' => $datos['fNac'],
             ':email' => $datos['email'],
-            ':password' => $datos['password'],
+            ':password' => password_hash($datos['password'], PASSWORD_DEFAULT),
             ':fotoPerfil' => $datos['fotoPerfil'],
             ':celular' => $datos['celular'],
             ':tipoPerfil' => $datos['tipoPerfil'],
