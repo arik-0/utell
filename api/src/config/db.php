@@ -6,7 +6,7 @@
     private $dbHost ='localhost';
     private $dbUser = 'root';
     private $dbPass = '';
-    private $dbName = 'u-tell';
+    private $dbName = 'utell';
 
     // Constructor privado para evitar instanciación externa
     private function __construct() {
