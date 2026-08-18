@@ -1,62 +1,90 @@
 <template>
   <div class="post-detail-page">
-    <div class="header">
-      <button class="back-btn" @click="router.back()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    <!-- Header -->
+    <div class="detail-header">
+      <button class="back-btn" @click="router.back()" aria-label="Volver">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
-      <h2 class="title">Publicación</h2>
+      <h2 class="header-title">Publicacion</h2>
       <div class="spacer"></div>
     </div>
 
-    <div class="content" v-if="post">
+    <!-- Loading state -->
+    <div v-if="isLoadingPost" class="loading-state">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Content -->
+    <div v-else-if="post" class="detail-content">
       <!-- Original Post -->
-      <div class="original-post">
+      <div class="original-post animate-fadein-up">
         <div class="post-header">
           <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
           <div class="post-meta">
-            <div class="meta-header">
+            <div class="meta-top">
               <span class="user-name">{{ post.nombre }} {{ post.apellido }}</span>
-              <span v-if="post.tipoPublicacion" :class="['type-badge', post.tipoPublicacion.toLowerCase()]">
-                {{ post.tipoPublicacion === 'Consulta' ? '?' : 'XP' }}
-              </span>
-              <span v-if="post.nombreUniversidad" class="uni-badge">
-                🎓 {{ post.nombreUniversidad }}
+              <span v-if="post.tipoPublicacion" class="type-badge" :class="post.tipoPublicacion === 'Consulta' ? 'badge-consulta' : 'badge-xp'">
+                <span class="type-dot" :class="post.tipoPublicacion === 'Consulta' ? 'type-dot-consulta' : 'type-dot-experiencia'"></span>
+                {{ post.tipoPublicacion }}
               </span>
             </div>
-            <span class="post-time">{{ formatTime(post.fecha, post.hora) }}</span>
+            <div class="meta-bottom">
+              <span class="post-time">{{ timeAgo(post.fecha, post.hora) }}</span>
+              <span v-if="post.nombreUniversidad" class="uni-chip">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                {{ post.nombreUniversidad }}
+              </span>
+            </div>
           </div>
-          <button class="more-btn">⋮</button>
+          <button class="more-btn" aria-label="Opciones">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </button>
         </div>
-        <div class="post-content">
-          <h2 class="post-title">{{ post.titulo }}</h2>
+
+        <div class="post-body">
+          <h2 v-if="post.titulo" class="post-title">{{ post.titulo }}</h2>
           <p class="post-text">{{ post.texto }}</p>
-          <div class="post-footer">
-            <div class="action-btn" @click.stop="toggleLike(post)" :class="{ 'liked': post.hasLiked > 0 }">
-              <span class="heart-icon">{{ post.hasLiked > 0 ? '❤️' : '🤍' }}</span> {{ post.likes || 0 }}
-            </div>
-            <div class="action-btn">
-              <span>💬</span> {{ post.cantidadRespuestas || 0 }}
-            </div>
-          </div>
+        </div>
+
+        <div class="post-actions">
+          <button class="action-btn" @click="toggleLike(post)" :class="{ liked: post.hasLiked > 0 }">
+            <svg class="heart-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" :fill="post.hasLiked > 0 ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span>{{ post.likes || 0 }}</span>
+          </button>
+          <button class="action-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>{{ respuestas.length }}</span>
+          </button>
         </div>
       </div>
 
-      <div class="responses-container">
-        <h3 class="responses-title">Respuestas</h3>
-        
-        <div v-if="isLoadingRespuestas" class="loading">Cargando respuestas...</div>
-        
-        <div v-else-if="respuestas.length === 0" class="no-responses">
-          Aún no hay respuestas. ¡Sé el primero en comentar!
+      <!-- Responses Section -->
+      <div class="responses-section">
+        <h3 class="section-title">
+          Respuestas
+          <span class="count-chip">{{ respuestas.length }}</span>
+        </h3>
+
+        <div v-if="isLoadingRespuestas" class="loading-state compact">
+          <div class="spinner"></div>
         </div>
-        
+
+        <div v-else-if="respuestas.length === 0" class="empty-responses">
+          <p>Aun no hay respuestas. Se el primero en comentar.</p>
+        </div>
+
         <div v-else class="responses-list">
-          <div v-for="res in respuestas" :key="res.idRespuesta" class="response-card">
+          <div
+            v-for="(res, index) in respuestas"
+            :key="res.idRespuesta"
+            class="response-card animate-fadein-up"
+            :style="{ animationDelay: `${index * 0.05}s` }"
+          >
             <img :src="getProfilePic(res.fotoPerfil)" alt="Avatar" class="res-avatar" />
-            <div class="res-content">
+            <div class="res-body">
               <div class="res-header">
                 <span class="res-user">{{ res.nombre }} {{ res.apellido }}</span>
-                <span class="res-time">{{ formatTime(res.fecha, res.hora) }}</span>
+                <span class="res-time">{{ timeAgo(res.fecha, res.hora) }}</span>
               </div>
               <p class="res-text">{{ res.texto }}</p>
             </div>
@@ -65,16 +93,28 @@
       </div>
     </div>
 
+    <!-- Error state -->
+    <div v-else class="loading-state">
+      <p class="text-secondary">No se pudo cargar la publicacion.</p>
+    </div>
+
+    <!-- Reply Bar -->
     <div class="reply-bar">
-      <input 
-        type="text" 
-        v-model="newReply" 
-        placeholder="Escribe una respuesta..." 
+      <input
+        type="text"
+        v-model="newReply"
+        class="reply-input"
+        placeholder="Escribi una respuesta..."
         @keyup.enter="submitReply"
         :disabled="isSubmitting"
       />
-      <button class="send-btn" @click="submitReply" :disabled="!newReply.trim() || isSubmitting">
-        ➤
+      <button
+        class="send-btn"
+        @click="submitReply"
+        :disabled="!newReply.trim() || isSubmitting"
+        aria-label="Enviar respuesta"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
   </div>
@@ -84,27 +124,25 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { timeAgo, getProfilePic } from '../utils'
+import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
-const route = useRoute()
-const router = useRouter()
+const route     = useRoute()
+const router    = useRouter()
 const authStore = useAuthStore()
 
-const post = ref(null)
-const respuestas = ref([])
-const newReply = ref('')
-const isLoadingPost = ref(true)
+const post              = ref(null)
+const respuestas        = ref([])
+const newReply          = ref('')
+const isLoadingPost     = ref(true)
 const isLoadingRespuestas = ref(true)
-const isSubmitting = ref(false)
-
-const goBack = () => {
-  router.back()
-}
+const isSubmitting      = ref(false)
 
 const fetchPost = async () => {
   try {
     const userId = authStore.user?.idUsuario || 0
-    const res = await axios.get(`http://localhost/utell/api/public/publicacion/${route.params.id}?idUsuario=${userId}`)
+    const res    = await axios.get(`${API_BASE_URL}/publicacion/${route.params.id}?idUsuario=${userId}`)
     if (res.data && typeof res.data === 'object' && !res.data.error) {
       post.value = res.data
     }
@@ -115,37 +153,9 @@ const fetchPost = async () => {
   }
 }
 
-const toggleLike = async (postItem) => {
-  if (!authStore.user) return
-  
-  // Optimistic UI update
-  const originalLiked = postItem.hasLiked
-  const originalLikes = postItem.likes
-  
-  postItem.hasLiked = originalLiked > 0 ? 0 : 1
-  postItem.likes = originalLiked > 0 ? (postItem.likes - 1) : (postItem.likes + 1)
-  
-  try {
-    const formData = new FormData()
-    formData.append('idUsuario', authStore.user.idUsuario)
-    
-    const res = await axios.post(`http://localhost/utell/api/public/publicacion/${postItem.idPublicacion}/like`, formData)
-    
-    if (res.data && res.data.totalLikes !== undefined) {
-      postItem.likes = res.data.totalLikes
-      postItem.hasLiked = res.data.likedByUser ? 1 : 0
-    }
-  } catch (error) {
-    console.error('Error toggling like:', error)
-    // Revert on error
-    postItem.hasLiked = originalLiked
-    postItem.likes = originalLikes
-  }
-}
-
 const fetchRespuestas = async () => {
   try {
-    const res = await axios.get(`http://localhost/utell/api/public/publicacion/${route.params.id}/respuestas`)
+    const res = await axios.get(`${API_BASE_URL}/publicacion/${route.params.id}/respuestas`)
     if (Array.isArray(res.data)) {
       respuestas.value = res.data
     }
@@ -156,38 +166,43 @@ const fetchRespuestas = async () => {
   }
 }
 
-const submitReply = async () => {
-  if (!newReply.value.trim() || isSubmitting.value) return
-  
-  isSubmitting.value = true
-  try {
-    const formData = new FormData()
-    formData.append('idPublicacion', route.params.id)
-    formData.append('idUsuario', authStore.user.idUsuario)
-    formData.append('texto', newReply.value.trim())
+const toggleLike = async (postItem) => {
+  if (!authStore.user) return
+  const originalLiked = postItem.hasLiked
+  const originalLikes = postItem.likes
+  postItem.hasLiked   = originalLiked > 0 ? 0 : 1
+  postItem.likes      = originalLiked > 0 ? (postItem.likes - 1) : (postItem.likes + 1)
 
-    await axios.post('http://localhost/utell/api/public/respuesta/nuevo', formData)
-    
-    newReply.value = ''
-    // Refresh responses
-    await fetchRespuestas()
+  try {
+    const fd = new FormData()
+    fd.append('idUsuario', authStore.user.idUsuario)
+    const res = await axios.post(`${API_BASE_URL}/publicacion/${postItem.idPublicacion}/like`, fd)
+    if (res.data && res.data.totalLikes !== undefined) {
+      postItem.likes    = res.data.totalLikes
+      postItem.hasLiked = res.data.likedByUser ? 1 : 0
+    }
   } catch (error) {
-    console.error('Error submitting response:', error)
-    alert("Hubo un error al guardar la respuesta.")
-  } finally {
-    isSubmitting.value = false
+    postItem.hasLiked = originalLiked
+    postItem.likes    = originalLikes
   }
 }
 
-const getProfilePic = (pic) => {
-  if (!pic) return '/img/Perfil.svg'
-  if (pic.startsWith('http')) return pic
-  return `/img/${pic}`
-}
-
-const formatTime = (fecha, hora) => {
-  if (!fecha) return 'Reciente'
-  return `${fecha} ${hora || ''}`.trim()
+const submitReply = async () => {
+  if (!newReply.value.trim() || isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('idPublicacion', route.params.id)
+    fd.append('idUsuario', authStore.user.idUsuario)
+    fd.append('texto', newReply.value.trim())
+    await axios.post(`${API_BASE_URL}/respuesta/nuevo`, fd)
+    newReply.value = ''
+    await fetchRespuestas()
+  } catch (error) {
+    console.error('Error submitting reply:', error)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 onMounted(() => {
@@ -201,257 +216,312 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--bg-white);
-  padding-bottom: 60px; /* Space for reply bar */
+  height: 100dvh;
+  background-color: var(--bg-main);
+  padding-bottom: 64px;
 }
 
-.header {
+/* ─── Header ─── */
+.detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 20px;
-  background-color: var(--bg-white);
-  border-bottom: 1px solid var(--border-color);
+  padding: 14px 16px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
   position: sticky;
   top: 0;
   z-index: 10;
-  padding-top: env(safe-area-inset-top, 20px);
 }
 
 .back-btn {
   background: none;
   border: none;
-  padding: 5px;
+  padding: 6px;
   cursor: pointer;
-  color: var(--text-dark);
+  color: var(--text-strong);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
 }
 
-.title {
-  font-size: 16px;
+.back-btn:active { background: var(--bg-subtle); }
+
+.header-title {
+  font-size: 17px;
   font-weight: 600;
+  color: var(--text-strong);
   margin: 0;
-  color: var(--text-dark);
 }
 
-.spacer {
-  width: 34px; /* match back button width for centering */
-}
+.spacer { width: 34px; }
 
-.content {
+/* ─── Loading / Error ─── */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
-  overflow-y: auto;
+  padding: 40px 0;
 }
+
+.loading-state.compact { padding: 24px 0; }
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Content ─── */
+.detail-content { flex: 1; overflow-y: auto; }
 
 .original-post {
-  padding: 20px;
+  padding: 20px 16px;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .post-header {
   display: flex;
-  align-items: center;
-  margin-bottom: 15px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .avatar {
-  width: 45px;
-  height: 45px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  margin-right: 12px;
-  background-color: #eee;
+  background-color: var(--bg-subtle);
   object-fit: cover;
+  flex-shrink: 0;
 }
 
-.avatar-sm {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  margin-right: 10px;
-  background-color: #eee;
-  object-fit: cover;
-}
+.post-meta { flex: 1; min-width: 0; }
 
-.post-meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.meta-header {
+.meta-top {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.type-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
-  color: white;
-}
-
-.type-badge.consulta {
-  background-color: #ff9800; /* Naranja para consulta */
-}
-
-.type-badge.experiencia {
-  background-color: #9c27b0; /* Violeta/morado para experiencia */
-}
-
-.uni-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  background-color: #e0f7fa;
-  color: #00838f;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
+  flex-wrap: wrap;
 }
 
 .user-name {
   font-weight: 600;
   font-size: 15px;
-  color: var(--text-dark);
+  color: var(--text-strong);
 }
 
-.post-time {
-  font-size: 12px;
-  color: var(--text-gray);
+.type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-consulta { background-color: var(--accent-ghost); color: #92700C; }
+.badge-xp       { background-color: var(--primary-ghost); color: var(--primary-dark); }
+
+.meta-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.post-time { font-size: 12px; color: var(--text-muted); }
+
+.uni-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-ghost);
+  color: #92700C;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .more-btn {
   background: none;
   border: none;
-  color: var(--text-gray);
-  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
 }
+
+.more-btn:active { background: var(--bg-subtle); }
 
 .post-title {
   font-size: 18px;
-  font-weight: 600;
-  color: var(--text-dark);
-  margin-bottom: 8px;
-  margin-top: 0;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 8px;
+  line-height: 1.3;
 }
 
-.post-body p {
+.post-text {
   font-size: 15px;
-  line-height: 1.5;
-  color: var(--text-dark);
-  margin-bottom: 15px;
+  line-height: 1.6;
+  color: var(--text-body);
+  margin-bottom: 16px;
 }
 
-.post-footer {
+.post-actions {
   display: flex;
   gap: 20px;
-  color: var(--text-gray);
-  font-size: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
 }
 
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
-  transition: transform 0.1s;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  transition: color var(--duration-fast) ease,
+              transform 0.15s var(--ease-spring);
 }
 
-.action-btn:active {
-  transform: scale(0.9);
-}
+.action-btn:active { transform: scale(0.88); }
 
-.heart-icon {
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  display: inline-block;
-}
+.action-btn.liked { color: #E53E3E; }
 
-.action-btn.liked .heart-icon {
-  transform: scale(1.2);
-}
+.heart-icon { transition: transform 0.25s var(--ease-spring); }
+.action-btn.liked .heart-icon { transform: scale(1.2); }
 
-.divider {
-  height: 8px;
-  background-color: #f5f5f5;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
+/* ─── Responses ─── */
+.responses-section { padding: 16px; }
 
-.responses-list {
-  padding: 15px 20px;
-}
-
-.response-item {
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-bottom: 16px;
   display: flex;
-  margin-bottom: 20px;
+  align-items: center;
+  gap: 8px;
 }
 
-.response-content {
+.count-chip {
+  background-color: var(--primary-ghost);
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.empty-responses {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 24px 16px;
+}
+
+.responses-list { display: flex; flex-direction: column; gap: 14px; }
+
+.response-card {
+  display: flex;
+  gap: 10px;
+}
+
+.res-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-subtle);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.res-body {
   flex: 1;
-  background-color: #f9f9f9;
-  padding: 12px;
-  border-radius: 0 12px 12px 12px;
+  background-color: var(--bg-subtle);
+  padding: 10px 14px;
+  border-radius: 4px var(--radius-md) var(--radius-md) var(--radius-md);
 }
 
-.response-header {
+.res-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 5px;
 }
 
-.response-text {
+.res-user {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-strong);
+}
+
+.res-time { font-size: 11px; color: var(--text-muted); }
+
+.res-text {
   font-size: 14px;
-  color: #333;
+  color: var(--text-body);
+  line-height: 1.45;
   margin: 0;
-  line-height: 1.4;
 }
 
-.loading-state, .empty-state {
-  text-align: center;
-  color: var(--text-gray);
-  padding: 20px;
-}
-
-.full-page {
-  margin-top: 50px;
-}
-
-/* Sticky Reply Bar */
+/* ─── Reply Bar ─── */
 .reply-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  background-color: var(--bg-white);
-  border-top: 1px solid var(--border-color);
-  padding: 10px 15px;
+  background-color: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
 }
 
 .reply-input {
   flex: 1;
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 10px 15px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 10px 16px;
   font-size: 14px;
+  font-family: var(--font-family);
   outline: none;
-  background-color: #f5f5f5;
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  transition: border-color var(--duration-fast) ease,
+              background var(--duration-fast) ease;
 }
 
 .reply-input:focus {
-  border-color: var(--primary-color);
-  background-color: var(--bg-white);
+  border-color: var(--primary);
+  background-color: var(--bg-card);
 }
 
+.reply-input::placeholder { color: var(--text-muted); }
+
 .send-btn {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: white;
   border: none;
   width: 40px;
@@ -461,11 +531,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: opacity 0.2s;
+  flex-shrink: 0;
+  transition: opacity var(--duration-fast) ease,
+              transform var(--duration-fast) ease;
 }
 
-.send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.send-btn:active { transform: scale(0.9); }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

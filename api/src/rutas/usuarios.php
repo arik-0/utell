@@ -160,8 +160,6 @@ $app->get('/mensajedirecto', function(Request $request, Response $response){
 $app->get('/perfil/{id}', function(Request $request, Response $response){
   $id = (int)$request->getAttribute('id');
   try{
-    // Reutilizamos el servicio para traer el usuario, aunque solo pida algunas columnas.
-    // En N-Capas, las vistas (Frontend) deciden qué datos usar del objeto de dominio.
     $usuarioService = UsuarioService::getInstance();
     $usuario = $usuarioService->obtenerUsuarioPorId($id);
 
@@ -174,3 +172,27 @@ $app->get('/perfil/{id}', function(Request $request, Response $response){
     echo '{"error" : {"text":"'.$e->getMessage().'"}}';
   }
 });
+
+// PUT Cambiar estado de cuenta (bloquear / activar)
+$app->put('/usuarios/{id}/estado', function(Request $request, Response $response){
+  $id     = (int)$request->getAttribute('id');
+  $accion = $request->getParam('accion');
+
+  if (empty($accion)) {
+    echo '{"error":{"text":"El campo accion es requerido (bloquear o activar)."}}';
+    return;
+  }
+
+  try{
+    $usuarioService = UsuarioService::getInstance();
+    $resultado      = $usuarioService->cambiarEstadoCuenta($id, $accion);
+
+    if ($resultado) {
+      echo json_encode("Estado de cuenta actualizado a '$accion'.");
+    } else {
+      echo json_encode("No se pudo actualizar el estado o el usuario no existe.");
+    }
+  }catch(Exception $e){
+    echo '{"error" : {"text":"'.$e->getMessage().'"}}';
+  }
+});

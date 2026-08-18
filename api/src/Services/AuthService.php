@@ -1,101 +1,176 @@
 <?php
 class AuthService {
     private static $instance = null;
-    
-    // Constructor privado para el Singleton
+
     private function __construct() {}
-    
-    // Prevenir clonación
-    private function __clone() {}
-    
-    // Obtener la instancia
+    private function __clone()     {}
+
     public static function getInstance() {
-        if (self::$instance == null) {
+        if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
     }
-    
-    // Método de autenticación
-    public function login($email, $password) {
-        $db = db::getInstance()->getConnection();
-        $sql = "SELECT * FROM usuarios WHERE email = :email";
-        
-        $stmt = $db->prepare($sql);
+
+    // ─── Classic email/password login ─────────────────────────────────────────
+    // Supports bcrypt hashes and plain-text passwords (auto-migrates to bcrypt).
+    public function login(string $email, string $password) {
+        $db   = db::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email");
         $stmt->bindParam(':email', $email);
         $stmt->execute();
-        
+
         if ($stmt->rowCount() > 0) {
             $user = $stmt->fetch(PDO::FETCH_OBJ);
+
+            // Block locked accounts before checking credentials
+            if (isset($user->estadoCuenta) && $user->estadoCuenta === 'bloqueado') {
+                throw new Exception('Cuenta bloqueada. Contacta al administrador.');
+            }
+
             if (password_verify($password, $user->password)) {
                 return [$user];
             }
+
+            // Fallback for plain-text passwords (migration path)
+            if ($password === $user->password) {
+                $hash       = password_hash($password, PASSWORD_DEFAULT);
+                $updateStmt = $db->prepare("UPDATE usuarios SET password = :hash WHERE idUsuario = :id");
+                $updateStmt->execute([':hash' => $hash, ':id' => $user->idUsuario]);
+                return [$user];
+            }
         }
+
         return false;
     }
 
+    // ─── Google OAuth: find existing user by email, or auto-create ────────────
+    public function loginOrCreateGoogle(
+        string $email,
+        string $fullName,
+        string $nombre,
+        string $apellido,
+        string $fotoPerfil
+    ) {
+        $db   = db::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
+        $stmt->execute([':email' => $email]);
+
+        if ($stmt->rowCount() > 0) {
+            return [$stmt->fetch(PDO::FETCH_OBJ)];
+        }
+
+        // Auto-create the user with a random non-usable password
+        $randomPass  = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+        $nombreFinal = $nombre ?: explode(' ', $fullName)[0];
+        $apellFinal  = $apellido ?: (strpos($fullName, ' ') !== false ? substr($fullName, strpos($fullName, ' ') + 1) : '');
+        $idCiudad    = $this->_resolveDefaultCity($db);
+
+        $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad)
+                 VALUES (:nombre, :apellido, '2000-01-01', :email, :password, :foto, '', 'Estudiante', '', '', :idCiudad)";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            ':nombre'   => $nombreFinal,
+            ':apellido' => $apellFinal,
+            ':email'    => $email,
+            ':password' => $randomPass,
+            ':foto'     => $fotoPerfil,
+            ':idCiudad' => $idCiudad,
+        ]);
+
+        $newId = (int) $db->lastInsertId();
+        $fetch = $db->prepare("SELECT * FROM usuarios WHERE idUsuario = :id");
+        $fetch->execute([':id' => $newId]);
+        return [$fetch->fetch(PDO::FETCH_OBJ)];
+    }
+
+    // ─── Classic registration ──────────────────────────────────────────────────
     public function registro(array $datos): bool {
         $db = db::getInstance()->getConnection();
-        
-        $paisNombre = $datos['pais'] ?? 'Argentina';
-        $provinciaNombre = $datos['provincia'] ?? 'Santa Fe';
-        $ciudadNombre = $datos['ciudad'] ?? 'Rosario';
-        $idCiudad = 1;
 
-        // 1. Resolve Pais
-        $stmtPais = $db->prepare("SELECT idPais FROM paises WHERE nombre = :nombre");
-        $stmtPais->execute([':nombre' => $paisNombre]);
-        $rowPais = $stmtPais->fetch(PDO::FETCH_ASSOC);
-        if ($rowPais) {
-            $idPais = $rowPais['idPais'];
-        } else {
-            $stmtInsertPais = $db->prepare("INSERT INTO paises (nombre) VALUES (:nombre)");
-            $stmtInsertPais->execute([':nombre' => $paisNombre]);
-            $idPais = $db->lastInsertId();
-        }
-        
-        // 2. Resolve Provincia
-        $stmtProv = $db->prepare("SELECT idProvincia FROM provincias WHERE nombre = :nombre AND idPais = :idPais");
-        $stmtProv->execute([':nombre' => $provinciaNombre, ':idPais' => $idPais]);
-        $rowProv = $stmtProv->fetch(PDO::FETCH_ASSOC);
-        if ($rowProv) {
-            $idProvincia = $rowProv['idProvincia'];
-        } else {
-            $stmtInsertProv = $db->prepare("INSERT INTO provincias (idPais, nombre) VALUES (:idPais, :nombre)");
-            $stmtInsertProv->execute([':idPais' => $idPais, ':nombre' => $provinciaNombre]);
-            $idProvincia = $db->lastInsertId();
-        }
-        
-        // 3. Resolve Ciudad
-        $stmtCiu = $db->prepare("SELECT idCiudad FROM ciudades WHERE nombre = :nombre AND idProvincia = :idProv");
-        $stmtCiu->execute([':nombre' => $ciudadNombre, ':idProv' => $idProvincia]);
-        $rowCiu = $stmtCiu->fetch(PDO::FETCH_ASSOC);
-        if ($rowCiu) {
-            $idCiudad = $rowCiu['idCiudad'];
-        } else {
-            $stmtInsertCiu = $db->prepare("INSERT INTO ciudades (idProvincia, nombre) VALUES (:idProv, :nombre)");
-            $stmtInsertCiu->execute([':idProv' => $idProvincia, ':nombre' => $ciudadNombre]);
-            $idCiudad = $db->lastInsertId();
-        }
+        // Ensure default role exists to avoid FK failures
+        try {
+            $check = $db->query("SELECT COUNT(*) as cnt FROM roles WHERE idRol = 2");
+            if ($check && (int)$check->fetch(PDO::FETCH_ASSOC)['cnt'] === 0) {
+                $db->exec("INSERT INTO roles (idRol, nombreRol) VALUES (1,'Administrador'),(2,'Usuario') ON DUPLICATE KEY UPDATE nombreRol=VALUES(nombreRol)");
+            }
+        } catch (Exception $e) {}
 
-        // 4. Insert Usuario (Ideally this goes to UsuarioRepository, but keeping it here for simplicity of AuthService)
-        $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad) VALUES 
-                (:nombre, :apellido, :fNac, :email, :password, :fotoPerfil, :celular, :tipoPerfil, :descripcion, :trayectoria, :idCiudad)";
-        
-        $resultado = $db->prepare($sql);
+        $idCiudad = $this->_resolveCiudad(
+            $db,
+            $datos['pais']      ?? 'Argentina',
+            $datos['provincia'] ?? 'Santa Fe',
+            $datos['ciudad']    ?? 'Rosario'
+        );
 
-        return $resultado->execute([
-            ':nombre' => $datos['nombre'],
+        $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular,
+                                      tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera)
+                 VALUES (:nombre, :apellido, :fNac, :email, :password, :foto, :cel,
+                         :tipo, :desc, :trayec, :ciudad, :uni, :car)";
+        $stmt = $db->prepare($sql);
+
+        return $stmt->execute([
+            ':nombre'   => $datos['nombre'],
             ':apellido' => $datos['apellido'],
-            ':fNac' => $datos['fNac'],
-            ':email' => $datos['email'],
+            ':fNac'     => $datos['fNac'],
+            ':email'    => $datos['email'],
             ':password' => password_hash($datos['password'], PASSWORD_DEFAULT),
-            ':fotoPerfil' => $datos['fotoPerfil'],
-            ':celular' => $datos['celular'],
-            ':tipoPerfil' => $datos['tipoPerfil'],
-            ':descripcion' => $datos['descripcion'],
-            ':trayectoria' => $datos['trayectoria'],
-            ':idCiudad' => $idCiudad
+            ':foto'     => $datos['fotoPerfil']    ?? '',
+            ':cel'      => $datos['celular']        ?? '',
+            ':tipo'     => $datos['tipoPerfil']     ?? 'Estudiante',
+            ':desc'     => $datos['descripcion']    ?? '',
+            ':trayec'   => $datos['trayectoria']    ?? '',
+            ':ciudad'   => $idCiudad,
+            ':uni'      => !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null,
+            ':car'      => !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null,
         ]);
+    }
+
+    // ─── Private Helpers ──────────────────────────────────────────────────────
+
+    private function _resolveCiudad($db, string $pais, string $provincia, string $ciudad): int {
+        // Pais
+        $stmt = $db->prepare("SELECT idPais FROM paises WHERE nombre = :n");
+        $stmt->execute([':n' => $pais]);
+        $row  = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $idPais = $row['idPais'];
+        } else {
+            $db->prepare("INSERT INTO paises (nombre) VALUES (:n)")->execute([':n' => $pais]);
+            $idPais = (int) $db->lastInsertId();
+        }
+
+        // Provincia
+        $stmt = $db->prepare("SELECT idProvincia FROM provincias WHERE nombre = :n AND idPais = :p");
+        $stmt->execute([':n' => $provincia, ':p' => $idPais]);
+        $row  = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $idProv = $row['idProvincia'];
+        } else {
+            $db->prepare("INSERT INTO provincias (idPais, nombre) VALUES (:p, :n)")->execute([':p' => $idPais, ':n' => $provincia]);
+            $idProv = (int) $db->lastInsertId();
+        }
+
+        // Ciudad
+        $stmt = $db->prepare("SELECT idCiudad FROM ciudades WHERE nombre = :n AND idProvincia = :p");
+        $stmt->execute([':n' => $ciudad, ':p' => $idProv]);
+        $row  = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            return (int) $row['idCiudad'];
+        }
+
+        $db->prepare("INSERT INTO ciudades (idProvincia, nombre) VALUES (:p, :n)")->execute([':p' => $idProv, ':n' => $ciudad]);
+        return (int) $db->lastInsertId();
+    }
+
+    private function _resolveDefaultCity($db): int {
+        $row = $db->query("SELECT idCiudad FROM ciudades LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($row) return (int) $row['idCiudad'];
+
+        // Minimal seeding if table is empty
+        $db->exec("INSERT IGNORE INTO paises (idPais, nombre) VALUES (1, 'Argentina')");
+        $db->exec("INSERT IGNORE INTO provincias (idProvincia, idPais, nombre) VALUES (1, 1, 'Santa Fe')");
+        $db->exec("INSERT IGNORE INTO ciudades (idCiudad, idProvincia, nombre) VALUES (1, 1, 'Rosario')");
+        return 1;
     }
 }

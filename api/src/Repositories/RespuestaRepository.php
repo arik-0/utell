@@ -4,13 +4,22 @@ class RespuestaRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
+        $this->asegurarColumnas();
+    }
+
+    private function asegurarColumnas(): void {
+        try {
+            $this->db->exec("ALTER TABLE respuestas ADD COLUMN idPublicacion int(11) NULL AFTER idConsulta");
+        } catch (Exception $e) {
+            // Ignorar si la columna ya existe
+        }
     }
 
     public function obtenerRespuestasPorPublicacion(int $idPublicacion) {
         $sql = "SELECT r.*, u.nombre, u.apellido, u.fotoPerfil 
                 FROM respuestas r 
                 INNER JOIN usuarios u ON r.idUsuario = u.idUsuario
-                WHERE r.idPublicacion = :id
+                WHERE r.idPublicacion = :id OR r.idConsulta = :id
                 ORDER BY r.fecha ASC, r.hora ASC";
         
         $stmt = $this->db->prepare($sql);
@@ -19,16 +28,19 @@ class RespuestaRepository {
     }
 
     public function crearRespuesta(array $datos): bool {
-        $sql = "INSERT INTO respuestas (idPublicacion, idUsuario, fecha, hora, texto) 
-                VALUES (:idPublicacion, :idUsuario, :fecha, :hora, :texto)";
+        $idPub = (int)$datos['idPublicacion'];
+        
+        $sql = "INSERT INTO respuestas (idConsulta, idPublicacion, idUsuario, fecha, hora, texto) 
+                VALUES (:idConsulta, :idPublicacion, :idUsuario, :fecha, :hora, :texto)";
         
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
-            ':idPublicacion' => $datos['idPublicacion'],
-            ':idUsuario' => $datos['idUsuario'],
-            ':fecha' => date('Y-m-d'),
-            ':hora' => date('H:i:s'),
-            ':texto' => $datos['texto']
+            ':idConsulta'    => $idPub,
+            ':idPublicacion' => $idPub,
+            ':idUsuario'     => $datos['idUsuario'],
+            ':fecha'         => date('Y-m-d'),
+            ':hora'          => date('H:i:s'),
+            ':texto'         => $datos['texto']
         ]);
     }
 }

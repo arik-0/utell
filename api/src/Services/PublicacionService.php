@@ -26,6 +26,10 @@ class PublicacionService {
         return $this->publicacionRepository->obtenerParati($idUsuario);
     }
 
+    public function obtenerTuRed(int $idUsuario) {
+        return $this->publicacionRepository->obtenerTuRed($idUsuario);
+    }
+
     public function obtenerPorId(int $idPublicacion, int $idUsuario) {
         return $this->publicacionRepository->obtenerPorId($idPublicacion, $idUsuario);
     }

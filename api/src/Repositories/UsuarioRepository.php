@@ -9,8 +9,20 @@ class UsuarioRepository {
     }
 
     public function guardar(Usuario $usuario): int {
-        $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad) 
-                VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad)";
+        $idCiudad = $usuario->getIdCiudad() ?: 1;
+
+        // Asegurar que existan registros base para evitar violaciones de clave foránea
+        try {
+            $this->db->exec("INSERT INTO roles (idRol, nombreRol) VALUES (1, 'Administrador'), (2, 'Usuario') ON DUPLICATE KEY UPDATE nombreRol=VALUES(nombreRol)");
+            $this->db->exec("INSERT INTO paises (idPais, nombre) VALUES (1, 'Argentina') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
+            $this->db->exec("INSERT INTO provincias (idProvincia, idPais, nombre) VALUES (1, 1, 'Santa Fe') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
+            $this->db->exec("INSERT INTO ciudades (idCiudad, idProvincia, nombre) VALUES (1, 1, 'Rosario') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
+        } catch (Exception $e) {
+            // Ignorar silenciosamente si ya existen
+        }
+
+        $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera) 
+                VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad, :uni, :car)";
         
         $stmt = $this->db->prepare($sql);
         
@@ -20,12 +32,14 @@ class UsuarioRepository {
             ':fnac'   => $usuario->getFnac(),
             ':email'  => $usuario->getEmail(),
             ':pass'   => password_hash($usuario->getPassword(), PASSWORD_DEFAULT),
-            ':foto'   => $usuario->getFotoPerfil(),
-            ':cel'    => $usuario->getCelular(),
-            ':tipo'   => $usuario->getTipoPerfil(),
-            ':desc'   => $usuario->getDescripcion(),
-            ':trayec' => $usuario->getTrayectoria(),
-            ':ciudad' => $usuario->getIdCiudad()
+            ':foto'   => $usuario->getFotoPerfil() ?: '',
+            ':cel'    => $usuario->getCelular() ?: '',
+            ':tipo'   => $usuario->getTipoPerfil() ?: 'Estudiante',
+            ':desc'   => $usuario->getDescripcion() ?: '',
+            ':trayec' => $usuario->getTrayectoria() ?: '',
+            ':ciudad' => $idCiudad,
+            ':uni'    => $usuario->getIdUniversidad(),
+            ':car'    => $usuario->getIdCarrera()
         ]);
         
         return (int) $this->db->lastInsertId();
@@ -42,7 +56,9 @@ class UsuarioRepository {
                 tipoPerfil = :tipo,
                 descripcion = :desc,
                 trayectoria = :trayec,
-                idCiudad = :ciudad";
+                idCiudad = :ciudad,
+                idUniversidad = :uni,
+                idCarrera = :car";
 
         if (!empty($usuario->getPassword())) {
             $sql .= ", password = :pass";
@@ -63,7 +79,9 @@ class UsuarioRepository {
             ':tipo'   => $usuario->getTipoPerfil(),
             ':desc'   => $usuario->getDescripcion(),
             ':trayec' => $usuario->getTrayectoria(),
-            ':ciudad' => $usuario->getIdCiudad()
+            ':ciudad' => $usuario->getIdCiudad(),
+            ':uni'    => $usuario->getIdUniversidad(),
+            ':car'    => $usuario->getIdCarrera()
         ];
 
         if (!empty($usuario->getPassword())) {
@@ -101,10 +119,21 @@ class UsuarioRepository {
     }
 
     public function eliminar(int $idUsuario): bool {
-        $sql = "DELETE FROM usuarios WHERE idUsuario = :id";
+        $sql  = "DELETE FROM usuarios WHERE idUsuario = :id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $idUsuario]);
+        return $stmt->rowCount() > 0;
+    }
 
+    public function bloquearCuenta(int $idUsuario): bool {
+        $stmt = $this->db->prepare("UPDATE usuarios SET estadoCuenta = 'bloqueado' WHERE idUsuario = :id");
+        $stmt->execute([':id' => $idUsuario]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function activarCuenta(int $idUsuario): bool {
+        $stmt = $this->db->prepare("UPDATE usuarios SET estadoCuenta = 'activo' WHERE idUsuario = :id");
+        $stmt->execute([':id' => $idUsuario]);
         return $stmt->rowCount() > 0;
     }
 
@@ -121,7 +150,9 @@ class UsuarioRepository {
             $fila['fotoPerfil'],
             $fila['celular'],
             $fila['descripcion'],
-            $fila['trayectoria']
+            $fila['trayectoria'],
+            isset($fila['idUniversidad']) ? (int)$fila['idUniversidad'] : null,
+            isset($fila['idCarrera']) ? (int)$fila['idCarrera'] : null
         );
     }
 }

@@ -36,6 +36,28 @@ $app->get('/parati', function(Request $request, Response $response){
   }
 }); 
 
+$app->get('/tured', function(Request $request, Response $response){
+  $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
+  
+  if ($idUsuario === 0) {
+      echo json_encode([]);
+      return;
+  }
+  
+  try{
+    $service = PublicacionService::getInstance();
+    $publicaciones = $service->obtenerTuRed($idUsuario);
+
+    if (count($publicaciones) > 0){
+      echo json_encode($publicaciones);
+    }else {
+      echo json_encode([]);
+    }
+  }catch(Exception $e){
+    echo '{"error" : {"text":"'.$e->getMessage().'"}}';
+  }
+}); 
+
 $app->post('/publicacion/nuevo', function(Request $request, Response $response){
    $db = db::getInstance()->getConnection(); // Keep DB connection here temporarily for resolvers, or move it to a service
    

@@ -63,4 +63,13 @@ class UsuarioService {
 
         return $this->usuarioRepository->actualizar($usuarioModificado);
     }
+
+    public function cambiarEstadoCuenta(int $id, string $accion): bool {
+        if ($accion === 'bloquear') {
+            return $this->usuarioRepository->bloquearCuenta($id);
+        } elseif ($accion === 'activar') {
+            return $this->usuarioRepository->activarCuenta($id);
+        }
+        throw new Exception("Accion invalida. Use 'bloquear' o 'activar'.");
+    }
 }

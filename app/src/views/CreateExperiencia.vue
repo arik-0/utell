@@ -1,57 +1,63 @@
 <template>
   <div class="create-page">
-    <div class="header">
-      <router-link to="/feed" class="close-btn text-white no-underline">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </router-link>
-      <h2 class="title">Crear experiencia</h2>
-      
-      <div class="header-actions">
-        <button class="icon-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-        </button>
-        <button class="btn btn-white btn-sm" @click="submitPost" :disabled="isLoading">
-          {{ isLoading ? '...' : 'Publicar' }}
-        </button>
-      </div>
-    </div>
+    <header class="create-header">
+      <router-link to="/feed" class="close-btn">✕</router-link>
+      <h1>Crear Experiencia</h1>
+      <button @click="submitPost" class="btn-publish" :disabled="isLoading">
+        <span class="icon">📎</span> Publicar
+      </button>
+    </header>
     
-    <div class="content-body">
-      <!-- Profile section -->
-      <div class="profile-row">
-        <div class="avatar">
-          <img :src="authStore.user?.fotoPerfil || '/img/default-avatar.png'" alt="Avatar" />
+    <div class="create-content">
+      <div class="user-info">
+        <img :src="authStore.user?.fotoPerfil || '/img/default-avatar.png'" alt="Avatar" class="avatar" />
+        <div class="user-details">
+          <span class="name">{{ authStore.user?.nombre }} {{ authStore.user?.apellido }}</span>
+          <select class="privacy-dropdown">
+            <option>Público</option>
+            <option>Solo amigos</option>
+          </select>
         </div>
-        <div class="profile-info">
-          <h3 class="name">{{ authStore.user?.nombre }} {{ authStore.user?.apellido }}</h3>
-          <div class="privacy-dropdown">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            <span>Amigos</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+
+      <form class="post-form">
+        <input type="text" v-model="form.titulo" placeholder="Título de la experiencia" class="underline-input" />
+        
+        <input type="text" list="universidades" v-model="form.universidad" placeholder="Universidad (Opcional)" class="underline-input" />
+        <datalist id="universidades">
+          <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.nombre"></option>
+        </datalist>
+
+        <input type="text" list="carreras" v-model="form.carrera" placeholder="Carrera (Opcional)" class="underline-input" />
+        <datalist id="carreras">
+          <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
+        </datalist>
+
+        <div class="ratings-container">
+          <div class="rating-group">
+            <label>Clima Estudiantil</label>
+            <div class="stars">
+              <span v-for="n in 5" :key="'c'+n" @click="form.puntuacionClima = n" :class="{ active: n <= form.puntuacionClima }">★</span>
+            </div>
+          </div>
+          <div class="rating-group">
+            <label>Infraestructura</label>
+            <div class="stars">
+              <span v-for="n in 5" :key="'i'+n" @click="form.puntuacionInfraestructura = n" :class="{ active: n <= form.puntuacionInfraestructura }">★</span>
+            </div>
+          </div>
+          <div class="rating-group">
+            <label>Nivel Académico</label>
+            <div class="stars">
+              <span v-for="n in 5" :key="'a'+n" @click="form.puntuacionAcademica = n" :class="{ active: n <= form.puntuacionAcademica }">★</span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <!-- Inputs -->
-      <div class="form-container">
-        <input type="text" v-model="form.titulo" class="input-line" placeholder="Titulo" />
+
+        <textarea v-model="form.texto" placeholder="Describe tu experiencia aquí..." class="post-textarea"></textarea>
         
-        <!-- Universidad Autocomplete using HTML5 datalist -->
-        <input list="uni-list" v-model="form.universidad" class="input-line" placeholder="Universidad (Opcional)" autocomplete="off">
-        <datalist id="uni-list">
-          <option v-for="u in universidades" :key="u.name" :value="u.name"></option>
-        </datalist>
-        
-        <!-- Carrera Autocomplete using HTML5 datalist -->
-        <input list="car-list" v-model="form.carrera" class="input-line" placeholder="Carrera (Opcional)" autocomplete="off">
-        <datalist id="car-list">
-          <option v-for="c in carreras" :key="c.idCarrera" :value="c.nombre"></option>
-        </datalist>
-        
-        <textarea v-model="form.texto" class="input-line textarea-large" placeholder="Descripción" required></textarea>
-      </div>
-      
-      <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+        <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+      </form>
     </div>
   </div>
 </template>
@@ -60,74 +66,52 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
 const isLoading = ref(false)
 const errorMsg = ref('')
-
 const universidades = ref([])
 const carreras = ref([])
-
-const form = ref({
-  titulo: '',
-  universidad: '',
-  carrera: '',
-  texto: ''
-})
+const form = ref({ titulo: '', universidad: '', carrera: '', texto: '', puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
 
 onMounted(async () => {
-  // Llenar combos
   try {
-    // Usar Hipolabs API para universidades mundiales (o filtrado por país si quieres)
-    const resUni = await axios.get('http://universities.hipolabs.com/search?country=Argentina')
-    if (Array.isArray(resUni.data)) {
-      universidades.value = resUni.data
-    }
-    
-    // Obtener carreras existentes en la BD
-    const resCar = await axios.get('http://localhost/utell/api/public/carreras')
-    if (Array.isArray(resCar.data)) {
-      carreras.value = resCar.data
-    }
-  } catch(e) {
-    console.error("Error loading combos", e)
-  }
+    const resUni = await axios.get(`${API_BASE_URL}/universidades`)
+    if (Array.isArray(resUni.data)) universidades.value = resUni.data
+    const resCar = await axios.get(`${API_BASE_URL}/carreras`)
+    if (Array.isArray(resCar.data)) carreras.value = resCar.data
+  } catch(e) { console.error('Error loading combos', e) }
 })
 
 const submitPost = async () => {
-  if (!form.value.texto) {
-    errorMsg.value = "La descripción no puede estar vacía."
-    return
-  }
-  
-  isLoading.value = true
-  errorMsg.value = ""
-  
+  if (!form.value.texto) { errorMsg.value = 'La descripción no puede estar vacía.'; return }
+  isLoading.value = true; errorMsg.value = ''
   try {
     const formData = new FormData()
     formData.append('idUsuario', authStore.user.idUsuario)
     formData.append('tipoPublicacion', 'Experiencia')
     formData.append('titulo', form.value.titulo)
     formData.append('texto', form.value.texto)
-    // Send string names instead of IDs
-    if(form.value.universidad) formData.append('universidad', form.value.universidad)
-    if(form.value.carrera) formData.append('carrera', form.value.carrera)
+    formData.append('puntuacionClima', form.value.puntuacionClima)
+    formData.append('puntuacionInfraestructura', form.value.puntuacionInfraestructura)
+    formData.append('puntuacionAcademica', form.value.puntuacionAcademica)
 
-    const res = await axios.post('http://localhost/utell/api/public/publicacion/nuevo', formData)
-    if (typeof res.data === 'string' && res.data.includes('error')) {
-      throw new Error(res.data)
+    if (form.value.universidad) {
+      const uniObj = universidades.value.find(u => u.nombre === form.value.universidad)
+      if (uniObj && uniObj.idUniversidad) formData.append('idUniversidad', uniObj.idUniversidad)
     }
-    
+    if (form.value.carrera) {
+      const carObj = carreras.value.find(c => c.nombre === form.value.carrera)
+      if (carObj && carObj.idCarrera) formData.append('idCarrera', carObj.idCarrera)
+    }
+    const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
+    if (typeof res.data === 'string' && res.data.includes('error')) throw new Error(res.data)
     router.push('/feed')
-  } catch (error) {
-    console.error(error)
-    errorMsg.value = "Hubo un error al publicar."
-  } finally {
-    isLoading.value = false
-  }
+  } catch (error) { errorMsg.value = 'Hubo un error al publicar.' }
+  finally { isLoading.value = false }
 }
 </script>
 
@@ -135,60 +119,63 @@ const submitPost = async () => {
 .create-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: var(--bg-white);
+  min-height: 100vh;
+  background: var(--bg-main);
+  font-family: var(--font-family);
 }
 
-.header {
+.create-header {
+  background: var(--primary);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--primary-color);
   padding: 15px 20px;
-  color: white;
-  padding-top: env(safe-area-inset-top, 20px);
 }
 
-.title {
+.close-btn {
+  color: var(--text-inverse);
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+h1 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
 }
 
-.header-actions {
+.btn-publish {
+  background: var(--bg-card);
+  color: var(--primary);
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity var(--duration-fast);
+}
+
+.btn-publish:disabled {
+  opacity: 0.7;
+}
+
+.create-content {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-info {
   display: flex;
   align-items: center;
   gap: 15px;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.btn-white {
-  background-color: white;
-  color: var(--primary-color);
-  font-weight: 600;
-  padding: 6px 16px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-}
-
-.content-body {
-  padding: 20px;
-  flex: 1;
-}
-
-.profile-row {
-  display: flex;
-  align-items: center;
   margin-bottom: 25px;
 }
 
@@ -196,75 +183,107 @@ const submitPost = async () => {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  overflow: hidden;
-  margin-right: 15px;
-  background-color: #eee;
+  object-fit: cover;
+  border: 2px solid var(--border-light);
 }
 
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 5px;
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .privacy-dropdown {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 3px 8px;
-  font-size: 11px;
-  color: #666;
-  background-color: #f9f9f9;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  padding: 2px 5px;
+  color: var(--text-secondary);
 }
 
-.form-container {
+.post-form {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+  flex-grow: 1;
 }
 
-.input-line {
+.underline-input {
   border: none;
-  border-bottom: 1px solid #eee;
-  padding: 15px 0;
-  font-size: 14px;
-  color: #333;
-  width: 100%;
-  outline: none;
+  border-bottom: 1px solid var(--border-light);
   background: transparent;
+  padding: 10px 0;
+  font-size: 16px;
+  color: var(--text-body);
+  outline: none;
+  transition: border-color var(--duration-fast);
 }
 
-.input-line::placeholder {
-  color: #b1b1b1;
+.underline-input:focus {
+  border-bottom-color: var(--primary);
 }
 
-select.input-line {
-  color: #b1b1b1;
-  appearance: none;
-}
-
-select.input-line option {
-  color: #333;
-}
-
-.textarea-large {
-  min-height: 150px;
+.post-textarea {
+  border: none;
+  background: transparent;
+  padding: 10px 0;
+  font-size: 16px;
+  color: var(--text-body);
+  outline: none;
   resize: none;
-  border-bottom: none;
-  margin-top: 10px;
+  flex-grow: 1;
+  font-family: inherit;
+  min-height: 150px;
+}
+
+.ratings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 15px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.rating-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rating-group label {
+  font-size: 14px;
+  color: var(--text-strong);
+  font-weight: 500;
+}
+
+.stars {
+  display: flex;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.stars span {
+  font-size: 24px;
+  color: #E5E7EB;
+  transition: color var(--duration-fast);
+}
+
+.stars span.active {
+  color: var(--accent); /* Yellow */
 }
 
 .error-msg {
-  color: red;
-  font-size: 12px;
-  margin-top: 15px;
+  color: #DC2626;
+  font-size: 14px;
+  margin: 0;
 }
 </style>

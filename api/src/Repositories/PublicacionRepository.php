@@ -4,6 +4,30 @@ class PublicacionRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
+        $this->asegurarTablaPublicaciones();
+    }
+
+    private function asegurarTablaPublicaciones(): void {
+        try {
+            $sql = "CREATE TABLE IF NOT EXISTS `publicaciones` (
+                      `idPublicacion` int(11) NOT NULL AUTO_INCREMENT,
+                      `idUsuario` int(11) NOT NULL,
+                      `tipoPublicacion` varchar(50) NOT NULL DEFAULT 'Consulta',
+                      `titulo` varchar(255) DEFAULT NULL,
+                      `fecha` date NOT NULL,
+                      `hora` time NOT NULL,
+                      `idUniversidad` int(11) DEFAULT NULL,
+                      `idSede` int(11) DEFAULT NULL,
+                      `idCarrera` int(11) DEFAULT NULL,
+                      `texto` text NOT NULL,
+                      `likes` int(11) DEFAULT 0,
+                      `resuelta` tinyint(1) DEFAULT 0,
+                      PRIMARY KEY (`idPublicacion`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+            $this->db->exec($sql);
+        } catch (Exception $e) {
+            // Silence if fails
+        }
     }
 
     public function obtenerConsultas() {
@@ -13,19 +37,52 @@ class PublicacionRepository {
     }
 
     public function obtenerParati(int $idUsuario) {
-        $sql = "SELECT p.*, u.nombre, u.apellido, u.fotoPerfil,
+        $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
+                       p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
+                       u.nombre, u.apellido, u.fotoPerfil,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
                        uni.nombre as nombreUniversidad
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
+                LEFT JOIN usuarios me ON me.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
-                ORDER BY p.fecha DESC, p.hora DESC";
+                WHERE (p.idCarrera = me.idCarrera OR me.idCarrera IS NULL OR p.idCarrera IS NULL)
+                ORDER BY fecha DESC, hora DESC";
                 
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':idUsuario', $idUsuario);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':idUsuario' => $idUsuario, ':meId' => $idUsuario]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    public function obtenerTuRed(int $idUsuario) {
+        // Fetch posts from same University or Carrera as the user
+        $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
+                       p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
+                       u.nombre, u.apellido, u.fotoPerfil,
+                       (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
+                       uni.nombre as nombreUniversidad
+                FROM publicaciones p 
+                INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
+                INNER JOIN usuarios me ON me.idUsuario = :meId
+                LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                WHERE (p.idUniversidad = me.idUniversidad AND me.idUniversidad IS NOT NULL)
+                   OR (p.idCarrera = me.idCarrera AND me.idCarrera IS NOT NULL)
+                ORDER BY fecha DESC, hora DESC";
+                
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':idUsuario' => $idUsuario, ':meId' => $idUsuario]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Error in obtenerTuRed: " . $e->getMessage());
+            return [];
+        }
     }
 
     public function obtenerPorId(int $idPublicacion, int $idUsuario) {
@@ -43,26 +100,137 @@ class PublicacionRepository {
         $stmt->execute();
         
         $fila = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $fila ? $fila : null;
+        if ($fila) return $fila;
+
+        // Fallback a consultas
+        $sqlCon = "SELECT c.idConsulta as idPublicacion, c.*, 'Consulta' as tipoPublicacion, '' as titulo, u.nombre, u.apellido, u.fotoPerfil,
+                          (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = c.idConsulta AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
+                          uni.nombre as nombreUniversidad
+                   FROM consultas c 
+                   INNER JOIN usuarios u ON c.idUsuario = u.idUsuario
+                   LEFT JOIN universidades uni ON c.idUniversidad = uni.idUniversidad
+                   WHERE c.idConsulta = :id";
+        $stmtCon = $this->db->prepare($sqlCon);
+        $stmtCon->bindParam(':id', $idPublicacion);
+        $stmtCon->bindParam(':idUsuario', $idUsuario);
+        $stmtCon->execute();
+        $filaCon = $stmtCon->fetch(PDO::FETCH_ASSOC);
+        
+        return $filaCon ? $filaCon : null;
+    }
+
+    private function asegurarRelacionesPredeterminadas(?int &$idUni, ?int &$idSede, ?int &$idCarrera): void {
+        try {
+            if (empty($idUni)) {
+                $stmt = $this->db->query("SELECT idUniversidad FROM universidades LIMIT 1");
+                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+                if ($row) {
+                    $idUni = (int)$row['idUniversidad'];
+                } else {
+                    $this->db->exec("INSERT INTO universidades (idUniversidad, nombre, email, password) VALUES (1, 'Universidad Nacional', '', '')");
+                    $idUni = 1;
+                }
+            }
+
+            if (empty($idSede)) {
+                $stmt = $this->db->query("SELECT idSede FROM sedes LIMIT 1");
+                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+                if ($row) {
+                    $idSede = (int)$row['idSede'];
+                } else {
+                    $this->db->exec("INSERT INTO sedes (idSede, idUniversidad, nombre) VALUES (1, $idUni, 'Sede Central')");
+                    $idSede = 1;
+                }
+            }
+
+            if (empty($idCarrera)) {
+                $stmt = $this->db->query("SELECT idCarrera FROM carreras LIMIT 1");
+                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+                if ($row) {
+                    $idCarrera = (int)$row['idCarrera'];
+                } else {
+                    $this->db->exec("INSERT INTO carreras (idCarrera, nombre) VALUES (1, 'General')");
+                    $idCarrera = 1;
+                }
+            }
+        } catch (Exception $e) {
+            if (empty($idUni)) $idUni = 1;
+            if (empty($idSede)) $idSede = 1;
+            if (empty($idCarrera)) $idCarrera = 1;
+        }
     }
 
     public function crear(array $datos): bool {
-        $sql = "INSERT INTO publicaciones (idUsuario, tipoPublicacion, titulo, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, resuelta) 
-                VALUES (:idUsuario, :tipoPublicacion, :titulo, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, :likes, 0)";
+        $tipo = $datos['tipoPublicacion'] ?? 'Consulta';
+        $titulo = $datos['titulo'] ?? '';
+        $texto = $datos['texto'] ?? '';
+        $fecha = $datos['fecha'] ?? date('Y-m-d');
+        $hora = $datos['hora'] ?? date('H:i:s');
+        $idUsuario = (int)$datos['idUsuario'];
         
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            ':idUsuario' => $datos['idUsuario'],
-            ':tipoPublicacion' => $datos['tipoPublicacion'],
-            ':titulo' => $datos['titulo'],
-            ':fecha' => $datos['fecha'],
-            ':hora' => $datos['hora'],
-            ':idUniversidad' => $datos['idUniversidad'],
-            ':idSede' => $datos['idSede'],
-            ':idCarrera' => $datos['idCarrera'],
-            ':texto' => $datos['texto'],
-            ':likes' => 0
+        $idUni = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
+        $idSede = !empty($datos['idSede']) ? (int)$datos['idSede'] : null;
+        $idCarrera = !empty($datos['idCarrera']) ? (int)$datos['idCarrera'] : null;
+
+        $this->asegurarRelacionesPredeterminadas($idUni, $idSede, $idCarrera);
+
+        // 1. Insertar en publicaciones
+        $sqlPub = "INSERT INTO publicaciones (idUsuario, tipoPublicacion, titulo, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes) 
+                   VALUES (:idUsuario, :tipoPublicacion, :titulo, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0)";
+        $stmtPub = $this->db->prepare($sqlPub);
+        $resPub = $stmtPub->execute([
+            ':idUsuario' => $idUsuario,
+            ':tipoPublicacion' => $tipo,
+            ':titulo' => $titulo,
+            ':fecha' => $fecha,
+            ':hora' => $hora,
+            ':idUniversidad' => $idUni,
+            ':idSede' => $idSede,
+            ':idCarrera' => $idCarrera,
+            ':texto' => $texto
         ]);
+
+        // 2. Insertar en la tabla específica (consultas o experiencias) para que figuren en phpMyAdmin
+        try {
+            if ($tipo === 'Experiencia') {
+                $puntuacionClima = isset($datos['puntuacionClima']) ? (int)$datos['puntuacionClima'] : 5;
+                $puntuacionInfraestructura = isset($datos['puntuacionInfraestructura']) ? (int)$datos['puntuacionInfraestructura'] : 5;
+                $puntuacionAcademica = isset($datos['puntuacionAcademica']) ? (int)$datos['puntuacionAcademica'] : 5;
+
+                $sqlExp = "INSERT INTO experiencias (idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, puntuacionClima, puntuacionInfraestructura, puntuacionAcademica) 
+                           VALUES (:idUsuario, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0, :pClima, :pInfra, :pAcademica)";
+                $stmtExp = $this->db->prepare($sqlExp);
+                $stmtExp->execute([
+                    ':idUsuario' => $idUsuario,
+                    ':fecha' => $fecha,
+                    ':hora' => $hora,
+                    ':idUniversidad' => $idUni,
+                    ':idSede' => $idSede,
+                    ':idCarrera' => $idCarrera,
+                    ':texto' => $texto,
+                    ':pClima' => $puntuacionClima,
+                    ':pInfra' => $puntuacionInfraestructura,
+                    ':pAcademica' => $puntuacionAcademica
+                ]);
+            } else {
+                $sqlCon = "INSERT INTO consultas (idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes) 
+                           VALUES (:idUsuario, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0)";
+                $stmtCon = $this->db->prepare($sqlCon);
+                $stmtCon->execute([
+                    ':idUsuario' => $idUsuario,
+                    ':fecha' => $fecha,
+                    ':hora' => $hora,
+                    ':idUniversidad' => $idUni,
+                    ':idSede' => $idSede,
+                    ':idCarrera' => $idCarrera,
+                    ':texto' => $texto
+                ]);
+            }
+        } catch (Exception $e) {
+            // Ignorar errores secundarios
+        }
+
+        return $resPub;
     }
 
     public function obtenerFavorito(int $idPublicacion, int $idUsuario) {
@@ -89,7 +257,7 @@ class PublicacionRepository {
     public function actualizarLikesPublicacion(int $idPublicacion): int {
         $countStmt = $this->db->prepare("SELECT COUNT(*) FROM favoritos WHERE idPublicacion = :idPub AND estado = 'activo'");
         $countStmt->execute([':idPub' => $idPublicacion]);
-        $totalLikes = $countStmt->fetchColumn();
+        $totalLikes = (int)$countStmt->fetchColumn();
         
         $updatePubStmt = $this->db->prepare("UPDATE publicaciones SET likes = :likes WHERE idPublicacion = :idPub");
         $updatePubStmt->execute([':likes' => $totalLikes, ':idPub' => $idPublicacion]);

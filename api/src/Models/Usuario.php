@@ -7,6 +7,8 @@ class Usuario extends Persona {
     private Credencial $credencial;
     private string $tipoPerfil;
     private int $idCiudad; // Mantendremos el ID por practicidad con BD, o idealmente `private Ciudad $ciudad;`
+    private ?int $idUniversidad;
+    private ?int $idCarrera;
     
     // Optional properties
     private ?string $fotoPerfil;
@@ -29,7 +31,9 @@ class Usuario extends Persona {
         ?string $fotoPerfil = null,
         ?string $celular = null,
         ?string $descripcion = null,
-        ?string $trayectoria = null
+        ?string $trayectoria = null,
+        ?int $idUniversidad = null,
+        ?int $idCarrera = null
     ) {
         parent::__construct($nombre, $apellido, $fNac, $celular);
         
@@ -42,6 +46,8 @@ class Usuario extends Persona {
         $this->fotoPerfil = $fotoPerfil;
         $this->descripcion = $descripcion;
         $this->trayectoria = $trayectoria;
+        $this->idUniversidad = $idUniversidad;
+        $this->idCarrera = $idCarrera;
     }
 
     public function getIdUsuario(): ?int { return $this->idUsuario; }
@@ -54,6 +60,8 @@ class Usuario extends Persona {
     public function getFnac(): string { return $this->fechaNacimiento; }
     public function getTipoPerfil(): string { return $this->tipoPerfil; }
     public function getIdCiudad(): int { return $this->idCiudad; }
+    public function getIdUniversidad(): ?int { return $this->idUniversidad; }
+    public function getIdCarrera(): ?int { return $this->idCarrera; }
     public function getFotoPerfil(): ?string { return $this->fotoPerfil; }
     public function getDescripcion(): ?string { return $this->descripcion; }
     public function getTrayectoria(): ?string { return $this->trayectoria; }
@@ -85,7 +93,9 @@ class Usuario extends Persona {
             'fotoPerfil' => $this->fotoPerfil,
             'celular' => $this->celular,
             'descripcion' => $this->descripcion,
-            'trayectoria' => $this->trayectoria
+            'trayectoria' => $this->trayectoria,
+            'idUniversidad' => $this->idUniversidad,
+            'idCarrera' => $this->idCarrera
         ];
     }
 }

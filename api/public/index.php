@@ -30,11 +30,12 @@ $app->get('/', function (Request $request, Response $response, array $args) {
     return $response;
 });
 
-// RUTAS (También agregamos /../ aquí)
+// RUTAS
 require __DIR__ . '/../src/rutas/auth.php';
 require __DIR__ . '/../src/rutas/usuarios.php';
 require __DIR__ . '/../src/rutas/instituciones.php';
 require __DIR__ . '/../src/rutas/publicaciones.php';
 require __DIR__ . '/../src/rutas/respuestas.php';
+require __DIR__ . '/../src/rutas/amistades.php';
 
 $app->run();

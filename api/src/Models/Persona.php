@@ -20,6 +20,11 @@ abstract class Persona {
     public function getFechaNacimiento(): string { return $this->fechaNacimiento; }
     public function getCelular(): ?string { return $this->celular; }
 
+    public function getEdad(): int {
+        $nacimiento = new DateTime($this->fechaNacimiento);
+        return $nacimiento->diff(new DateTime())->y;
+    }
+
     // Setters
     public function setNombre(string $nombre): void { $this->nombre = $nombre; }
     public function setApellido(string $apellido): void { $this->apellido = $apellido; }

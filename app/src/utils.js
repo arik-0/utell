@@ -1,0 +1,45 @@
+/**
+ * U-Tell Shared Utilities
+ * Centralized helper functions used across multiple views.
+ */
+
+/**
+ * Converts a date+time from the DB into a relative time string.
+ * e.g. "Hace 5m", "Hace 2h", "Hace 3d", or a full date if older.
+ * @param {string} fecha - "YYYY-MM-DD"
+ * @param {string} hora  - "HH:MM:SS"
+ * @returns {string}
+ */
+export function timeAgo(fecha, hora) {
+  if (!fecha) return 'Reciente'
+
+  const isoStr = hora ? `${fecha}T${hora}` : `${fecha}T00:00:00`
+  const past = new Date(isoStr)
+  if (isNaN(past.getTime())) return fecha
+
+  const now = new Date()
+  const diffMs = now - past
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffH   = Math.floor(diffMin / 60)
+  const diffD   = Math.floor(diffH / 24)
+
+  if (diffSec < 60)  return 'Ahora mismo'
+  if (diffMin < 60)  return `Hace ${diffMin}m`
+  if (diffH < 24)    return `Hace ${diffH}h`
+  if (diffD < 7)     return `Hace ${diffD}d`
+
+  // Older than a week: show localized date
+  return past.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })
+}
+
+/**
+ * Resolves the full URL for a profile picture with a fallback.
+ * @param {string|null} pic
+ * @returns {string}
+ */
+export function getProfilePic(pic) {
+  if (!pic || pic.trim() === '') return '/img/Perfil.svg'
+  if (pic.startsWith('http://') || pic.startsWith('https://')) return pic
+  return `/img/${pic}`
+}
