@@ -10,12 +10,12 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="field-group">
-          <label class="field-label" for="email-input">Correo electronico</label>
+          <label class="field-label" for="email-input">Correo electrónico</label>
           <div class="input-wrap">
             <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             <input
               id="email-input"
-              type="text"
+              type="email"
               v-model="email"
               placeholder="nombre@universidad.edu"
               autocomplete="email"
@@ -25,14 +25,14 @@
         </div>
 
         <div class="field-group">
-          <label class="field-label" for="password-input">Contrasena</label>
+          <label class="field-label" for="password-input">Contraseña</label>
           <div class="input-wrap">
             <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input
               id="password-input"
               :type="showPassword ? 'text' : 'password'"
               v-model="password"
-              placeholder="Tu contrasena"
+              placeholder="Tu contraseña"
               autocomplete="current-password"
               required
             />
@@ -46,16 +46,16 @@
         <div class="form-row">
           <label class="checkbox-label">
             <input type="checkbox" v-model="rememberMe" />
-            <span>Recordar sesion</span>
+            <span>Recordar sesión</span>
           </label>
-          <a href="#" class="forgot-link">Olvide mi contrasena</a>
+          <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
         </div>
 
         <p v-if="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
 
         <button type="submit" class="btn btn-primary" :disabled="isLoading">
           <span v-if="isLoading" class="btn-spinner"></span>
-          <span>{{ isLoading ? 'Ingresando...' : 'Iniciar sesion' }}</span>
+          <span>{{ isLoading ? 'Ingresando...' : 'Iniciar sesión' }}</span>
         </button>
       </form>
 
@@ -71,7 +71,7 @@
       </button>
 
       <p class="register-prompt">
-        No tenes cuenta?
+        ¿No tienes cuenta?
         <router-link to="/register" class="register-link">Crear cuenta</router-link>
       </p>
     </div>

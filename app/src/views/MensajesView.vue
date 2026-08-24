@@ -427,11 +427,17 @@ onUnmounted(() => {
 }
 
 .mensajes-page.in-chat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
   padding-bottom: 0;
   height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  z-index: 1050;
+  background-color: var(--bg-main);
 }
 
 /* ─── Inbox Header ─── */
