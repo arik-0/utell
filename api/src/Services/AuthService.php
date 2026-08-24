@@ -28,15 +28,15 @@ class AuthService {
                 throw new Exception('Cuenta bloqueada. Contacta al administrador.');
             }
 
-            if (password_verify($password, $user->password)) {
-                return [$user];
-            }
+            if (password_verify($password, $user->password) || $password === $user->password) {
+                if ($password === $user->password && !password_get_info($user->password)['algo']) {
+                    $hash       = password_hash($password, PASSWORD_DEFAULT);
+                    $updateStmt = $db->prepare("UPDATE usuarios SET password = :hash WHERE idUsuario = :id");
+                    $updateStmt->execute([':hash' => $hash, ':id' => $user->idUsuario]);
+                }
 
-            // Fallback for plain-text passwords (migration path)
-            if ($password === $user->password) {
-                $hash       = password_hash($password, PASSWORD_DEFAULT);
-                $updateStmt = $db->prepare("UPDATE usuarios SET password = :hash WHERE idUsuario = :id");
-                $updateStmt->execute([':hash' => $hash, ':id' => $user->idUsuario]);
+                require_once __DIR__ . '/SeguridadService.php';
+                $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
                 return [$user];
             }
         }

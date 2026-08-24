@@ -39,5 +39,6 @@ require __DIR__ . '/../src/rutas/publicaciones.php';
 require __DIR__ . '/../src/rutas/respuestas.php';
 require __DIR__ . '/../src/rutas/amistades.php';
 require __DIR__ . '/../src/rutas/mensajes.php';
+require __DIR__ . '/../src/rutas/seguridad.php';
 
 $app->run();
