@@ -1,7 +1,7 @@
 <template>
   <div class="page-container feed-page">
     <!-- Sticky Glass Header -->
-    <header class="feed-header">
+    <header class="feed-header" :class="{ 'is-scrolled': isScrolled }">
       <div class="header-top">
         <div class="logo-container">
           <img src="/img/logo.png" alt="U-Tell" class="header-logo" />
@@ -160,6 +160,32 @@ const isLoading   = ref(true)
 const activeTab   = ref('parati')
 const showSearch  = ref(false)
 const searchQuery = ref('')
+const isScrolled  = ref(false)
+
+const handleScroll = () => {
+  isScrolled.value = window.scrollY > 8
+}
+
+const fetchFeed = async () => {
+  if (!authStore.user) return
+  isLoading.value = true
+  try {
+    const endpoint = activeTab.value === 'parati' ? '/parati' : '/tured'
+    const res = await axios.get(`${API_BASE_URL}${endpoint}?idUsuario=${authStore.user.idUsuario}`)
+    posts.value = Array.isArray(res.data) ? res.data : []
+  } catch (error) {
+    console.error('Error loading feed:', error)
+    posts.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const switchTab = (tab) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  fetchFeed()
+}
 
 const filteredPosts = computed(() => {
   if (!searchQuery.value.trim()) return posts.value
@@ -169,35 +195,13 @@ const filteredPosts = computed(() => {
     (p.texto && p.texto.toLowerCase().includes(q)) ||
     (p.nombre && p.nombre.toLowerCase().includes(q)) ||
     (p.apellido && p.apellido.toLowerCase().includes(q)) ||
-    (p.nombreUniversidad && p.nombreUniversidad.toLowerCase().includes(q))
+    (p.nombreUniversidad && p.nombreUniversidad.toLowerCase().includes(q)) ||
+    (p.nombreCarrera && p.nombreCarrera.toLowerCase().includes(q))
   )
 })
 
 const goToPost = (id) => {
   if (id) router.push(`/post/${id}`)
-}
-
-const switchTab = (tab) => {
-  if (activeTab.value === tab) return
-  activeTab.value = tab
-  fetchFeed()
-}
-
-const fetchFeed = async () => {
-  try {
-    isLoading.value = true
-    posts.value = []
-    const userId   = authStore.user?.idUsuario || 0
-    const endpoint = activeTab.value === 'tured' ? '/tured' : '/parati'
-    const res      = await axios.get(`${API_BASE_URL}${endpoint}?idUsuario=${userId}`)
-    if (Array.isArray(res.data)) {
-      posts.value = res.data
-    }
-  } catch (error) {
-    console.error('Error fetching feed:', error)
-  } finally {
-    isLoading.value = false
-  }
 }
 
 const toggleLike = async (post) => {
@@ -235,7 +239,14 @@ const sharePost = (post) => {
   }
 }
 
-onMounted(fetchFeed)
+onMounted(() => {
+  fetchFeed()
+  window.addEventListener('scroll', handleScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
@@ -247,14 +258,21 @@ onMounted(fetchFeed)
 
 /* ─── Header ─── */
 .feed-header {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 100;
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   padding-top: env(safe-area-inset-top, 0px);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.feed-header.is-scrolled {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  border-bottom-color: rgba(226, 232, 240, 1);
 }
 
 .header-top {
