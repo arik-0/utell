@@ -3,16 +3,35 @@
     private static $instance = null;
     private $connection = null;
 
-    private $dbHost ='localhost';
+    private $dbHost = 'localhost';
     private $dbUser = 'root';
     private $dbPass = '';
-    private $dbName = 'utell';
+    private $dbName = 'u-tell';
 
-    // Constructor privado para evitar instanciación externa
+    // Constructor privado con tolerancia automática a nombres de BD ('u-tell' o 'utell')
     private function __construct() {
-      $mysqlConnect = "mysql:host=$this->dbHost;dbname=$this->dbName";
-      $this->connection = new PDO($mysqlConnect, $this->dbUser, $this->dbPass);
-      $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+      $databases = [getenv('DB_NAME') ?: null, $this->dbName, 'utell', 'u_tell'];
+      $connected = false;
+      $lastException = null;
+
+      foreach (array_filter($databases) as $dbname) {
+        try {
+          $mysqlConnect = "mysql:host={$this->dbHost};dbname={$dbname};charset=utf8mb4";
+          $this->connection = new PDO($mysqlConnect, $this->dbUser, $this->dbPass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+          ]);
+          $connected = true;
+          $this->dbName = $dbname;
+          break;
+        } catch (PDOException $e) {
+          $lastException = $e;
+        }
+      }
+
+      if (!$connected && $lastException) {
+        throw $lastException;
+      }
     }
 
     // Prevenir la clonación
