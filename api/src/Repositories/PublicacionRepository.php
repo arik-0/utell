@@ -36,48 +36,104 @@ class PublicacionRepository {
         return $resultado->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Algoritmo "Para ti":
+     * Sistema de puntuación y recomendación que pondera afinidad académica (Universidad y Carrera),
+     * círculo social (Amigos), nivel de interacción (Likes + Respuestas) y frescura temporal.
+     */
     public function obtenerParati(int $idUsuario) {
         $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
                        p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
                        u.nombre, u.apellido, u.fotoPerfil,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
-                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                       uni.nombre as nombreUniversidad
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
+                       uni.nombre as nombreUniversidad,
+                       (
+                         -- Afinidad por Carrera (+40)
+                         (CASE WHEN me.idCarrera IS NOT NULL AND p.idCarrera = me.idCarrera THEN 40 ELSE 0 END) +
+                         -- Afinidad por Universidad (+30)
+                         (CASE WHEN me.idUniversidad IS NOT NULL AND p.idUniversidad = me.idUniversidad THEN 30 ELSE 0 END) +
+                         -- Puntuación por Engagement (3 pts por like, 4 pts por respuesta)
+                         (COALESCE(p.likes, 0) * 3) +
+                         ((SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) * 4) +
+                         -- Bonificación por amigos confirmados (+25)
+                         (CASE WHEN p.idUsuario IN (
+                             SELECT IF(a.idSolicitante = :idUsuarioFriend, a.idReceptor, a.idSolicitante)
+                             FROM amigos a
+                             WHERE (a.idSolicitante = :idUsuarioFriend2 OR a.idReceptor = :idUsuarioFriend3)
+                               AND a.estado = 'aceptada'
+                         ) THEN 25 ELSE 0 END)
+                       ) as rankingScore
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN usuarios me ON me.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
-                WHERE (p.idCarrera = me.idCarrera OR me.idCarrera IS NULL OR p.idCarrera IS NULL)
-                ORDER BY fecha DESC, hora DESC";
+                ORDER BY rankingScore DESC, p.fecha DESC, p.hora DESC";
                 
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([':idUsuario' => $idUsuario, ':meId' => $idUsuario]);
+            $stmt->execute([
+                ':idUsuarioFav'     => $idUsuario,
+                ':idUsuarioFriend'  => $idUsuario,
+                ':idUsuarioFriend2' => $idUsuario,
+                ':idUsuarioFriend3' => $idUsuario,
+                ':meId'             => $idUsuario
+            ]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
+            error_log("Error in obtenerParati: " . $e->getMessage());
             return [];
         }
     }
 
+    /**
+     * Algoritmo "Tu red":
+     * Filtra estrictamente las publicaciones creadas por los amigos aceptados del usuario,
+     * pares que cursan en su misma Universidad o Carrera, y sus propias publicaciones.
+     */
     public function obtenerTuRed(int $idUsuario) {
-        // Fetch posts from same University or Carrera as the user
         $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
                        p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
                        u.nombre, u.apellido, u.fotoPerfil,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
-                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                       uni.nombre as nombreUniversidad
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
+                       uni.nombre as nombreUniversidad,
+                       (CASE WHEN p.idUsuario = :meIdSelf THEN 1
+                             WHEN p.idUsuario IN (
+                                 SELECT IF(a.idSolicitante = :idUsuarioFriend, a.idReceptor, a.idSolicitante)
+                                 FROM amigos a
+                                 WHERE (a.idSolicitante = :idUsuarioFriend2 OR a.idReceptor = :idUsuarioFriend3)
+                                   AND a.estado = 'aceptada'
+                             ) THEN 1 ELSE 0 END) as esAmigoDirecto
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-                INNER JOIN usuarios me ON me.idUsuario = :meId
+                LEFT JOIN usuarios me ON me.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
-                WHERE (p.idUniversidad = me.idUniversidad AND me.idUniversidad IS NOT NULL)
-                   OR (p.idCarrera = me.idCarrera AND me.idCarrera IS NOT NULL)
-                ORDER BY fecha DESC, hora DESC";
+                WHERE p.idUsuario = :meIdSelf2
+                   OR p.idUsuario IN (
+                       SELECT IF(a.idSolicitante = :idUsuarioFriend4, a.idReceptor, a.idSolicitante)
+                       FROM amigos a
+                       WHERE (a.idSolicitante = :idUsuarioFriend5 OR a.idReceptor = :idUsuarioFriend6)
+                         AND a.estado = 'aceptada'
+                   )
+                   OR (me.idUniversidad IS NOT NULL AND p.idUniversidad = me.idUniversidad)
+                   OR (me.idCarrera IS NOT NULL AND p.idCarrera = me.idCarrera)
+                ORDER BY esAmigoDirecto DESC, p.fecha DESC, p.hora DESC";
                 
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([':idUsuario' => $idUsuario, ':meId' => $idUsuario]);
+            $stmt->execute([
+                ':idUsuarioFav'     => $idUsuario,
+                ':meId'             => $idUsuario,
+                ':meIdSelf'         => $idUsuario,
+                ':meIdSelf2'        => $idUsuario,
+                ':idUsuarioFriend'  => $idUsuario,
+                ':idUsuarioFriend2' => $idUsuario,
+                ':idUsuarioFriend3' => $idUsuario,
+                ':idUsuarioFriend4' => $idUsuario,
+                ':idUsuarioFriend5' => $idUsuario,
+                ':idUsuarioFriend6' => $idUsuario,
+            ]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
             error_log("Error in obtenerTuRed: " . $e->getMessage());
@@ -190,7 +246,7 @@ class PublicacionRepository {
             ':texto' => $texto
         ]);
 
-        // 2. Insertar en la tabla específica (consultas o experiencias) para que figuren en phpMyAdmin
+        // 2. Insertar en la tabla específica (consultas o experiencias)
         try {
             if ($tipo === 'Experiencia') {
                 $puntuacionClima = isset($datos['puntuacionClima']) ? (int)$datos['puntuacionClima'] : 5;

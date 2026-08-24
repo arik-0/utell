@@ -50,9 +50,14 @@
             <span class="friend-name">{{ amigo.nombre }} {{ amigo.apellido }}</span>
             <span class="friend-tipo">{{ amigo.tipoPerfil || 'Estudiante' }}</span>
           </div>
-          <button class="action-chip chip-danger" @click="eliminarAmistad(amigo.idAmistad)" aria-label="Eliminar amigo">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <div class="action-row">
+            <button class="action-chip chip-msg" @click="router.push(`/mensajes?contacto=${amigo.idUsuario}`)" aria-label="Enviar mensaje">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            </button>
+            <button class="action-chip chip-danger" @click="eliminarAmistad(amigo.idAmistad)" aria-label="Eliminar amigo">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -375,5 +380,7 @@ onMounted(loadAmigos)
 .action-chip:active { transform: scale(0.88); }
 
 .chip-primary { background: var(--primary-ghost); color: var(--primary); }
+.chip-msg     { background: var(--bg-subtle); color: var(--text-strong); }
+.chip-msg:hover { background: var(--primary-ghost); color: var(--primary); }
 .chip-danger  { background: rgba(220,38,38,0.08); color: #DC2626; }
 </style>
