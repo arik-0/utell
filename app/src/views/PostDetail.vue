@@ -37,7 +37,15 @@
             </div>
             <div class="meta-secondary">
               <span class="post-time">{{ timeAgo(post.fecha, post.hora) }}</span>
-              <span v-if="post.nombreUniversidad" class="uni-tag">
+              <router-link 
+                v-if="post.nombreUniversidad && post.idUniversidad" 
+                :to="`/universidad/${post.idUniversidad}`" 
+                class="uni-tag"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                <span>{{ post.nombreUniversidad }}</span>
+              </router-link>
+              <span v-else-if="post.nombreUniversidad" class="uni-tag">
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                 <span>{{ post.nombreUniversidad }}</span>
               </span>
@@ -602,8 +610,10 @@ onMounted(() => {
 .reply-bar {
   position: fixed;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
+  max-width: 680px;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -612,6 +622,12 @@ onMounted(() => {
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
   box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
+}
+
+@media (min-width: 1200px) {
+  .reply-bar {
+    max-width: 720px;
+  }
 }
 
 .reply-input-wrap {

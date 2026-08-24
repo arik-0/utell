@@ -4,6 +4,35 @@ use \Psr\Http\Message\ResponseInterface as Response;
 
 require_once __DIR__ . '/../Services/InstitucionService.php';
 
+// Listado de universidades con estadísticas de experiencias
+$app->get('/universidades/con-experiencias', function(Request $request, Response $response){
+    try{
+        $service = InstitucionService::getInstance();
+        $data    = $service->obtenerUniversidadesConExperiencias();
+        echo json_encode(count($data) > 0 ? $data : []);
+    }catch(Exception $e){
+        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    }
+});
+
+// Muro institucional de una universidad (Métricas consolidadas, experiencias, consultas y sedes)
+$app->get('/universidades/{id:[0-9]+}/muro', function(Request $request, Response $response, array $args){
+    $id = (int)$args['id'];
+    $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
+
+    try{
+        $service = InstitucionService::getInstance();
+        $muro    = $service->obtenerMuroUniversidad($id, $idUsuario);
+        if ($muro) {
+            echo json_encode($muro);
+        } else {
+            echo '{"error":{"text":"No se encontró la universidad especificada."}}';
+        }
+    }catch(Exception $e){
+        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    }
+});
+
 $app->get('/universidades', function(Request $request, Response $response){
     try{
         $service = InstitucionService::getInstance();
@@ -33,8 +62,8 @@ $app->get('/sedes', function(Request $request, Response $response){
 });
 
 // Sedes de una universidad especifica
-$app->get('/universidades/{id}/sedes', function(Request $request, Response $response){
-    $id = (int)$request->getAttribute('id');
+$app->get('/universidades/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args){
+    $id = (int)$args['id'];
     try{
         $service = InstitucionService::getInstance();
         echo json_encode($service->obtenerSedesPorUniversidad($id));
@@ -44,8 +73,8 @@ $app->get('/universidades/{id}/sedes', function(Request $request, Response $resp
 });
 
 // Carreras dictadas en una sede (via oferta_academica)
-$app->get('/sedes/{id}/carreras', function(Request $request, Response $response){
-    $id = (int)$request->getAttribute('id');
+$app->get('/sedes/{id:[0-9]+}/carreras', function(Request $request, Response $response, array $args){
+    $id = (int)$args['id'];
     try{
         $service = InstitucionService::getInstance();
         echo json_encode($service->obtenerCarrerasPorSede($id));
@@ -55,8 +84,8 @@ $app->get('/sedes/{id}/carreras', function(Request $request, Response $response)
 });
 
 // Sedes donde se dicta una carrera
-$app->get('/carreras/{id}/sedes', function(Request $request, Response $response){
-    $id = (int)$request->getAttribute('id');
+$app->get('/carreras/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args){
+    $id = (int)$args['id'];
     try{
         $service = InstitucionService::getInstance();
         echo json_encode($service->obtenerSedesPorCarrera($id));
@@ -81,8 +110,8 @@ $app->post('/oferta-academica', function(Request $request, Response $response){
 });
 
 // Eliminar oferta academica
-$app->delete('/oferta-academica/{id}', function(Request $request, Response $response){
-    $id = (int)$request->getAttribute('id');
+$app->delete('/oferta-academica/{id:[0-9]+}', function(Request $request, Response $response, array $args){
+    $id = (int)$args['id'];
     try{
         $service = InstitucionService::getInstance();
         $ok      = $service->eliminarOfertaAcademica($id);

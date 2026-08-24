@@ -92,7 +92,16 @@
               </div>
               <div class="meta-secondary">
                 <span class="post-time">{{ timeAgo(post.fecha, post.hora) }}</span>
-                <span v-if="post.nombreUniversidad" class="uni-tag">
+                <router-link 
+                  v-if="post.nombreUniversidad && post.idUniversidad" 
+                  :to="`/universidad/${post.idUniversidad}`" 
+                  class="uni-tag" 
+                  @click.stop
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                  <span>{{ post.nombreUniversidad }}</span>
+                </router-link>
+                <span v-else-if="post.nombreUniversidad" class="uni-tag">
                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                   <span>{{ post.nombreUniversidad }}</span>
                 </span>

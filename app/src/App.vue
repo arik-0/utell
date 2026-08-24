@@ -116,8 +116,10 @@ const showTabBar = computed(() => {
 .bottom-tab-bar {
   position: fixed;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
+  max-width: 680px;
   height: 68px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
@@ -129,6 +131,12 @@ const showTabBar = computed(() => {
   z-index: 1000;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.04);
+}
+
+@media (min-width: 1200px) {
+  .bottom-tab-bar {
+    max-width: 720px;
+  }
 }
 
 .tab-item {

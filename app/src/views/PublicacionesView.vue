@@ -9,7 +9,7 @@
           <rect x="14" y="14" width="7" height="7"></rect>
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
-        <h1>Mis Publicaciones</h1>
+        <h1>Descubrir</h1>
       </div>
     </header>
 
@@ -17,32 +17,96 @@
     <div class="tabs-container">
       <button 
         class="tab-btn" 
-        :class="{ active: activeTab === 'publicaciones' }" 
-        @click="activeTab = 'publicaciones'"
+        :class="{ active: activeTab === 'muros' }" 
+        @click="activeTab = 'muros'"
       >
-        Publicadas
+        <span>Muros Universitarios</span>
+        <span v-if="universidades.length > 0" class="tab-badge">{{ universidades.length }}</span>
       </button>
       <button 
         class="tab-btn" 
-        :class="{ active: activeTab === 'revision' }" 
-        @click="activeTab = 'revision'"
+        :class="{ active: activeTab === 'mis-posts' }" 
+        @click="activeTab = 'mis-posts'"
       >
-        En Revisión <span class="badge-mini">WIP</span>
+        <span>Mis Publicaciones</span>
+        <span v-if="userPosts.length > 0" class="tab-badge">{{ userPosts.length }}</span>
       </button>
     </div>
 
-    <!-- Content -->
-    <div class="content-area">
-      <div v-if="isLoading" class="loading-wrap">
+    <!-- ═════════════════════════════════════════════════════════════
+         TAB 1: MUROS UNIVERSITARIOS
+         ═════════════════════════════════════════════════════════════ -->
+    <div v-if="activeTab === 'muros'" class="content-area">
+      <!-- Search Input -->
+      <div class="search-box">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" v-model="searchUniQuery" placeholder="Buscar universidad por nombre..." />
+        <button v-if="searchUniQuery" @click="searchUniQuery = ''" class="clear-btn">✕</button>
+      </div>
+
+      <div v-if="isLoadingUnis" class="loading-wrap">
         <div class="spinner"></div>
       </div>
 
-      <div v-else-if="activeTab === 'revision'" class="wip-card">
-        <div class="wip-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <div v-else-if="filteredUnis.length === 0" class="empty-wrap">
+        <EmptyState
+          icon="book"
+          :title="searchUniQuery ? 'Sin coincidencias' : 'Aún no hay universidades registradas'"
+          subtitle="No encontramos instituciones universitarias con ese nombre."
+        />
+      </div>
+
+      <div v-else class="unis-grid">
+        <div
+          v-for="uni in filteredUnis"
+          :key="uni.idUniversidad"
+          class="uni-card animate-fadein-up"
+          @click="router.push(`/universidad/${uni.idUniversidad}`)"
+        >
+          <div class="uni-card-header">
+            <div class="uni-icon-wrap">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+            <div class="uni-main-info">
+              <h3 class="uni-title">{{ uni.nombre }}</h3>
+              <span class="uni-subtitle">{{ uni.totalExperiencias }} experiencias · {{ uni.totalConsultas }} consultas</span>
+            </div>
+            <div class="uni-score-pill">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>{{ uni.promedioGeneral || '5.0' }}</span>
+            </div>
+          </div>
+
+          <!-- Triple Rating Indicators -->
+          <div class="uni-ratings-strip">
+            <div class="rating-strip-item">
+              <span class="strip-label">Clima:</span>
+              <strong>{{ uni.promedioClima || '5.0' }}</strong>
+            </div>
+            <div class="rating-strip-item">
+              <span class="strip-label">Infraestructura:</span>
+              <strong>{{ uni.promedioInfraestructura || '5.0' }}</strong>
+            </div>
+            <div class="rating-strip-item">
+              <span class="strip-label">Académico:</span>
+              <strong>{{ uni.promedioAcademico || '5.0' }}</strong>
+            </div>
+          </div>
+
+          <div class="uni-card-footer">
+            <span class="footer-cta">Explorar muro y experiencias</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
-        <h3>Módulo en desarrollo</h3>
-        <p>Las publicaciones pendientes de moderación o revisión por pares aparecerán en esta sección.</p>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════
+         TAB 2: MIS PUBLICACIONES
+         ═════════════════════════════════════════════════════════════ -->
+    <div v-else class="content-area">
+      <div v-if="isLoadingPosts" class="loading-wrap">
+        <div class="spinner"></div>
       </div>
 
       <div v-else-if="userPosts.length === 0" class="empty-wrap">
@@ -90,7 +154,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { timeAgo } from '../utils'
@@ -101,13 +165,36 @@ import axios from 'axios'
 const router    = useRouter()
 const authStore = useAuthStore()
 
-const activeTab = ref('publicaciones')
-const isLoading = ref(true)
-const userPosts = ref([])
+const activeTab        = ref('muros')
+const universidades    = ref([])
+const userPosts        = ref([])
+const isLoadingUnis    = ref(true)
+const isLoadingPosts   = ref(true)
+const searchUniQuery   = ref('')
+
+const filteredUnis = computed(() => {
+  if (!searchUniQuery.value.trim()) return universidades.value
+  const q = searchUniQuery.value.toLowerCase()
+  return universidades.value.filter(u => u.nombre.toLowerCase().includes(q))
+})
+
+const fetchUniversidades = async () => {
+  isLoadingUnis.value = true
+  try {
+    const res = await axios.get(`${API_BASE_URL}/universidades/con-experiencias`)
+    if (Array.isArray(res.data)) {
+      universidades.value = res.data
+    }
+  } catch (e) {
+    console.error('Error fetching universities with experiences:', e)
+  } finally {
+    isLoadingUnis.value = false
+  }
+}
 
 const fetchUserPosts = async () => {
   if (!authStore.user) return
-  isLoading.value = true
+  isLoadingPosts.value = true
   try {
     const res = await axios.get(`${API_BASE_URL}/parati?idUsuario=${authStore.user.idUsuario}`)
     if (Array.isArray(res.data)) {
@@ -116,7 +203,7 @@ const fetchUserPosts = async () => {
   } catch (e) {
     console.error('Error fetching user posts:', e)
   } finally {
-    isLoading.value = false
+    isLoadingPosts.value = false
   }
 }
 
@@ -124,7 +211,10 @@ const handleCreate = () => {
   router.push('/create-consulta')
 }
 
-onMounted(fetchUserPosts)
+onMounted(() => {
+  fetchUniversidades()
+  fetchUserPosts()
+})
 </script>
 
 <style scoped>
@@ -154,9 +244,11 @@ onMounted(fetchUserPosts)
 }
 
 .header-left h1 {
-  font-size: 18px;
-  font-weight: 700;
+  font-family: var(--font-family);
+  font-size: 19px;
+  font-weight: 800;
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .tabs-container {
@@ -169,11 +261,11 @@ onMounted(fetchUserPosts)
 
 .tab-btn {
   flex: 1;
-  padding: 8px 16px;
+  padding: 8px 14px;
   text-align: center;
   border-radius: var(--radius-full);
   font-family: var(--font-family);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
@@ -193,17 +285,57 @@ onMounted(fetchUserPosts)
   font-weight: 700;
 }
 
-.badge-mini {
-  background-color: var(--accent-ghost);
-  color: #B45309;
-  font-size: 9px;
+.tab-badge {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: var(--radius-full);
+}
+
+.tab-btn.active .tab-badge {
+  background: var(--primary-ghost);
+  color: var(--primary);
 }
 
 .content-area {
   padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ─── Search Box ─── */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-full);
+  padding: 9px 14px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+}
+
+.search-box input::placeholder { color: var(--text-muted); }
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .loading-wrap {
@@ -223,45 +355,123 @@ onMounted(fetchUserPosts)
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.wip-card {
-  text-align: center;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border-light);
-  padding: 36px 20px;
-  margin-top: 10px;
+/* ─── University Cards Grid ─── */
+.unis-grid {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.wip-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--accent-ghost);
-  color: #B45309;
+.uni-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uni-card:hover {
+  border-color: rgba(255, 107, 53, 0.3);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.uni-card:active { transform: scale(0.988); }
+
+.uni-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.uni-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--primary-ghost);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.wip-card h3 {
-  font-size: 16px;
+.uni-main-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.uni-title {
+  font-family: var(--font-family);
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text-strong);
-  margin: 0;
+  margin: 0 0 2px;
+  line-height: 1.3;
 }
 
-.wip-card p {
-  font-size: 13px;
+.uni-subtitle {
+  font-size: 12px;
   color: var(--text-secondary);
-  max-width: 280px;
-  margin: 0;
-  line-height: 1.45;
 }
 
+.uni-score-pill {
+  background: var(--accent-light);
+  color: #B45309;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.uni-ratings-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11.5px;
+}
+
+.rating-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.strip-label {
+  color: var(--text-secondary);
+  font-size: 10.5px;
+}
+
+.rating-strip-item strong {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.uni-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ─── Posts List ─── */
 .posts-list {
   display: flex;
   flex-direction: column;
@@ -297,15 +507,8 @@ onMounted(fetchUserPosts)
   gap: 4px;
 }
 
-.badge-consulta {
-  background-color: var(--accent-ghost);
-  color: #B45309;
-}
-
-.badge-xp {
-  background-color: var(--primary-ghost);
-  color: var(--primary);
-}
+.badge-consulta { background-color: var(--accent-ghost); color: #B45309; }
+.badge-xp       { background-color: var(--primary-ghost); color: var(--primary); }
 
 .post-time { font-size: 12px; color: var(--text-muted); }
 

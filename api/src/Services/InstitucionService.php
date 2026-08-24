@@ -22,6 +22,14 @@ class InstitucionService {
         return $this->repo->obtenerUniversidades();
     }
 
+    public function obtenerUniversidadesConExperiencias(): array {
+        return $this->repo->obtenerUniversidadesConExperiencias();
+    }
+
+    public function obtenerMuroUniversidad(int $idUniversidad, int $idUsuario = 0): ?array {
+        return $this->repo->obtenerMuroUniversidad($idUniversidad, $idUsuario);
+    }
+
     public function obtenerCarreras(): array {
         return $this->repo->obtenerCarreras();
     }
