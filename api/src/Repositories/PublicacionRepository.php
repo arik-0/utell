@@ -31,7 +31,15 @@ class PublicacionRepository {
     }
 
     public function obtenerConsultas() {
-        $sql = "SELECT * FROM consultas";
+        $sql = "SELECT p.*, u.nombre, u.apellido, u.fotoPerfil,
+                       (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
+                       uni.nombre as nombreUniversidad,
+                       c.nombre as nombreCarrera
+                FROM publicaciones p 
+                INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
+                LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
+                ORDER BY p.fecha DESC, p.hora DESC";
         $resultado = $this->db->query($sql);
         return $resultado->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -48,6 +56,7 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
                        uni.nombre as nombreUniversidad,
+                       c.nombre as nombreCarrera,
                        (
                          -- Afinidad por Carrera (+40)
                          (CASE WHEN me.idCarrera IS NOT NULL AND p.idCarrera = me.idCarrera THEN 40 ELSE 0 END) +
@@ -68,6 +77,7 @@ class PublicacionRepository {
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN usuarios me ON me.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 ORDER BY rankingScore DESC, p.fecha DESC, p.hora DESC";
                 
         try {
@@ -98,6 +108,7 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
                        uni.nombre as nombreUniversidad,
+                       c.nombre as nombreCarrera,
                        (CASE WHEN p.idUsuario = :meIdSelf THEN 1
                              WHEN p.idUsuario IN (
                                  SELECT IF(a.idSolicitante = :idUsuarioFriend, a.idReceptor, a.idSolicitante)
@@ -109,6 +120,7 @@ class PublicacionRepository {
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN usuarios me ON me.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 WHERE p.idUsuario = :meIdSelf2
                    OR p.idUsuario IN (
                        SELECT IF(a.idSolicitante = :idUsuarioFriend4, a.idReceptor, a.idSolicitante)
@@ -144,10 +156,12 @@ class PublicacionRepository {
     public function obtenerPorId(int $idPublicacion, int $idUsuario) {
         $sql = "SELECT p.*, u.nombre, u.apellido, u.fotoPerfil,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                       uni.nombre as nombreUniversidad
+                       uni.nombre as nombreUniversidad,
+                       c.nombre as nombreCarrera
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 WHERE p.idPublicacion = :id";
                 
         $stmt = $this->db->prepare($sql);

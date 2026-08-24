@@ -19,8 +19,10 @@
           $mysqlConnect = "mysql:host={$this->dbHost};dbname={$dbname};charset=utf8mb4";
           $this->connection = new PDO($mysqlConnect, $this->dbUser, $this->dbPass, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
           ]);
+          $this->connection->exec("SET NAMES utf8mb4");
           $connected = true;
           $this->dbName = $dbname;
           break;
