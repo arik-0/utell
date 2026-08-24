@@ -1,41 +1,90 @@
 <template>
   <div class="create-page">
+    <!-- Header -->
     <header class="create-header">
-      <router-link to="/feed" class="close-btn">✕</router-link>
-      <h1>Crear Consulta</h1>
-      <button @click="submitPost" class="btn-publish" :disabled="isLoading">
-        <span class="icon">📎</span> Publicar
+      <button @click="router.back()" class="close-btn" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="header-center">
+        <span class="badge badge-accent">Consulta</span>
+        <h1>Nueva Consulta</h1>
+      </div>
+      <button @click="submitPost" class="btn-publish" :disabled="isLoading || !form.texto.trim()">
+        <span v-if="isLoading" class="btn-spinner"></span>
+        <span v-else>Publicar</span>
       </button>
     </header>
     
     <div class="create-content">
-      <div class="user-info">
-        <img :src="authStore.user?.fotoPerfil || '/img/default-avatar.png'" alt="Avatar" class="avatar" />
-        <div class="user-details">
+      <!-- Author preview card -->
+      <div class="author-card">
+        <div class="avatar-wrap">
+          <img :src="getProfilePic(authStore.user?.fotoPerfil)" alt="Avatar" class="avatar" />
+        </div>
+        <div class="author-details">
           <span class="name">{{ authStore.user?.nombre }} {{ authStore.user?.apellido }}</span>
-          <select class="privacy-dropdown">
-            <option>Público</option>
-            <option>Solo amigos</option>
-          </select>
+          <span class="sub-text">{{ authStore.user?.tipoPerfil || 'Estudiante' }}</span>
         </div>
       </div>
 
-      <form class="post-form">
-        <input type="text" v-model="form.titulo" placeholder="Título de la consulta" class="underline-input" />
-        
-        <input type="text" list="universidades" v-model="form.universidad" placeholder="Universidad (Opcional)" class="underline-input" />
-        <datalist id="universidades">
-          <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.nombre"></option>
-        </datalist>
+      <form class="post-form" @submit.prevent="submitPost">
+        <div class="form-card">
+          <div class="input-field">
+            <label class="field-label">Título de la consulta</label>
+            <input 
+              type="text" 
+              v-model="form.titulo" 
+              placeholder="Ej: ¿Dónde se cursa Álgebra I los martes?" 
+              class="form-input"
+            />
+          </div>
 
-        <input type="text" list="carreras" v-model="form.carrera" placeholder="Carrera (Opcional)" class="underline-input" />
-        <datalist id="carreras">
-          <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
-        </datalist>
+          <div class="field-row">
+            <div class="input-field">
+              <label class="field-label">Universidad (Opcional)</label>
+              <div class="select-wrap">
+                <input 
+                  type="text" 
+                  list="universidades" 
+                  v-model="form.universidad" 
+                  placeholder="Selecciona o escribe..." 
+                  class="form-input select-input" 
+                />
+                <datalist id="universidades">
+                  <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.nombre"></option>
+                </datalist>
+              </div>
+            </div>
 
-        <textarea v-model="form.texto" placeholder="Describe tu consulta aquí..." class="post-textarea"></textarea>
-        
-        <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+            <div class="input-field">
+              <label class="field-label">Carrera (Opcional)</label>
+              <div class="select-wrap">
+                <input 
+                  type="text" 
+                  list="carreras" 
+                  v-model="form.carrera" 
+                  placeholder="Selecciona o escribe..." 
+                  class="form-input select-input" 
+                />
+                <datalist id="carreras">
+                  <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
+                </datalist>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label class="field-label">Detalle de tu consulta</label>
+            <textarea 
+              v-model="form.texto" 
+              placeholder="Explica tu duda para que otros estudiantes o docentes puedan ayudarte..." 
+              class="form-textarea"
+              rows="6"
+            ></textarea>
+          </div>
+        </div>
+
+        <p v-if="errorMsg" class="error-banner">{{ errorMsg }}</p>
       </form>
     </div>
   </div>
@@ -45,6 +94,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
@@ -66,8 +116,12 @@ onMounted(async () => {
 })
 
 const submitPost = async () => {
-  if (!form.value.texto) { errorMsg.value = 'La descripción no puede estar vacía.'; return }
-  isLoading.value = true; errorMsg.value = ''
+  if (!form.value.texto.trim()) { 
+    errorMsg.value = 'El detalle de la consulta no puede estar vacío.'
+    return 
+  }
+  isLoading.value = true
+  errorMsg.value = ''
   try {
     const formData = new FormData()
     formData.append('idUsuario', authStore.user.idUsuario)
@@ -85,8 +139,11 @@ const submitPost = async () => {
     const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
     if (typeof res.data === 'string' && res.data.includes('error')) throw new Error(res.data)
     router.push('/feed')
-  } catch (error) { errorMsg.value = 'Hubo un error al publicar.' }
-  finally { isLoading.value = false }
+  } catch (error) { 
+    errorMsg.value = error.message || 'Hubo un error al publicar la consulta.' 
+  } finally { 
+    isLoading.value = false 
+  }
 }
 </script>
 
@@ -96,130 +153,228 @@ const submitPost = async () => {
   flex-direction: column;
   min-height: 100vh;
   background: var(--bg-main);
-  font-family: var(--font-family);
+  font-family: var(--font-body);
 }
 
+/* ─── Header ─── */
 .create-header {
-  background: var(--primary);
-  color: var(--text-inverse);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .close-btn {
-  color: var(--text-inverse);
-  text-decoration: none;
-  font-size: 20px;
-  font-weight: bold;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-h1 {
-  font-size: 18px;
+.close-btn:active { background: var(--bg-subtle); }
+
+.header-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.header-center h1 {
+  font-size: 15px;
   font-weight: 700;
+  color: var(--text-strong);
   margin: 0;
 }
 
 .btn-publish {
-  background: var(--bg-card);
-  color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: white;
   border: none;
   border-radius: var(--radius-full);
-  padding: 8px 16px;
+  padding: 7px 18px;
+  font-family: var(--font-family);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: opacity var(--duration-fast);
+  box-shadow: var(--shadow-primary);
+  transition: all var(--duration-fast);
 }
 
 .btn-publish:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Content ─── */
 .create-content {
-  padding: 20px;
-  flex-grow: 1;
+  padding: 16px;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.user-info {
+.author-card {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
 }
 
-.avatar {
-  width: 50px;
-  height: 50px;
+.avatar-wrap {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border-light);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.user-details {
+.avatar { width: 100%; height: 100%; object-fit: cover; }
+
+.author-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .name {
-  font-weight: 600;
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: 14.5px;
   color: var(--text-strong);
 }
 
-.privacy-dropdown {
-  background: transparent;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
+.sub-text {
   font-size: 12px;
-  padding: 2px 5px;
   color: var(--text-secondary);
 }
 
-.post-form {
+/* ─── Form Card ─── */
+.form-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  padding: 18px 16px;
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  flex-grow: 1;
+  gap: 16px;
 }
 
-.underline-input {
-  border: none;
-  border-bottom: 1px solid var(--border-light);
-  background: transparent;
-  padding: 10px 0;
-  font-size: 16px;
-  color: var(--text-body);
-  outline: none;
-  transition: border-color var(--duration-fast);
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.underline-input:focus {
-  border-bottom-color: var(--primary);
+.field-label {
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
-.post-textarea {
-  border: none;
-  background: transparent;
-  padding: 10px 0;
-  font-size: 16px;
-  color: var(--text-body);
-  outline: none;
-  resize: none;
-  flex-grow: 1;
-  font-family: inherit;
-  min-height: 150px;
-}
-
-.error-msg {
-  color: #DC2626;
+.form-input {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
   font-size: 14px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  outline: none;
+  transition: all var(--duration-fast);
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-ghost);
+}
+
+.form-input::placeholder { color: var(--text-muted); }
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 480px) {
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+.form-textarea {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 14.5px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  outline: none;
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.55;
+  transition: all var(--duration-fast);
+}
+
+.form-textarea:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-ghost);
+}
+
+.form-textarea::placeholder { color: var(--text-muted); }
+
+.error-banner {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
   margin: 0;
 }
 </style>

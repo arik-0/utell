@@ -3,20 +3,20 @@
     <!-- Header -->
     <header class="amigos-header">
       <button class="icon-btn" @click="router.back()" aria-label="Volver">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
-      <h1>Amigos</h1>
-      <div style="width:38px"></div>
+      <h1>Conexiones</h1>
+      <div style="width: 36px"></div>
     </header>
 
-    <!-- Tabs -->
+    <!-- Segmented Tabs -->
     <div class="tabs-container">
       <button class="tab-btn" :class="{ active: activeTab === 'amigos' }" @click="switchTab('amigos')">
-        Amigos
+        <span>Mis Amigos</span>
         <span v-if="amigos.length > 0" class="tab-count">{{ amigos.length }}</span>
       </button>
       <button class="tab-btn" :class="{ active: activeTab === 'solicitudes' }" @click="switchTab('solicitudes')">
-        Solicitudes
+        <span>Solicitudes</span>
         <span v-if="pendientes.length > 0" class="tab-count tab-count-alert">{{ pendientes.length }}</span>
       </button>
     </div>
@@ -28,12 +28,12 @@
 
     <!-- Amigos Tab -->
     <div v-else-if="activeTab === 'amigos'">
-      <div v-if="amigos.length === 0" class="state-container">
-        <div class="empty-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </div>
-        <p class="empty-title">Todavia no tenes amigos</p>
-        <p class="empty-sub">Conectate con otros estudiantes universitarios</p>
+      <div v-if="amigos.length === 0" class="empty-state-wrap">
+        <EmptyState
+          icon="users"
+          title="Aún no tienes amigos agregados"
+          subtitle="Conéctate con otros estudiantes universitarios para seguir sus consultas y experiencias."
+        />
       </div>
 
       <div v-else class="list-container">
@@ -50,7 +50,7 @@
             <span class="friend-name">{{ amigo.nombre }} {{ amigo.apellido }}</span>
             <span class="friend-tipo">{{ amigo.tipoPerfil || 'Estudiante' }}</span>
           </div>
-          <button class="action-chip chip-danger" @click="eliminarAmistad(amigo.idAmistad)">
+          <button class="action-chip chip-danger" @click="eliminarAmistad(amigo.idAmistad)" aria-label="Eliminar amigo">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -59,17 +59,17 @@
 
     <!-- Solicitudes Tab -->
     <div v-else>
-      <div v-if="pendientes.length === 0" class="state-container">
-        <div class="empty-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l1.61-1.61a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        </div>
-        <p class="empty-title">Sin solicitudes pendientes</p>
-        <p class="empty-sub">Las solicitudes de amistad apareceran aqui</p>
+      <div v-if="pendientes.length === 0" class="empty-state-wrap">
+        <EmptyState
+          icon="mail"
+          title="Sin solicitudes pendientes"
+          subtitle="Las nuevas solicitudes de amistad recibidas o enviadas aparecerán en esta sección."
+        />
       </div>
 
       <div v-else class="list-container">
         <!-- Recibidas -->
-        <p v-if="recibidas.length > 0" class="list-section-title">Recibidas</p>
+        <p v-if="recibidas.length > 0" class="list-section-title">Recibidas ({{ recibidas.length }})</p>
         <div
           v-for="sol in recibidas"
           :key="sol.idAmistad"
@@ -81,20 +81,20 @@
           </div>
           <div class="friend-info">
             <span class="friend-name">{{ sol.nombre }} {{ sol.apellido }}</span>
-            <span class="friend-tipo">Quiere conectarse</span>
+            <span class="friend-tipo">Solicitud de conexión</span>
           </div>
           <div class="action-row">
-            <button class="action-chip chip-primary" @click="responder(sol.idAmistad, 'aceptar')">
+            <button class="action-chip chip-primary" @click="responder(sol.idAmistad, 'aceptar')" aria-label="Aceptar">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </button>
-            <button class="action-chip chip-danger" @click="responder(sol.idAmistad, 'rechazar')">
+            <button class="action-chip chip-danger" @click="responder(sol.idAmistad, 'rechazar')" aria-label="Rechazar">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
 
         <!-- Enviadas -->
-        <p v-if="enviadas.length > 0" class="list-section-title">Enviadas</p>
+        <p v-if="enviadas.length > 0" class="list-section-title">Enviadas ({{ enviadas.length }})</p>
         <div
           v-for="sol in enviadas"
           :key="sol.idAmistad"
@@ -106,7 +106,7 @@
           </div>
           <div class="friend-info">
             <span class="friend-name">{{ sol.nombre }} {{ sol.apellido }}</span>
-            <span class="friend-tipo friend-pending">Pendiente</span>
+            <span class="friend-tipo friend-pending">Pendiente de confirmación</span>
           </div>
         </div>
       </div>
@@ -120,6 +120,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
+import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
 const router    = useRouter()
@@ -209,8 +210,9 @@ onMounted(loadAmigos)
 }
 
 .amigos-header h1 {
+  font-family: var(--font-family);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-strong);
   margin: 0;
 }
@@ -235,7 +237,7 @@ onMounted(loadAmigos)
   border: none;
   border-radius: var(--radius-full);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -245,7 +247,7 @@ onMounted(loadAmigos)
 .tab-btn.active {
   background: var(--bg-card);
   color: var(--text-strong);
-  font-weight: 600;
+  font-weight: 700;
   box-shadow: var(--shadow-xs);
 }
 
@@ -275,20 +277,6 @@ onMounted(loadAmigos)
   padding: 24px;
 }
 
-.empty-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--primary-ghost);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-}
-
-.empty-title { font-size: 16px; font-weight: 600; color: var(--text-strong); margin: 0; }
-.empty-sub   { font-size: 13px; color: var(--text-secondary); text-align: center; margin: 0; }
-
 .spinner {
   width: 32px;
   height: 32px;
@@ -304,7 +292,8 @@ onMounted(loadAmigos)
 .list-container { padding: 0 16px; }
 
 .list-section-title {
-  font-size: 12px;
+  font-family: var(--font-family);
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -322,13 +311,20 @@ onMounted(loadAmigos)
   border: 1px solid var(--border-light);
   margin-bottom: 10px;
   box-shadow: var(--shadow-xs);
+  transition: all var(--duration-fast);
+}
+
+.friend-card:hover {
+  border-color: rgba(255, 107, 53, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .friend-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  padding: 1.5px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,9 +332,9 @@ onMounted(loadAmigos)
   flex-shrink: 0;
 }
 
-.friend-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.friend-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
-.avatar-initial { color: white; font-size: 18px; font-weight: 700; }
+.avatar-initial { color: white; font-family: var(--font-family); font-size: 18px; font-weight: 700; }
 
 .friend-info {
   flex: 1;
@@ -349,8 +345,9 @@ onMounted(loadAmigos)
 }
 
 .friend-name {
+  font-family: var(--font-family);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -358,7 +355,7 @@ onMounted(loadAmigos)
 }
 
 .friend-tipo { font-size: 12px; color: var(--text-secondary); }
-.friend-pending { color: var(--primary); font-weight: 500; }
+.friend-pending { color: var(--primary); font-weight: 600; }
 
 .action-row { display: flex; gap: 6px; }
 

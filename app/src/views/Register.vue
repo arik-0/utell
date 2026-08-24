@@ -6,78 +6,154 @@
     
     <div class="bottom-card">
       <div class="header-row">
-        <button v-if="step > 1" @click="step--" class="back-btn">← Volver</button>
-        <router-link v-else to="/" class="back-btn">← Volver</router-link>
-        <h2 class="step-title">Paso {{ step }} de 3</h2>
+        <button v-if="step > 1" @click="step--" class="back-btn" aria-label="Volver">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Volver</span>
+        </button>
+        <router-link v-else to="/" class="back-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span>Inicio</span>
+        </router-link>
+        
+        <!-- Step Indicator Pill -->
+        <div class="step-progress">
+          <div class="step-dot" :class="{ active: step >= 1, current: step === 1 }"></div>
+          <div class="step-line" :class="{ active: step >= 2 }"></div>
+          <div class="step-dot" :class="{ active: step >= 2, current: step === 2 }"></div>
+          <div class="step-line" :class="{ active: step >= 3 }"></div>
+          <div class="step-dot" :class="{ active: step >= 3, current: step === 3 }"></div>
+        </div>
+      </div>
+
+      <div class="step-header">
+        <h2 class="step-title">
+          {{ step === 1 ? 'Datos Básicos' : (step === 2 ? 'Perfil Académico' : 'Tu Ubicación') }}
+        </h2>
+        <p class="step-desc">
+          {{ step === 1 ? 'Ingresa tus datos personales y credenciales' : (step === 2 ? 'Personaliza tu rol en la comunidad universitaria' : 'Selecciona tu ubicación geográfica') }}
+        </p>
       </div>
 
       <form @submit.prevent="step === 3 ? handleRegister() : nextStep()" class="register-form">
         <transition name="fade" mode="out-in">
+          <!-- Step 1: Basic Info -->
           <div v-if="step === 1" key="step1" class="step-content">
-            <h3>Tus Datos Básicos</h3>
-            <input type="text" v-model="form.nombre" placeholder="Nombre" required />
-            <input type="text" v-model="form.apellido" placeholder="Apellido" required />
-            <input type="email" v-model="form.email" placeholder="Correo Electrónico" required />
-            <div class="input-group">
-              <input :type="showPassword ? 'text' : 'password'" v-model="form.password" placeholder="Contraseña" required />
-              <button type="button" class="toggle-pwd" @click="showPassword = !showPassword">
-                <span v-if="showPassword">👁️</span>
-                <span v-else>🙈</span>
-              </button>
+            <div class="input-field">
+              <label class="field-label">Nombre</label>
+              <input type="text" v-model="form.nombre" placeholder="Tu nombre" class="form-input" required />
             </div>
+
+            <div class="input-field">
+              <label class="field-label">Apellido</label>
+              <input type="text" v-model="form.apellido" placeholder="Tu apellido" class="form-input" required />
+            </div>
+
+            <div class="input-field">
+              <label class="field-label">Correo Electrónico</label>
+              <input type="email" v-model="form.email" placeholder="nombre@universidad.edu" class="form-input" required />
+            </div>
+
+            <div class="input-field">
+              <label class="field-label">Contraseña</label>
+              <div class="password-input-wrap">
+                <input 
+                  :type="showPassword ? 'text' : 'password'" 
+                  v-model="form.password" 
+                  placeholder="Crea una contraseña segura" 
+                  class="form-input"
+                  required 
+                />
+                <button type="button" class="toggle-pwd" @click="showPassword = !showPassword" aria-label="Mostrar contraseña">
+                  <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+
             <p class="login-link">¿Ya tienes cuenta? <router-link to="/">Inicia sesión</router-link></p>
           </div>
 
+          <!-- Step 2: Academic Profile -->
           <div v-else-if="step === 2" key="step2" class="step-content">
-            <h3>Sobre Ti</h3>
-            <input type="date" v-model="form.fNac" placeholder="Fecha de Nacimiento" required />
-            <input type="tel" v-model="form.celular" placeholder="Celular" />
-            <select v-model="form.tipoPerfil" required>
-              <option value="" disabled>Selecciona tu tipo de perfil</option>
-              <option value="Estudiante">Estudiante</option>
-              <option value="Docente">Docente</option>
-              <option value="Universidad">Universidad</option>
-              <option value="Empresa">Empresa</option>
-            </select>
-            <input type="text" v-model="form.descripcion" placeholder="Breve descripción" />
-            <input type="text" v-model="form.trayectoria" placeholder="Trayectoria (opcional)" />
-            
-            <div v-if="form.tipoPerfil === 'Estudiante'">
-              <select v-model="form.idUniversidad" required>
-                <option value="" disabled>Selecciona tu Universidad</option>
-                <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.idUniversidad">{{ uni.nombre }}</option>
+            <div class="field-row">
+              <div class="input-field">
+                <label class="field-label">Fecha de Nacimiento</label>
+                <input type="date" v-model="form.fNac" class="form-input" required />
+              </div>
+              <div class="input-field">
+                <label class="field-label">Celular</label>
+                <input type="tel" v-model="form.celular" placeholder="+54 9 11..." class="form-input" />
+              </div>
+            </div>
+
+            <div class="input-field">
+              <label class="field-label">Tipo de Perfil</label>
+              <select v-model="form.tipoPerfil" class="form-input select-control" required>
+                <option value="" disabled>Selecciona tu rol</option>
+                <option value="Estudiante">Estudiante</option>
+                <option value="Docente">Docente</option>
+                <option value="Universidad">Universidad</option>
+                <option value="Empresa">Empresa</option>
               </select>
-              <select v-model="form.idCarrera" required style="margin-top: 15px;">
-                <option value="" disabled>Selecciona tu Carrera</option>
-                <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">{{ carrera.nombre }}</option>
-              </select>
+            </div>
+
+            <div v-if="form.tipoPerfil === 'Estudiante'" class="academic-cascade">
+              <div class="input-field">
+                <label class="field-label">Universidad</label>
+                <select v-model="form.idUniversidad" class="form-input select-control" required>
+                  <option value="" disabled>Selecciona tu Universidad</option>
+                  <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.idUniversidad">{{ uni.nombre }}</option>
+                </select>
+              </div>
+
+              <div class="input-field">
+                <label class="field-label">Carrera</label>
+                <select v-model="form.idCarrera" class="form-input select-control" required>
+                  <option value="" disabled>Selecciona tu Carrera</option>
+                  <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">{{ carrera.nombre }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="input-field">
+              <label class="field-label">Breve descripción</label>
+              <input type="text" v-model="form.descripcion" placeholder="Ej: Estudiante de Ingeniería en Sistemas" class="form-input" />
             </div>
           </div>
 
+          <!-- Step 3: Location -->
           <div v-else key="step3" class="step-content">
-            <h3>Tu Ubicación</h3>
-            <select v-model="form.pais" @change="loadStates" required :disabled="loadingCountries">
-              <option value="" disabled>{{ loadingCountries ? 'Cargando países...' : 'Selecciona un país' }}</option>
-              <option v-for="country in countries" :key="country" :value="country">{{ country }}</option>
-            </select>
+            <div class="input-field">
+              <label class="field-label">País</label>
+              <select v-model="form.pais" @change="loadStates" class="form-input select-control" required :disabled="loadingCountries">
+                <option value="" disabled>{{ loadingCountries ? 'Cargando países...' : 'Selecciona un país' }}</option>
+                <option v-for="country in countries" :key="country" :value="country">{{ country }}</option>
+              </select>
+            </div>
             
-            <select v-model="form.provincia" @change="loadCities" required :disabled="!form.pais || loadingStates">
-              <option value="" disabled>{{ loadingStates ? 'Cargando provincias...' : 'Selecciona una provincia' }}</option>
-              <option v-for="state in states" :key="state" :value="state">{{ state }}</option>
-            </select>
+            <div class="input-field">
+              <label class="field-label">Provincia / Estado</label>
+              <select v-model="form.provincia" @change="loadCities" class="form-input select-control" required :disabled="!form.pais || loadingStates">
+                <option value="" disabled>{{ loadingStates ? 'Cargando provincias...' : 'Selecciona una provincia' }}</option>
+                <option v-for="state in states" :key="state" :value="state">{{ state }}</option>
+              </select>
+            </div>
             
-            <select v-model="form.ciudad" required :disabled="!form.provincia || loadingCities">
-              <option value="" disabled>{{ loadingCities ? 'Cargando ciudades...' : 'Selecciona una ciudad' }}</option>
-              <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
-            </select>
+            <div class="input-field">
+              <label class="field-label">Ciudad</label>
+              <select v-model="form.ciudad" class="form-input select-control" required :disabled="!form.provincia || loadingCities">
+                <option value="" disabled>{{ loadingCities ? 'Cargando ciudades...' : 'Selecciona una ciudad' }}</option>
+                <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
+              </select>
+            </div>
           </div>
         </transition>
 
         <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
 
-        <button type="submit" class="btn btn-primary" :disabled="isLoading">
-          <span v-if="isLoading">Procesando...</span>
-          <span v-else>{{ step < 3 ? 'Siguiente' : 'Finalizar Registro' }}</span>
+        <button type="submit" class="btn btn-primary submit-btn" :disabled="isLoading">
+          <span v-if="isLoading" class="btn-spinner"></span>
+          <span v-else>{{ step < 3 ? 'Continuar' : 'Finalizar Registro' }}</span>
         </button>
       </form>
     </div>
@@ -188,7 +264,6 @@ const handleRegister = async () => {
       throw new Error(data)
     }
 
-    alert('Cuenta creada con éxito. Ya puedes iniciar sesión.')
     router.push('/')
   } catch (error) { 
     errorMessage.value = error.message || 'Hubo un error al crear la cuenta.' 
@@ -204,12 +279,12 @@ const handleRegister = async () => {
   flex-direction: column;
   min-height: 100vh;
   background: var(--bg-main);
-  font-family: var(--font-family);
+  font-family: var(--font-body);
 }
 
 .top-section {
-  flex: 0 0 25vh;
-  background-image: linear-gradient(rgba(255,107,53,0.7), rgba(255,107,53,0.7)), url('/img/unsplash.png');
+  flex: 0 0 22vh;
+  background-image: linear-gradient(rgba(229, 90, 43, 0.85), rgba(255, 107, 53, 0.8)), url('/img/unsplash.png');
   background-blend-mode: multiply;
   background-size: cover;
   background-position: center;
@@ -219,147 +294,227 @@ const handleRegister = async () => {
 }
 
 .logo-cap {
-  width: 100px;
+  width: 90px;
   filter: brightness(0) invert(1);
 }
 
 .bottom-card {
   background: var(--bg-card);
-  border-radius: 40px 40px 0 0;
-  padding: 30px 25px 40px;
-  margin-top: -40px;
+  border-radius: 32px 32px 0 0;
+  padding: 24px 20px 40px;
+  margin-top: -28px;
   z-index: 10;
   position: relative;
-  box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
-  min-height: 75vh;
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08);
+  min-height: 78vh;
   display: flex;
   flex-direction: column;
+  max-width: 520px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .header-row {
   display: flex;
   align-items: center;
-  margin-bottom: 25px;
-  position: relative;
+  justify-content: space-between;
+  margin-bottom: 18px;
 }
 
 .back-btn {
-  color: var(--primary);
+  color: var(--text-secondary);
   background: none;
   border: none;
+  font-family: var(--font-family);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
-  text-decoration: none;
-  position: absolute;
-  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.back-btn:hover { color: var(--primary); }
+
+.step-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-light);
+  transition: all var(--duration-normal);
+}
+
+.step-dot.active { background: var(--primary); }
+.step-dot.current { width: 18px; border-radius: var(--radius-full); }
+
+.step-line {
+  width: 12px;
+  height: 2px;
+  background: var(--border-light);
+}
+
+.step-line.active { background: var(--primary); }
+
+.step-header {
+  margin-bottom: 20px;
 }
 
 .step-title {
+  font-size: 20px;
+  font-weight: 800;
   color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 auto;
-  text-align: center;
+  margin: 0 0 4px;
+}
+
+.step-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  flex: 1;
 }
 
 .step-content {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  flex-grow: 1;
+  gap: 14px;
+  flex: 1;
 }
 
-.step-content h3 {
-  color: var(--text-body);
-  font-size: 22px;
-  margin-bottom: 10px;
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-input, select {
+.field-label {
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
   width: 100%;
-  border-radius: var(--radius-full);
-  padding: 12px 20px;
-  border: 1px solid var(--border-light);
-  font-size: 16px;
-  color: var(--text-body);
-  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  border: 1.5px solid var(--border-light);
+  font-size: 14.5px;
+  color: var(--text-strong);
+  background: var(--bg-subtle);
   outline: none;
-  transition: border-color var(--duration-fast) var(--ease-out);
-  box-sizing: border-box;
+  font-family: var(--font-body);
+  transition: all var(--duration-fast);
 }
 
-input:focus, select:focus {
+.form-input:focus {
   border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 
-.input-group {
+.form-input::placeholder { color: var(--text-muted); }
+
+.select-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.password-input-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .toggle-pwd {
   position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 12px;
   background: none;
   border: none;
   cursor: pointer;
-  opacity: 0.6;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.toggle-pwd:hover { color: var(--text-strong); }
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.academic-cascade {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
 }
 
 .login-link {
   text-align: center;
   margin-top: 10px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-secondary);
 }
 
 .login-link a {
   color: var(--primary);
-  text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .error-msg {
   color: #DC2626;
-  font-size: 14px;
+  font-size: 13px;
   text-align: center;
-  margin: 15px 0 0;
+  background: #FEF2F2;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin: 14px 0 0;
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-full);
-  padding: 14px 20px;
-  width: 100%;
-  margin-top: 25px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-out);
+.submit-btn {
+  margin-top: 22px;
 }
 
-.btn-primary:active {
-  transform: scale(0.98);
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
-.btn-primary:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Animations */
+/* Transitions */
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.22s ease;
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;

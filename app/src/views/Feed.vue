@@ -1,118 +1,165 @@
 <template>
   <div class="page-container feed-page">
-    <!-- Header -->
+    <!-- Sticky Glass Header -->
     <header class="feed-header">
       <div class="header-top">
-        <img src="/img/logo.png" alt="U-Tell" class="header-logo" />
+        <div class="logo-container">
+          <img src="/img/logo.png" alt="U-Tell" class="header-logo" />
+          <span class="logo-text">U-Tell</span>
+        </div>
         <div class="header-actions">
-          <button class="icon-btn" aria-label="Buscar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-          <button class="icon-btn" aria-label="Filtros">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          <button class="icon-btn" @click="showSearch = !showSearch" aria-label="Buscar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
         </div>
       </div>
 
-      <!-- Tabs -->
+      <!-- Expandable Search Bar -->
+      <transition name="slide-fade">
+        <div v-if="showSearch" class="search-wrap">
+          <div class="search-input-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" v-model="searchQuery" placeholder="Buscar por tema, carrera o universidad..." autofocus />
+            <button v-if="searchQuery" @click="searchQuery = ''" class="clear-search">✕</button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Segmented Control Tabs -->
       <div class="tabs-container">
         <button class="tab-btn" :class="{ active: activeTab === 'parati' }" @click="switchTab('parati')">
-          Para ti
+          <span>Para ti</span>
         </button>
         <button class="tab-btn" :class="{ active: activeTab === 'tured' }" @click="switchTab('tured')">
-          Tu red
+          <span>Tu red</span>
         </button>
       </div>
     </header>
 
     <!-- Feed Content -->
     <div class="feed-content">
-      <!-- Loading -->
-      <div v-if="isLoading" class="state-container">
-        <div class="spinner"></div>
-        <p class="text-secondary text-sm mt-1">Cargando publicaciones...</p>
+      <!-- Loading Skeleton -->
+      <div v-if="isLoading" class="skeleton-container">
+        <div v-for="n in 3" :key="n" class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-meta">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line tiny"></div>
+            </div>
+          </div>
+          <div class="skeleton-body">
+            <div class="skeleton-line medium"></div>
+            <div class="skeleton-line full"></div>
+            <div class="skeleton-line three-quarters"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="posts.length === 0" class="state-container">
-        <div class="empty-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        </div>
-        <p class="empty-title">
-          {{ activeTab === 'tured' ? 'Tu red esta vacia' : 'Sin publicaciones' }}
-        </p>
-        <p class="empty-sub">
-          {{ activeTab === 'tured' ? 'Seguí a otros estudiantes o completa tu perfil universitario' : 'Volvé más tarde o creá una nueva publicación' }}
-        </p>
+      <div v-else-if="filteredPosts.length === 0" class="empty-state-wrap">
+        <EmptyState
+          :icon="activeTab === 'tured' ? 'users' : 'post'"
+          :title="activeTab === 'tured' ? 'Tu red está vacía' : 'Sin publicaciones'"
+          :subtitle="activeTab === 'tured' ? 'Conecta con otros estudiantes para ver sus consultas y experiencias en este espacio.' : 'No encontramos publicaciones para mostrar en este momento.'"
+        />
       </div>
 
-      <!-- Posts List -->
+      <!-- Posts Feed List -->
       <div v-else class="posts-list">
-        <div
-          v-for="(post, index) in posts"
+        <article
+          v-for="(post, index) in filteredPosts"
           :key="post.idPublicacion"
           class="post-card animate-fadein-up"
           :style="{ animationDelay: `${index * 0.04}s` }"
           @click="goToPost(post.idPublicacion)"
         >
+          <!-- Post Author Header -->
           <div class="post-header">
-            <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
+            <div class="avatar-wrap">
+              <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
+            </div>
             <div class="post-meta">
-              <div class="meta-top">
+              <div class="meta-primary">
                 <span class="user-name">{{ post.nombre }} {{ post.apellido }}</span>
                 <span v-if="post.tipoPublicacion" class="type-badge" :class="post.tipoPublicacion === 'Consulta' ? 'badge-consulta' : 'badge-xp'">
                   <span class="type-dot" :class="post.tipoPublicacion === 'Consulta' ? 'type-dot-consulta' : 'type-dot-experiencia'"></span>
                   {{ post.tipoPublicacion }}
                 </span>
               </div>
-              <div class="meta-bottom">
+              <div class="meta-secondary">
                 <span class="post-time">{{ timeAgo(post.fecha, post.hora) }}</span>
-                <span v-if="post.nombreUniversidad" class="uni-chip">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                  {{ post.nombreUniversidad }}
+                <span v-if="post.nombreUniversidad" class="uni-tag">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                  <span>{{ post.nombreUniversidad }}</span>
                 </span>
               </div>
             </div>
-            <button class="more-btn" @click.stop aria-label="Opciones">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-            </button>
           </div>
 
+          <!-- Post Main Text -->
           <div class="post-body">
             <h3 v-if="post.titulo" class="post-title">{{ post.titulo }}</h3>
             <p class="post-text">{{ post.texto }}</p>
           </div>
 
+          <!-- Post Footer & Engagement -->
           <div class="post-footer">
-            <button class="action-btn" @click.stop="toggleLike(post)" :class="{ liked: post.hasLiked > 0 }">
-              <svg class="heart-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" :fill="post.hasLiked > 0 ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              <span>{{ post.likes || 0 }}</span>
+            <button class="action-btn like-btn" @click.stop="toggleLike(post)" :class="{ liked: post.hasLiked > 0 }">
+              <div class="icon-wrap">
+                <svg class="heart-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" :fill="post.hasLiked > 0 ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <span class="count">{{ post.likes || 0 }}</span>
             </button>
-            <button class="action-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>{{ post.cantidadRespuestas || 0 }}</span>
+
+            <button class="action-btn comment-btn" @click.stop="goToPost(post.idPublicacion)">
+              <div class="icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <span class="count">{{ post.cantidadRespuestas || 0 }}</span>
+            </button>
+
+            <button class="action-btn share-btn" @click.stop="sharePost(post)">
+              <div class="icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              </div>
             </button>
           </div>
-        </div>
+        </article>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { timeAgo, getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
+import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
 const router    = useRouter()
 const authStore = useAuthStore()
 
-const posts     = ref([])
-const isLoading = ref(true)
-const activeTab = ref('parati')
+const posts       = ref([])
+const isLoading   = ref(true)
+const activeTab   = ref('parati')
+const showSearch  = ref(false)
+const searchQuery = ref('')
+
+const filteredPosts = computed(() => {
+  if (!searchQuery.value.trim()) return posts.value
+  const q = searchQuery.value.toLowerCase()
+  return posts.value.filter(p => 
+    (p.titulo && p.titulo.toLowerCase().includes(q)) ||
+    (p.texto && p.texto.toLowerCase().includes(q)) ||
+    (p.nombre && p.nombre.toLowerCase().includes(q)) ||
+    (p.apellido && p.apellido.toLowerCase().includes(q)) ||
+    (p.nombreUniversidad && p.nombreUniversidad.toLowerCase().includes(q))
+  )
+})
 
 const goToPost = (id) => {
   if (id) router.push(`/post/${id}`)
@@ -166,37 +213,118 @@ const toggleLike = async (post) => {
   }
 }
 
+const sharePost = (post) => {
+  if (navigator.share) {
+    navigator.share({
+      title: post.titulo || 'Publicación en U-Tell',
+      text: post.texto,
+      url: window.location.origin + `/post/${post.idPublicacion}`
+    }).catch(() => {})
+  }
+}
+
 onMounted(fetchFeed)
 </script>
 
 <style scoped>
 .feed-page {
   padding: 0;
-  padding-bottom: 80px;
+  padding-bottom: 84px;
   background-color: var(--bg-main);
 }
 
 /* ─── Header ─── */
 .feed-header {
-  background-color: var(--bg-card);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
-  z-index: 10;
-  border-bottom: 1px solid var(--border-light);
+  z-index: 20;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px 8px;
+  padding: 10px 16px 8px;
 }
 
-.header-logo { height: 28px; width: auto; }
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-.header-actions { display: flex; gap: 4px; }
+.header-logo {
+  height: 26px;
+  width: auto;
+}
 
-/* ─── Tabs ─── */
+.logo-text {
+  font-family: var(--font-family);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-strong);
+  letter-spacing: -0.03em;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ─── Search Bar ─── */
+.search-wrap {
+  padding: 0 16px 10px;
+}
+
+.search-input-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  color: var(--text-secondary);
+}
+
+.search-input-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+}
+
+.search-input-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.clear-search {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.2s var(--ease-out);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ─── Tabs Segmented Control ─── */
 .tabs-container {
   display: flex;
   margin: 0 16px 10px;
@@ -207,12 +335,12 @@ onMounted(fetchFeed)
 
 .tab-btn {
   flex: 1;
-  padding: 8px 16px;
+  padding: 7px 16px;
   background: none;
   border: none;
   border-radius: var(--radius-full);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -222,60 +350,81 @@ onMounted(fetchFeed)
 .tab-btn.active {
   background-color: var(--bg-card);
   color: var(--text-strong);
-  font-weight: 600;
+  font-weight: 700;
   box-shadow: var(--shadow-xs);
 }
 
 /* ─── Content ─── */
-.feed-content { padding: 12px 16px; }
+.feed-content {
+  padding: 12px 16px;
+}
 
-.state-container {
+/* ─── Skeleton Loading ─── */
+.skeleton-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 50vh;
   gap: 12px;
 }
 
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--border-light);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.skeleton-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  border: 1px solid var(--border-light);
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.empty-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background-color: var(--primary-ghost);
+.skeleton-header {
   display: flex;
-  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  animation: pulse 1.5s infinite;
+}
+
+.skeleton-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   justify-content: center;
-  color: var(--primary);
 }
 
-.empty-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-strong);
+.skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.empty-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: center;
-  max-width: 260px;
-  line-height: 1.5;
+.skeleton-line {
+  height: 12px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  animation: pulse 1.5s infinite;
+}
+
+.skeleton-line.tiny { width: 30%; }
+.skeleton-line.short { width: 50%; }
+.skeleton-line.medium { width: 70%; }
+.skeleton-line.full { width: 100%; }
+.skeleton-line.three-quarters { width: 85%; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* ─── Post Cards ─── */
-.posts-list { display: flex; flex-direction: column; gap: 12px; }
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 .post-card {
   background-color: var(--bg-card);
@@ -285,11 +434,17 @@ onMounted(fetchFeed)
   border: 1px solid var(--border-light);
   cursor: pointer;
   transition: transform var(--duration-fast) ease,
-              box-shadow var(--duration-fast) ease;
+              box-shadow var(--duration-fast) ease,
+              border-color var(--duration-fast) ease;
+}
+
+.post-card:hover {
+  border-color: rgba(255, 107, 53, 0.25);
+  box-shadow: var(--shadow-md);
 }
 
 .post-card:active {
-  transform: scale(0.985);
+  transform: scale(0.988);
   box-shadow: var(--shadow-xs);
 }
 
@@ -300,18 +455,28 @@ onMounted(fetchFeed)
   margin-bottom: 12px;
 }
 
-.avatar {
+.avatar-wrap {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: var(--bg-subtle);
-  object-fit: cover;
+  padding: 1.5px;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-ghost));
   flex-shrink: 0;
 }
 
-.post-meta { flex: 1; min-width: 0; }
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
 
-.meta-top {
+.post-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.meta-primary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -319,9 +484,11 @@ onMounted(fetchFeed)
 }
 
 .user-name {
-  font-weight: 600;
-  font-size: 14px;
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: 14.5px;
   color: var(--text-strong);
+  letter-spacing: -0.01em;
 }
 
 .type-badge {
@@ -331,29 +498,41 @@ onMounted(fetchFeed)
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
-.badge-consulta { background-color: var(--accent-ghost); color: #92700C; }
-.badge-xp       { background-color: var(--primary-ghost); color: var(--primary-dark); }
+.badge-consulta {
+  background-color: var(--accent-ghost);
+  color: #B45309;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
 
-.meta-bottom {
+.badge-xp {
+  background-color: var(--primary-ghost);
+  color: var(--primary);
+  border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+.meta-secondary {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
-.post-time { font-size: 12px; color: var(--text-muted); }
+.post-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
-.uni-chip {
+.uni-tag {
   font-size: 11px;
   font-weight: 500;
-  padding: 2px 7px;
+  padding: 1px 7px;
   border-radius: var(--radius-full);
-  background-color: var(--accent-ghost);
-  color: #92700C;
-  max-width: 150px;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -362,25 +541,14 @@ onMounted(fetchFeed)
   gap: 4px;
 }
 
-.more-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
-.more-btn:active { background: var(--bg-subtle); }
-
 /* ─── Post Body ─── */
 .post-title {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text-strong);
   margin-bottom: 5px;
-  line-height: 1.3;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 .post-text {
@@ -394,12 +562,13 @@ onMounted(fetchFeed)
   overflow: hidden;
 }
 
-/* ─── Post Footer ─── */
+/* ─── Post Footer Actions ─── */
 .post-footer {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .action-btn {
@@ -407,22 +576,40 @@ onMounted(fetchFeed)
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  background: none;
+  background: var(--bg-subtle);
   border: none;
-  font-size: 13px;
+  border-radius: var(--radius-full);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-secondary);
-  padding: 4px 0;
-  transition: color var(--duration-fast) ease,
-              transform 0.15s var(--ease-spring);
+  transition: all var(--duration-fast) ease;
 }
 
-.action-btn:active { transform: scale(0.88); }
+.action-btn:hover {
+  background: var(--bg-muted);
+  color: var(--text-strong);
+}
 
-.action-btn.liked { color: #E53E3E; }
+.action-btn:active {
+  transform: scale(0.92);
+}
+
+.action-btn.liked {
+  background-color: #FEF2F2;
+  color: #EF4444;
+}
 
 .heart-icon {
-  transition: transform 0.25s var(--ease-spring);
+  transition: transform 0.22s var(--ease-spring);
 }
 
-.action-btn.liked .heart-icon { transform: scale(1.2); }
+.action-btn.liked .heart-icon {
+  transform: scale(1.18);
+}
+
+.share-btn {
+  margin-left: auto;
+  padding: 6px 9px;
+}
 </style>

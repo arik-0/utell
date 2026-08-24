@@ -1,62 +1,155 @@
 <template>
   <div class="create-page">
+    <!-- Header -->
     <header class="create-header">
-      <router-link to="/feed" class="close-btn">✕</router-link>
-      <h1>Crear Experiencia</h1>
-      <button @click="submitPost" class="btn-publish" :disabled="isLoading">
-        <span class="icon">📎</span> Publicar
+      <button @click="router.back()" class="close-btn" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="header-center">
+        <span class="badge badge-primary">Experiencia</span>
+        <h1>Nueva Experiencia</h1>
+      </div>
+      <button @click="submitPost" class="btn-publish" :disabled="isLoading || !form.texto.trim()">
+        <span v-if="isLoading" class="btn-spinner"></span>
+        <span v-else>Publicar</span>
       </button>
     </header>
     
     <div class="create-content">
-      <div class="user-info">
-        <img :src="authStore.user?.fotoPerfil || '/img/default-avatar.png'" alt="Avatar" class="avatar" />
-        <div class="user-details">
+      <!-- Author card -->
+      <div class="author-card">
+        <div class="avatar-wrap">
+          <img :src="getProfilePic(authStore.user?.fotoPerfil)" alt="Avatar" class="avatar" />
+        </div>
+        <div class="author-details">
           <span class="name">{{ authStore.user?.nombre }} {{ authStore.user?.apellido }}</span>
-          <select class="privacy-dropdown">
-            <option>Público</option>
-            <option>Solo amigos</option>
-          </select>
+          <span class="sub-text">{{ authStore.user?.tipoPerfil || 'Estudiante' }}</span>
         </div>
       </div>
 
-      <form class="post-form">
-        <input type="text" v-model="form.titulo" placeholder="Título de la experiencia" class="underline-input" />
-        
-        <input type="text" list="universidades" v-model="form.universidad" placeholder="Universidad (Opcional)" class="underline-input" />
-        <datalist id="universidades">
-          <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.nombre"></option>
-        </datalist>
+      <form class="post-form" @submit.prevent="submitPost">
+        <div class="form-card">
+          <div class="input-field">
+            <label class="field-label">Título de la experiencia</label>
+            <input 
+              type="text" 
+              v-model="form.titulo" 
+              placeholder="Ej: Mi experiencia cursando en la sede central" 
+              class="form-input"
+            />
+          </div>
 
-        <input type="text" list="carreras" v-model="form.carrera" placeholder="Carrera (Opcional)" class="underline-input" />
-        <datalist id="carreras">
-          <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
-        </datalist>
+          <div class="field-row">
+            <div class="input-field">
+              <label class="field-label">Universidad (Opcional)</label>
+              <div class="select-wrap">
+                <input 
+                  type="text" 
+                  list="universidades" 
+                  v-model="form.universidad" 
+                  placeholder="Selecciona o escribe..." 
+                  class="form-input" 
+                />
+                <datalist id="universidades">
+                  <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.nombre"></option>
+                </datalist>
+              </div>
+            </div>
 
-        <div class="ratings-container">
-          <div class="rating-group">
-            <label>Clima Estudiantil</label>
-            <div class="stars">
-              <span v-for="n in 5" :key="'c'+n" @click="form.puntuacionClima = n" :class="{ active: n <= form.puntuacionClima }">★</span>
+            <div class="input-field">
+              <label class="field-label">Carrera (Opcional)</label>
+              <div class="select-wrap">
+                <input 
+                  type="text" 
+                  list="carreras" 
+                  v-model="form.carrera" 
+                  placeholder="Selecciona o escribe..." 
+                  class="form-input" 
+                />
+                <datalist id="carreras">
+                  <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
+                </datalist>
+              </div>
             </div>
           </div>
-          <div class="rating-group">
-            <label>Infraestructura</label>
-            <div class="stars">
-              <span v-for="n in 5" :key="'i'+n" @click="form.puntuacionInfraestructura = n" :class="{ active: n <= form.puntuacionInfraestructura }">★</span>
+
+          <!-- Interactive Rating Matrix -->
+          <div class="ratings-section">
+            <label class="field-label">Calificaciones de la Institución</label>
+            
+            <div class="rating-row">
+              <div class="rating-info">
+                <span class="rating-title">Clima Estudiantil</span>
+                <span class="rating-score">{{ form.puntuacionClima }}/5</span>
+              </div>
+              <div class="stars">
+                <button
+                  type="button"
+                  v-for="n in 5"
+                  :key="'clima-'+n"
+                  @click="form.puntuacionClima = n"
+                  class="star-btn"
+                  :class="{ active: n <= form.puntuacionClima }"
+                  :aria-label="`${n} estrellas`"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" :fill="n <= form.puntuacionClima ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <div class="rating-info">
+                <span class="rating-title">Infraestructura</span>
+                <span class="rating-score">{{ form.puntuacionInfraestructura }}/5</span>
+              </div>
+              <div class="stars">
+                <button
+                  type="button"
+                  v-for="n in 5"
+                  :key="'infra-'+n"
+                  @click="form.puntuacionInfraestructura = n"
+                  class="star-btn"
+                  :class="{ active: n <= form.puntuacionInfraestructura }"
+                  :aria-label="`${n} estrellas`"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" :fill="n <= form.puntuacionInfraestructura ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="rating-row">
+              <div class="rating-info">
+                <span class="rating-title">Nivel Académico</span>
+                <span class="rating-score">{{ form.puntuacionAcademica }}/5</span>
+              </div>
+              <div class="stars">
+                <button
+                  type="button"
+                  v-for="n in 5"
+                  :key="'acad-'+n"
+                  @click="form.puntuacionAcademica = n"
+                  class="star-btn"
+                  :class="{ active: n <= form.puntuacionAcademica }"
+                  :aria-label="`${n} estrellas`"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" :fill="n <= form.puntuacionAcademica ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+              </div>
             </div>
           </div>
-          <div class="rating-group">
-            <label>Nivel Académico</label>
-            <div class="stars">
-              <span v-for="n in 5" :key="'a'+n" @click="form.puntuacionAcademica = n" :class="{ active: n <= form.puntuacionAcademica }">★</span>
-            </div>
+
+          <div class="input-field">
+            <label class="field-label">Relato de tu experiencia</label>
+            <textarea 
+              v-model="form.texto" 
+              placeholder="Comparte detalles sobre tu cursada, profesores, instalaciones o consejos para futuros ingresantes..." 
+              class="form-textarea"
+              rows="6"
+            ></textarea>
           </div>
         </div>
 
-        <textarea v-model="form.texto" placeholder="Describe tu experiencia aquí..." class="post-textarea"></textarea>
-        
-        <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+        <p v-if="errorMsg" class="error-banner">{{ errorMsg }}</p>
       </form>
     </div>
   </div>
@@ -66,6 +159,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
@@ -75,7 +169,15 @@ const isLoading = ref(false)
 const errorMsg = ref('')
 const universidades = ref([])
 const carreras = ref([])
-const form = ref({ titulo: '', universidad: '', carrera: '', texto: '', puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
+const form = ref({ 
+  titulo: '', 
+  universidad: '', 
+  carrera: '', 
+  texto: '', 
+  puntuacionClima: 5, 
+  puntuacionInfraestructura: 5, 
+  puntuacionAcademica: 5 
+})
 
 onMounted(async () => {
   try {
@@ -87,8 +189,12 @@ onMounted(async () => {
 })
 
 const submitPost = async () => {
-  if (!form.value.texto) { errorMsg.value = 'La descripción no puede estar vacía.'; return }
-  isLoading.value = true; errorMsg.value = ''
+  if (!form.value.texto.trim()) { 
+    errorMsg.value = 'El relato de la experiencia no puede estar vacío.'
+    return 
+  }
+  isLoading.value = true
+  errorMsg.value = ''
   try {
     const formData = new FormData()
     formData.append('idUsuario', authStore.user.idUsuario)
@@ -110,8 +216,11 @@ const submitPost = async () => {
     const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
     if (typeof res.data === 'string' && res.data.includes('error')) throw new Error(res.data)
     router.push('/feed')
-  } catch (error) { errorMsg.value = 'Hubo un error al publicar.' }
-  finally { isLoading.value = false }
+  } catch (error) { 
+    errorMsg.value = error.message || 'Hubo un error al publicar la experiencia.' 
+  } finally { 
+    isLoading.value = false 
+  }
 }
 </script>
 
@@ -121,169 +230,291 @@ const submitPost = async () => {
   flex-direction: column;
   min-height: 100vh;
   background: var(--bg-main);
-  font-family: var(--font-family);
+  font-family: var(--font-body);
 }
 
+/* ─── Header ─── */
 .create-header {
-  background: var(--primary);
-  color: var(--text-inverse);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .close-btn {
-  color: var(--text-inverse);
-  text-decoration: none;
-  font-size: 20px;
-  font-weight: bold;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-h1 {
-  font-size: 18px;
+.close-btn:active { background: var(--bg-subtle); }
+
+.header-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.header-center h1 {
+  font-size: 15px;
   font-weight: 700;
+  color: var(--text-strong);
   margin: 0;
 }
 
 .btn-publish {
-  background: var(--bg-card);
-  color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: white;
   border: none;
   border-radius: var(--radius-full);
-  padding: 8px 16px;
+  padding: 7px 18px;
+  font-family: var(--font-family);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: opacity var(--duration-fast);
+  box-shadow: var(--shadow-primary);
+  transition: all var(--duration-fast);
 }
 
 .btn-publish:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Content ─── */
 .create-content {
-  padding: 20px;
-  flex-grow: 1;
+  padding: 16px;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.user-info {
+.author-card {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
 }
 
-.avatar {
-  width: 50px;
-  height: 50px;
+.avatar-wrap {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border-light);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.user-details {
+.avatar { width: 100%; height: 100%; object-fit: cover; }
+
+.author-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .name {
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text-strong);
+}
+
+.sub-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ─── Form Card ─── */
+.form-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  padding: 18px 16px;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.form-input {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  outline: none;
+  transition: all var(--duration-fast);
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-ghost);
+}
+
+.form-input::placeholder { color: var(--text-muted); }
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 480px) {
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+/* ─── Ratings Section ─── */
+.ratings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background-color: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.rating-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.rating-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.rating-title {
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-strong);
 }
 
-.privacy-dropdown {
-  background: transparent;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  padding: 2px 5px;
-  color: var(--text-secondary);
-}
-
-.post-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex-grow: 1;
-}
-
-.underline-input {
-  border: none;
-  border-bottom: 1px solid var(--border-light);
-  background: transparent;
-  padding: 10px 0;
-  font-size: 16px;
-  color: var(--text-body);
-  outline: none;
-  transition: border-color var(--duration-fast);
-}
-
-.underline-input:focus {
-  border-bottom-color: var(--primary);
-}
-
-.post-textarea {
-  border: none;
-  background: transparent;
-  padding: 10px 0;
-  font-size: 16px;
-  color: var(--text-body);
-  outline: none;
-  resize: none;
-  flex-grow: 1;
-  font-family: inherit;
-  min-height: 150px;
-}
-
-.ratings-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 10px 0;
-  padding: 15px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-
-.rating-group {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.rating-group label {
-  font-size: 14px;
-  color: var(--text-strong);
-  font-weight: 500;
+.rating-score {
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
 .stars {
   display: flex;
   gap: 4px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 2px;
   cursor: pointer;
+  color: var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--duration-fast), color var(--duration-fast);
 }
 
-.stars span {
-  font-size: 24px;
-  color: #E5E7EB;
-  transition: color var(--duration-fast);
+.star-btn.active {
+  color: #F59E0B;
 }
 
-.stars span.active {
-  color: var(--accent); /* Yellow */
+.star-btn:hover {
+  transform: scale(1.15);
 }
 
-.error-msg {
+.star-btn:active {
+  transform: scale(0.9);
+}
+
+.form-textarea {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 14.5px;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  outline: none;
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.55;
+  transition: all var(--duration-fast);
+}
+
+.form-textarea:focus {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--primary-ghost);
+}
+
+.form-textarea::placeholder { color: var(--text-muted); }
+
+.error-banner {
+  background: #FEF2F2;
   color: #DC2626;
-  font-size: 14px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
   margin: 0;
 }
 </style>
