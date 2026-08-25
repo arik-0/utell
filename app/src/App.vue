@@ -1,5 +1,8 @@
 <template>
   <div class="app-wrapper">
+    <!-- Global Toast Notifications -->
+    <ToastContainer />
+
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />
@@ -73,6 +76,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import ToastContainer from './components/ToastContainer.vue'
 
 const route = useRoute()
 const showFabMenu = ref(false)

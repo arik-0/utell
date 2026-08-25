@@ -36,7 +36,19 @@ class AuthService {
                 }
 
                 require_once __DIR__ . '/SeguridadService.php';
+                require_once __DIR__ . '/JWTService.php';
+
                 $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
+                $user->token    = JWTService::generarToken([
+                    'idUsuario'  => (int)$user->idUsuario,
+                    'email'      => $user->email,
+                    'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
+                    'idRol'      => (int)($user->idRol ?? 2)
+                ]);
+
+                // Never expose password hash in frontend payload
+                unset($user->password);
+
                 return [$user];
             }
         }
@@ -56,8 +68,20 @@ class AuthService {
         $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
         $stmt->execute([':email' => $email]);
 
+        require_once __DIR__ . '/SeguridadService.php';
+        require_once __DIR__ . '/JWTService.php';
+
         if ($stmt->rowCount() > 0) {
-            return [$stmt->fetch(PDO::FETCH_OBJ)];
+            $user = $stmt->fetch(PDO::FETCH_OBJ);
+            $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
+            $user->token    = JWTService::generarToken([
+                'idUsuario'  => (int)$user->idUsuario,
+                'email'      => $user->email,
+                'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
+                'idRol'      => (int)($user->idRol ?? 2)
+            ]);
+            unset($user->password);
+            return [$user];
         }
 
         // Auto-create the user with a random non-usable password
@@ -81,7 +105,16 @@ class AuthService {
         $newId = (int) $db->lastInsertId();
         $fetch = $db->prepare("SELECT * FROM usuarios WHERE idUsuario = :id");
         $fetch->execute([':id' => $newId]);
-        return [$fetch->fetch(PDO::FETCH_OBJ)];
+        $user = $fetch->fetch(PDO::FETCH_OBJ);
+        $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
+        $user->token    = JWTService::generarToken([
+            'idUsuario'  => (int)$user->idUsuario,
+            'email'      => $user->email,
+            'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
+            'idRol'      => (int)($user->idRol ?? 2)
+        ]);
+        unset($user->password);
+        return [$user];
     }
 
     // ─── Classic registration ──────────────────────────────────────────────────

@@ -227,13 +227,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { getProfilePic, timeAgo, toggleTheme } from '../utils'
 import { API_BASE_URL } from '../api'
+import { useToastStore } from '../store/toast'
 import SectionCard from '../components/SectionCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
-const route     = useRoute()
-const router    = useRouter()
-const authStore = useAuthStore()
+const route      = useRoute()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 const profileUser      = ref(null)
 const amigoCount       = ref(0)
@@ -257,6 +259,7 @@ const userInitial = computed(() => {
 const handleToggleTheme = () => {
   const newTheme = toggleTheme()
   isDark.value   = (newTheme === 'dark')
+  toastStore.info(newTheme === 'dark' ? 'Modo Oscuro activado' : 'Modo Claro activado', 2000)
 }
 
 // ─── Data Loaders ─────────────────────────────────────────────────────────────
@@ -333,8 +336,10 @@ const enviarSolicitud = async () => {
     fd.append('idReceptor', profileUser.value.idUsuario)
     await axios.post(`${API_BASE_URL}/amistad/solicitar`, fd)
     relacionEstado.value = 'pendiente_enviada'
+    toastStore.success('Solicitud de amistad enviada con éxito.')
   } catch (e) {
     console.error('Error sending friend request:', e)
+    toastStore.error('No se pudo enviar la solicitud.')
   } finally {
     isActionLoading.value = false
   }
@@ -348,9 +353,15 @@ const responderSolicitud = async (accion) => {
     fd.append('accion', accion)
     await axios.post(`${API_BASE_URL}/amistad/${idAmistadRel.value}/responder`, fd)
     relacionEstado.value = (accion === 'aceptar') ? 'aceptada' : 'ninguno'
-    if (accion === 'aceptar') amigoCount.value++
+    if (accion === 'aceptar') {
+      amigoCount.value++
+      toastStore.success('¡Ahora son amigos conectados!')
+    } else {
+      toastStore.info('Solicitud rechazada.')
+    }
   } catch (e) {
     console.error('Error responding to request:', e)
+    toastStore.error('Error al responder la solicitud.')
   } finally {
     isActionLoading.value = false
   }
@@ -363,8 +374,10 @@ const eliminarAmistad = async () => {
     await axios.delete(`${API_BASE_URL}/amistad/${idAmistadRel.value}`)
     relacionEstado.value = 'ninguno'
     amigoCount.value = Math.max(0, amigoCount.value - 1)
+    toastStore.info('Amistad eliminada.')
   } catch (e) {
     console.error('Error removing friend:', e)
+    toastStore.error('Error al eliminar la amistad.')
   }
 }
 

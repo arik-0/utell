@@ -2,32 +2,43 @@
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Message\ResponseInterface as Response;
 
-header('Access-Control-Allow-Origin: *');
-header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method");
+// Allow CORS with dynamic origin support or fallback to wildcard in local dev
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+header("Access-Control-Allow-Origin: {$origin}");
+header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method, Authorization");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
+header("Access-Control-Allow-Credentials: true");
 header("Allow: GET, POST, OPTIONS, PUT, DELETE");
 header('Content-Type: application/json; charset=utf-8');
-$method = $_SERVER['REQUEST_METHOD'];
-if($method == "OPTIONS") {
-    die();
+
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method === "OPTIONS") {
+    http_response_code(200);
+    exit();
 }
 
-// Agregamos /../ para salir de la carpeta public/ y volver a api/
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../src/config/db.php';
 
-// Mostrar errores detallados para el entorno de desarrollo
+// Display errors dynamically based on APP_ENV (false for production)
+$isProduction = (getenv('APP_ENV') === 'production');
 $config = [ 
     "settings" => [ 
-        "displayErrorDetails" => true, 
+        "displayErrorDetails" => !$isProduction,
+        "determineRouteBeforeAppMiddleware" => true
     ]
 ];
 
 $app = new \Slim\App($config);
 
-// Ruta de prueba
+// Healthcheck Route
 $app->get('/', function (Request $request, Response $response, array $args) {
-    $response->getBody()->write("¡La API de UTell está funcionando desde public!");
+    $response->getBody()->write(json_encode([
+        "status"  => "online",
+        "service" => "U-Tell API Engine",
+        "version" => "2.0.0",
+        "env"     => getenv('APP_ENV') ?: 'development'
+    ]));
     return $response;
 });
 

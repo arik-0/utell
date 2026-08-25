@@ -94,12 +94,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toastStore = useToastStore()
 const isLoading = ref(false)
 const errorMsg = ref('')
 const universidades = ref([])
@@ -138,9 +140,11 @@ const submitPost = async () => {
     }
     const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
     if (typeof res.data === 'string' && res.data.includes('error')) throw new Error(res.data)
+    toastStore.success('Consulta publicada exitosamente.')
     router.push('/feed')
   } catch (error) { 
     errorMsg.value = error.message || 'Hubo un error al publicar la consulta.' 
+    toastStore.error(errorMsg.value)
   } finally { 
     isLoading.value = false 
   }
