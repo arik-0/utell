@@ -42,14 +42,14 @@
           :key="amigo.idAmistad"
           class="friend-card animate-fadein-up"
         >
-          <div class="friend-avatar">
+          <router-link :to="`/perfil/${amigo.idUsuario}`" class="friend-avatar">
             <img v-if="amigo.fotoPerfil" :src="getProfilePic(amigo.fotoPerfil)" alt="Avatar" />
             <span v-else class="avatar-initial">{{ amigo.nombre?.charAt(0) }}</span>
-          </div>
-          <div class="friend-info">
+          </router-link>
+          <router-link :to="`/perfil/${amigo.idUsuario}`" class="friend-info">
             <span class="friend-name">{{ amigo.nombre }} {{ amigo.apellido }}</span>
             <span class="friend-tipo">{{ amigo.tipoPerfil || 'Estudiante' }}</span>
-          </div>
+          </router-link>
           <div class="action-row">
             <button class="action-chip chip-msg" @click="router.push(`/mensajes?contacto=${amigo.idUsuario}`)" aria-label="Enviar mensaje">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
@@ -80,14 +80,14 @@
           :key="sol.idAmistad"
           class="friend-card animate-fadein-up"
         >
-          <div class="friend-avatar">
+          <router-link :to="`/perfil/${sol.idUsuario}`" class="friend-avatar">
             <img v-if="sol.fotoPerfil" :src="getProfilePic(sol.fotoPerfil)" alt="Avatar" />
             <span v-else class="avatar-initial">{{ sol.nombre?.charAt(0) }}</span>
-          </div>
-          <div class="friend-info">
+          </router-link>
+          <router-link :to="`/perfil/${sol.idUsuario}`" class="friend-info">
             <span class="friend-name">{{ sol.nombre }} {{ sol.apellido }}</span>
             <span class="friend-tipo">Solicitud de conexión</span>
-          </div>
+          </router-link>
           <div class="action-row">
             <button class="action-chip chip-primary" @click="responder(sol.idAmistad, 'aceptar')" aria-label="Aceptar">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -105,14 +105,14 @@
           :key="sol.idAmistad"
           class="friend-card animate-fadein-up"
         >
-          <div class="friend-avatar">
+          <router-link :to="`/perfil/${sol.idUsuario}`" class="friend-avatar">
             <img v-if="sol.fotoPerfil" :src="getProfilePic(sol.fotoPerfil)" alt="Avatar" />
             <span v-else class="avatar-initial">{{ sol.nombre?.charAt(0) }}</span>
-          </div>
-          <div class="friend-info">
+          </router-link>
+          <router-link :to="`/perfil/${sol.idUsuario}`" class="friend-info">
             <span class="friend-name">{{ sol.nombre }} {{ sol.apellido }}</span>
             <span class="friend-tipo friend-pending">Pendiente de confirmación</span>
-          </div>
+          </router-link>
         </div>
       </div>
     </div>

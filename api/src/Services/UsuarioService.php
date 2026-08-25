@@ -35,6 +35,10 @@ class UsuarioService {
         return null;
     }
 
+    public function obtenerPerfilCompleto(int $id): ?array {
+        return $this->usuarioRepository->obtenerPerfilCompleto($id);
+    }
+
     public function eliminarUsuario(int $id): bool {
         return $this->usuarioRepository->eliminar($id);
     }

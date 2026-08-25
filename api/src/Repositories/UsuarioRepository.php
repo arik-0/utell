@@ -131,6 +131,26 @@ class UsuarioRepository {
         return $stmt->rowCount() > 0;
     }
 
+    public function obtenerPerfilCompleto(int $idUsuario): ?array {
+        $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.fNac, u.email, u.fotoPerfil, u.celular,
+                       u.tipoPerfil, u.descripcion, u.trayectoria, u.idCiudad, u.idUniversidad, u.idCarrera, u.idRol,
+                       uni.nombre as nombreUniversidad,
+                       car.nombre as nombreCarrera,
+                       ciu.nombre as nombreCiudad,
+                       (SELECT COUNT(*) FROM amigos a WHERE (a.idSolicitante = u.idUsuario OR a.idReceptor = u.idUsuario) AND a.estado = 'aceptada') as totalAmigos,
+                       (SELECT COUNT(*) FROM publicaciones p WHERE p.idUsuario = u.idUsuario) as totalPublicaciones
+                FROM usuarios u
+                LEFT JOIN universidades uni ON u.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras car ON u.idCarrera = car.idCarrera
+                LEFT JOIN ciudades ciu ON u.idCiudad = ciu.idCiudad
+                WHERE u.idUsuario = :id
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $idUsuario]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function activarCuenta(int $idUsuario): bool {
         $stmt = $this->db->prepare("UPDATE usuarios SET estadoCuenta = 'activo' WHERE idUsuario = :id");
         $stmt->execute([':id' => $idUsuario]);

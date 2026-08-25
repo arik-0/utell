@@ -20,17 +20,17 @@ $app->get('/usuarios', function(Request $request, Response $response){
   }
 }); 
 
-// GET Recuperar usuario por ID 
-$app->get('/usuarios/{id}', function(Request $request, Response $response){
-  $id = (int)$request->getAttribute('id');
+// GET Recuperar usuario por ID (Perfil completo)
+$app->get('/usuarios/{id:[0-9]+}', function(Request $request, Response $response, array $args){
+  $id = (int)$args['id'];
   try{
     $usuarioService = UsuarioService::getInstance();
-    $usuario = $usuarioService->obtenerUsuarioPorId($id);
+    $usuario = $usuarioService->obtenerPerfilCompleto($id);
 
     if ($usuario){
-      echo json_encode([$usuario]); // Wrapped in array for backwards compatibility with fetchAll
+      echo json_encode($usuario);
     }else {
-      echo json_encode("No existen usuarios en la BBDD con este ID.");
+      echo json_encode(["error" => ["text" => "No existen usuarios en la BBDD con este ID."]]);
     }
   }catch(Exception $e){
     echo '{"error" : {"text":"'.$e->getMessage().'"}}';

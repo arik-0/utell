@@ -19,6 +19,8 @@ const routes = [
   { path: '/register',           name: 'Register',          component: Register },
   { path: '/feed',               name: 'Feed',              component: Feed,               meta: { requiresAuth: true } },
   { path: '/profile',            name: 'Profile',           component: Profile,            meta: { requiresAuth: true } },
+  { path: '/perfil/:id',         name: 'UserProfile',       component: Profile,            meta: { requiresAuth: true } },
+  { path: '/usuario/:id',        name: 'UserProfileAlt',    component: Profile,            meta: { requiresAuth: true } },
   { path: '/amigos',             name: 'Amigos',            component: AmigosView,         meta: { requiresAuth: true } },
   { path: '/publicaciones',      name: 'Publicaciones',     component: PublicacionesView,   meta: { requiresAuth: true } },
   { path: '/mensajes',           name: 'Mensajes',          component: MensajesView,       meta: { requiresAuth: true } },

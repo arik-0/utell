@@ -43,3 +43,24 @@ export function getProfilePic(pic) {
   if (pic.startsWith('http://') || pic.startsWith('https://')) return pic
   return `/img/${pic}`
 }
+
+/**
+ * Theme Management Utilities (Light / Dark Mode)
+ */
+export function initTheme() {
+  const saved = localStorage.getItem('utell_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  setTheme(saved)
+  return saved
+}
+
+export function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('utell_theme', theme)
+}
+
+export function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
+  const next = current === 'dark' ? 'light' : 'dark'
+  setTheme(next)
+  return next
+}

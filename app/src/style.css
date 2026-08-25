@@ -81,6 +81,80 @@
 }
 
 /* ═══════════════════════════════════
+   DARK THEME TOKENS
+   ═══════════════════════════════════ */
+[data-theme="dark"],
+.dark {
+  /* ─── Neutral & Text Colors ─── */
+  --text-strong: #F8FAFC;      /* Slate 50 */
+  --text-body: #CBD5E1;        /* Slate 300 */
+  --text-secondary: #94A3B8;   /* Slate 400 */
+  --text-muted: #64748B;       /* Slate 500 */
+  --text-inverse: #0F172A;
+
+  /* ─── Backgrounds ─── */
+  --bg-main: #0B0F17;          /* Ultra dark canvas */
+  --bg-card: #151F30;          /* Deep Card slate */
+  --bg-subtle: #1E293B;        /* Secondary surface */
+  --bg-muted: #334155;         /* Muted elements */
+  --bg-glass: rgba(21, 31, 48, 0.88);
+
+  /* ─── Brand Colors ─── */
+  --primary: #FF7D4D;
+  --primary-hover: #FF6B35;
+  --primary-light: rgba(255, 107, 53, 0.15);
+  --primary-ghost: rgba(255, 107, 53, 0.18);
+  --primary-glow: rgba(255, 107, 53, 0.35);
+
+  --accent: #FBBF24;
+  --accent-light: rgba(245, 158, 11, 0.18);
+  --accent-ghost: rgba(245, 158, 11, 0.22);
+
+  /* ─── Borders & Dividers ─── */
+  --border-light: #243247;
+  --border-subtle: #1E293B;
+
+  /* ─── Refined Dark Shadows ─── */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 14px 30px rgba(0, 0, 0, 0.65);
+  --shadow-primary: 0 6px 22px rgba(255, 107, 53, 0.3);
+}
+
+[data-theme="dark"] .bottom-tab-bar,
+[data-theme="dark"] .feed-header,
+[data-theme="dark"] .wall-header,
+[data-theme="dark"] .publicaciones-header,
+[data-theme="dark"] .inbox-header,
+[data-theme="dark"] .chat-header,
+[data-theme="dark"] .chat-input-bar,
+[data-theme="dark"] .reply-bar,
+[data-theme="dark"] .profile-header-bar {
+  background: rgba(21, 31, 48, 0.92) !important;
+  border-color: #243247 !important;
+}
+
+[data-theme="dark"] .feed-header.is-scrolled {
+  background: rgba(21, 31, 48, 0.98) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .input-wrap input,
+[data-theme="dark"] .input-control,
+[data-theme="dark"] .chat-input {
+  background: #111827;
+  border-color: #243247;
+  color: var(--text-strong);
+}
+
+[data-theme="dark"] .input-wrap input:focus,
+[data-theme="dark"] .input-control:focus,
+[data-theme="dark"] .chat-input:focus {
+  background: #151F30;
+}
+
+/* ═══════════════════════════════════
    RESET & BASE
    ═══════════════════════════════════ */
 *,

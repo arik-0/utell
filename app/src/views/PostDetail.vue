@@ -24,12 +24,14 @@
       <!-- Original Post Card -->
       <article class="original-post animate-fadein-up">
         <div class="post-header">
-          <div class="avatar-wrap">
+          <router-link :to="`/perfil/${post.idUsuario}`" class="avatar-wrap">
             <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
-          </div>
+          </router-link>
           <div class="post-meta">
             <div class="meta-primary">
-              <span class="user-name">{{ post.nombre }} {{ post.apellido }}</span>
+              <router-link :to="`/perfil/${post.idUsuario}`" class="user-name clickable-author">
+                {{ post.nombre }} {{ post.apellido }}
+              </router-link>
               <span v-if="post.tipoPublicacion" class="type-badge" :class="post.tipoPublicacion === 'Consulta' ? 'badge-consulta' : 'badge-xp'">
                 <span class="type-dot" :class="post.tipoPublicacion === 'Consulta' ? 'type-dot-consulta' : 'type-dot-experiencia'"></span>
                 {{ post.tipoPublicacion }}
@@ -100,12 +102,14 @@
             class="response-card animate-fadein-up"
             :style="{ animationDelay: `${index * 0.04}s` }"
           >
-            <div class="res-avatar-wrap">
+            <router-link :to="`/perfil/${res.idUsuario}`" class="res-avatar-wrap">
               <img :src="getProfilePic(res.fotoPerfil)" alt="Avatar" class="res-avatar" />
-            </div>
+            </router-link>
             <div class="res-bubble">
               <div class="res-header">
-                <span class="res-user">{{ res.nombre }} {{ res.apellido }}</span>
+                <router-link :to="`/perfil/${res.idUsuario}`" class="res-user clickable-author">
+                  {{ res.nombre }} {{ res.apellido }}
+                </router-link>
                 <span class="res-time">{{ timeAgo(res.fecha, res.hora) }}</span>
               </div>
               <p class="res-text">{{ res.texto }}</p>

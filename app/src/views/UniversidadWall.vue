@@ -137,12 +137,14 @@
             @click="goToPost(post.idPublicacion)"
           >
             <div class="post-header">
-              <div class="avatar-wrap">
+              <router-link :to="`/perfil/${post.idUsuario}`" class="avatar-wrap" @click.stop>
                 <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
-              </div>
+              </router-link>
               <div class="post-meta">
                 <div class="meta-primary">
-                  <span class="user-name">{{ post.nombre }} {{ post.apellido }}</span>
+                  <router-link :to="`/perfil/${post.idUsuario}`" class="user-name clickable-author" @click.stop>
+                    {{ post.nombre }} {{ post.apellido }}
+                  </router-link>
                   <span class="badge badge-primary">Experiencia</span>
                 </div>
                 <div class="meta-secondary">
@@ -208,12 +210,14 @@
             @click="goToPost(post.idPublicacion)"
           >
             <div class="post-header">
-              <div class="avatar-wrap">
+              <router-link :to="`/perfil/${post.idUsuario}`" class="avatar-wrap" @click.stop>
                 <img :src="getProfilePic(post.fotoPerfil)" alt="Avatar" class="avatar" />
-              </div>
+              </router-link>
               <div class="post-meta">
                 <div class="meta-primary">
-                  <span class="user-name">{{ post.nombre }} {{ post.apellido }}</span>
+                  <router-link :to="`/perfil/${post.idUsuario}`" class="user-name clickable-author" @click.stop>
+                    {{ post.nombre }} {{ post.apellido }}
+                  </router-link>
                   <span class="badge badge-accent">Consulta</span>
                 </div>
                 <div class="meta-secondary">
