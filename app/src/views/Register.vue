@@ -164,9 +164,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { API_BASE_URL } from '../api'
+import { useToastStore } from '../store/toast'
 import axios from 'axios'
 
 const router = useRouter()
+const toastStore = useToastStore()
+
 const step = ref(1)
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -183,70 +186,206 @@ const universidades = ref([])
 const carreras = ref([])
 
 const form = ref({
-  nombre: '', apellido: '', email: '', password: '',
-  fNac: '', fotoPerfil: '', celular: '', tipoPerfil: '',
-  descripcion: '', trayectoria: '', pais: '', provincia: '', ciudad: '',
-  idUniversidad: '', idCarrera: ''
+  nombre: '',
+  apellido: '',
+  email: '',
+  password: '',
+  fNac: '',
+  fotoPerfil: '',
+  celular: '',
+  tipoPerfil: 'Estudiante',
+  descripcion: '',
+  trayectoria: '',
+  pais: 'Argentina',
+  provincia: '',
+  ciudad: '',
+  idUniversidad: '',
+  idCarrera: ''
 })
 
+// Fallback data for quick local selection
+const defaultLocations = {
+  'Argentina': {
+    'Buenos Aires': ['La Plata', 'Mar del Plata', 'Tandil', 'Bahía Blanca', 'Quilmes', 'San Isidro'],
+    'Ciudad Autónoma de Buenos Aires': ['CABA - Central', 'Palermo', 'Recoleta', 'Caballito', 'Belgrano'],
+    'Santa Fe': ['Rosario', 'Santa Fe Capital', 'Rafaela', 'Venado Tuerto'],
+    'Córdoba': ['Córdoba Capital', 'Villa María', 'Río Cuarto', 'Villa Carlos Paz'],
+    'Mendoza': ['Mendoza Capital', 'San Rafael', 'Godoy Cruz'],
+    'Tucumán': ['San Miguel de Tucumán', 'Yerba Buena', 'Concepción'],
+    'Entre Ríos': ['Paraná', 'Concordia', 'Gualeguaychú']
+  },
+  'Uruguay': {
+    'Montevideo': ['Montevideo Central', 'Pocitos', 'Carrasco'],
+    'Canelones': ['Ciudad de la Costa', 'Las Piedras'],
+    'Maldonado': ['Punta del Este', 'Maldonado']
+  },
+  'Chile': {
+    'Región Metropolitana': ['Santiago', 'Providencia', 'Las Condes'],
+    'Valparaíso': ['Valparaíso', 'Viña del Mar'],
+    'Biobío': ['Concepción', 'Talcahuano']
+  }
+}
+
 onMounted(() => { 
+  loadInstitutions()
   loadCountries()
-  loadInstitutions() 
 })
 
 const loadInstitutions = async () => {
   try {
-    const resUni = await axios.get(`${API_BASE_URL}/universidades`)
-    if (Array.isArray(resUni.data)) universidades.value = resUni.data
-    const resCar = await axios.get(`${API_BASE_URL}/carreras`)
-    if (Array.isArray(resCar.data)) carreras.value = resCar.data
-  } catch(e) { console.error(e) }
+    const [resUni, resCar] = await Promise.allSettled([
+      axios.get(`${API_BASE_URL}/universidades`),
+      axios.get(`${API_BASE_URL}/carreras`)
+    ])
+    if (resUni.status === 'fulfilled' && Array.isArray(resUni.value.data)) {
+      universidades.value = resUni.value.data
+    }
+    if (resCar.status === 'fulfilled' && Array.isArray(resCar.value.data)) {
+      carreras.value = resCar.value.data
+    }
+  } catch (e) {
+    console.error('Error loading institutions', e)
+  }
 }
 
 const loadCountries = async () => {
   loadingCountries.value = true
   try {
-    const res = await axios.get('https://countriesnow.space/api/v0.1/countries/states')
-    countries.value = res.data.data.map(c => c.name).sort()
-  } catch (error) { console.error('Error loading countries', error) }
-  finally { loadingCountries.value = false }
+    const res = await axios.get(`${API_BASE_URL}/paises`)
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      countries.value = res.data.map(p => p.nombre || p).sort()
+    } else {
+      countries.value = Object.keys(defaultLocations)
+    }
+  } catch (_) {
+    countries.value = Object.keys(defaultLocations)
+  } finally {
+    loadingCountries.value = false
+    if (!countries.value.includes(form.value.pais)) {
+      form.value.pais = countries.value[0] || 'Argentina'
+    }
+    loadStates()
+  }
 }
 
 const loadStates = async () => {
   if (!form.value.pais) return
-  form.value.provincia = ''; form.value.ciudad = ''
-  states.value = []; cities.value = []
+  form.value.provincia = ''
+  form.value.ciudad = ''
+  states.value = []
+  cities.value = []
   loadingStates.value = true
+
   try {
-    const res = await axios.post('https://countriesnow.space/api/v0.1/countries/states', { country: form.value.pais })
-    states.value = res.data.data.states.map(s => s.name).sort()
-    if(states.value.length === 0) states.value = [form.value.pais]
-  } catch (error) { states.value = [form.value.pais] }
-  finally { loadingStates.value = false }
+    const res = await axios.get(`${API_BASE_URL}/provincias`)
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      states.value = res.data.map(p => p.nombre || p).sort()
+    } else if (defaultLocations[form.value.pais]) {
+      states.value = Object.keys(defaultLocations[form.value.pais])
+    } else {
+      states.value = [form.value.pais]
+    }
+  } catch (_) {
+    if (defaultLocations[form.value.pais]) {
+      states.value = Object.keys(defaultLocations[form.value.pais])
+    } else {
+      states.value = ['Buenos Aires', 'Santa Fe', 'Córdoba', 'Mendoza']
+    }
+  } finally {
+    loadingStates.value = false
+    if (states.value.length > 0) {
+      form.value.provincia = states.value[0]
+      loadCities()
+    }
+  }
 }
 
 const loadCities = async () => {
   if (!form.value.pais || !form.value.provincia) return
-  form.value.ciudad = ''; cities.value = []
+  form.value.ciudad = ''
+  cities.value = []
   loadingCities.value = true
+
   try {
-    const res = await axios.post('https://countriesnow.space/api/v0.1/countries/state/cities', { country: form.value.pais, state: form.value.provincia })
-    cities.value = res.data.data.sort()
-    if(cities.value.length === 0) cities.value = [form.value.provincia]
-  } catch (error) { cities.value = [form.value.provincia] }
-  finally { loadingCities.value = false }
+    const res = await axios.get(`${API_BASE_URL}/ciudades`)
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      cities.value = res.data.map(c => c.nombre || c).sort()
+    } else if (defaultLocations[form.value.pais]?.[form.value.provincia]) {
+      cities.value = defaultLocations[form.value.pais][form.value.provincia]
+    } else {
+      cities.value = [form.value.provincia]
+    }
+  } catch (_) {
+    if (defaultLocations[form.value.pais]?.[form.value.provincia]) {
+      cities.value = defaultLocations[form.value.pais][form.value.provincia]
+    } else {
+      cities.value = ['Rosario', 'La Plata', 'Córdoba Capital', 'CABA']
+    }
+  } finally {
+    loadingCities.value = false
+    if (cities.value.length > 0) {
+      form.value.ciudad = cities.value[0]
+    }
+  }
 }
 
-const nextStep = () => { if (step.value < 3) step.value++ }
+const validateStep = (currentStep) => {
+  errorMessage.value = ''
+  if (currentStep === 1) {
+    if (!form.value.nombre.trim() || !form.value.apellido.trim()) {
+      errorMessage.value = 'Por favor ingresa tu nombre y apellido completos.'
+      return false
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!form.value.email.trim() || !emailRegex.test(form.value.email.trim())) {
+      errorMessage.value = 'Por favor ingresa un correo electrónico válido.'
+      return false
+    }
+    if (!form.value.password || form.value.password.length < 6) {
+      errorMessage.value = 'La contraseña debe tener al menos 6 caracteres.'
+      return false
+    }
+  } else if (currentStep === 2) {
+    if (!form.value.fNac) {
+      errorMessage.value = 'Por favor selecciona tu fecha de nacimiento.'
+      return false
+    }
+    if (!form.value.tipoPerfil) {
+      errorMessage.value = 'Por favor selecciona tu tipo de perfil.'
+      return false
+    }
+  }
+  return true
+}
+
+const nextStep = () => {
+  if (validateStep(step.value)) {
+    if (step.value < 3) {
+      step.value++
+      errorMessage.value = ''
+    }
+  }
+}
 
 const handleRegister = async () => {
-  if(!form.value.ciudad) { errorMessage.value = 'Por favor selecciona una ciudad.'; return }
-  isLoading.value = true; errorMessage.value = ''
+  if (!validateStep(1) || !validateStep(2)) return
+  if (!form.value.ciudad) {
+    errorMessage.value = 'Por favor selecciona una ciudad.'
+    return
+  }
+
+  isLoading.value = true
+  errorMessage.value = ''
+
   try {
     const formData = new FormData()
-    for (const key in form.value) formData.append(key, form.value[key])
+    for (const key in form.value) {
+      if (form.value[key] !== null && form.value[key] !== undefined) {
+        formData.append(key, form.value[key])
+      }
+    }
+
     const response = await axios.post(`${API_BASE_URL}/usuarios/nuevo`, formData)
-    
     let data = response.data
     if (typeof data === 'string') {
       try { data = JSON.parse(data) } catch (e) {}
@@ -260,18 +399,21 @@ const handleRegister = async () => {
       throw new Error(msg)
     }
     
-    if (typeof data === 'string' && (data.includes('Error') || data.includes('error'))) {
+    if (typeof data === 'string' && (data.toLowerCase().includes('error'))) {
       throw new Error(data)
     }
 
+    toastStore.success('¡Cuenta creada con éxito! Ya puedes iniciar sesión.', 4000)
     router.push('/')
   } catch (error) { 
-    errorMessage.value = error.message || 'Hubo un error al crear la cuenta.' 
+    errorMessage.value = error.message || 'Hubo un error al crear la cuenta.'
+    toastStore.error(errorMessage.value)
   } finally { 
     isLoading.value = false 
   }
 }
 </script>
+
 
 <style scoped>
 .register-page {
@@ -519,4 +661,39 @@ const handleRegister = async () => {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
+
+/* ─── Desktop & Tablet Layout ─── */
+@media (min-width: 768px) {
+  .register-page {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-subtle);
+    padding: 40px 20px;
+  }
+
+  .top-section {
+    flex: 0 0 360px;
+    height: 620px;
+    border-radius: 28px 0 0 28px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .logo-cap {
+    width: 130px;
+  }
+
+  .bottom-card {
+    flex: 0 0 500px;
+    height: 620px;
+    margin: 0;
+    border-radius: 0 28px 28px 0;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    border-left: none;
+    overflow-y: auto;
+    padding: 36px 32px;
+  }
+}
 </style>
+

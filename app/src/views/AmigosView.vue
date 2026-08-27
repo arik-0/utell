@@ -123,13 +123,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
-const router    = useRouter()
-const authStore = useAuthStore()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 const activeTab  = ref('amigos')
 const isLoading  = ref(true)
@@ -147,6 +149,7 @@ const switchTab = (tab) => {
 }
 
 const loadAmigos = async () => {
+  if (!authStore.user) return
   isLoading.value = true
   try {
     const res = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/amigos`)
@@ -159,6 +162,7 @@ const loadAmigos = async () => {
 }
 
 const loadSolicitudes = async () => {
+  if (!authStore.user) return
   isLoading.value = true
   try {
     const res = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/solicitudes`)
@@ -175,24 +179,34 @@ const responder = async (idAmistad, accion) => {
     const fd = new FormData()
     fd.append('accion', accion)
     await axios.post(`${API_BASE_URL}/amistad/${idAmistad}/responder`, fd)
+    if (accion === 'aceptar') {
+      toastStore.success('¡Solicitud aceptada! Ahora son amigos.', 2500)
+    } else {
+      toastStore.info('Solicitud rechazada.', 2000)
+    }
     await loadSolicitudes()
     if (accion === 'aceptar') await loadAmigos()
   } catch (e) {
     console.error('Error respondiendo solicitud:', e)
+    toastStore.error('Error al procesar la solicitud.')
   }
 }
 
 const eliminarAmistad = async (idAmistad) => {
+  if (!confirm('¿Estás seguro de que deseas eliminar este contacto de tus amigos?')) return
   try {
     await axios.delete(`${API_BASE_URL}/amistad/${idAmistad}`)
     amigos.value = amigos.value.filter(a => a.idAmistad !== idAmistad)
+    toastStore.info('Contacto eliminado de amigos.', 2000)
   } catch (e) {
     console.error('Error eliminando amistad:', e)
+    toastStore.error('Error al eliminar contacto.')
   }
 }
 
 onMounted(loadAmigos)
 </script>
+
 
 <style scoped>
 .amigos-page {

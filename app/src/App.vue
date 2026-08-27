@@ -1,85 +1,226 @@
 <template>
-  <div class="app-wrapper">
+  <div class="app-layout" :class="{ 'auth-layout': isAuthRoute }">
     <!-- Global Toast Notifications -->
     <ToastContainer />
 
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <!-- ═════════════════════════════════════════════════════════════
+         DESKTOP SIDEBAR (Visible on Desktop >= 768px when authenticated)
+         ═════════════════════════════════════════════════════════════ -->
+    <aside class="desktop-sidebar" v-if="showDesktopSidebar">
+      <div class="sidebar-top">
+        <!-- Logo & Brand Header -->
+        <router-link to="/feed" class="sidebar-brand">
+          <img src="/img/logo.png" alt="U-Tell Logo" class="sidebar-logo" />
+          <span class="sidebar-brand-name">U-Tell</span>
+        </router-link>
 
-    <!-- Full Screen Dark Overlay for FAB -->
-    <div v-if="showFabMenu" class="fab-overlay" @click="toggleFab"></div>
+        <!-- Navigation Links -->
+        <nav class="sidebar-nav">
+          <router-link to="/feed" class="sidebar-link" :class="{ active: isActive('/feed') }">
+            <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Feed</span>
+          </router-link>
 
-    <!-- Floating Action Menu Items -->
-    <div class="fab-menu" :class="{ 'fab-menu-active': showFabMenu }">
-      <router-link to="/create-consulta" class="fab-menu-btn fab-consulta" @click="toggleFab">
-        <div class="fab-icon-wrap icon-consulta">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </div>
-        <div class="fab-text">
-          <span class="fab-label">Consulta</span>
-          <span class="fab-desc">Pregunta a la comunidad</span>
-        </div>
-      </router-link>
-      <router-link to="/create-experiencia" class="fab-menu-btn fab-experiencia" @click="toggleFab">
-        <div class="fab-icon-wrap icon-experiencia">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </div>
-        <div class="fab-text">
-          <span class="fab-label">Experiencia</span>
-          <span class="fab-desc">Califica tu facultad o carrera</span>
-        </div>
-      </router-link>
-    </div>
+          <router-link to="/publicaciones" class="sidebar-link" :class="{ active: isActive('/publicaciones') }">
+            <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+            <span>Descubrir</span>
+          </router-link>
 
-    <!-- Modern Glassmorphism Bottom Tab Bar -->
-    <nav class="bottom-tab-bar" v-if="showTabBar">
-      <router-link to="/feed" class="tab-item" :class="{ active: isActive('/feed') }">
-        <div class="tab-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        </div>
-        <span class="tab-label">Feed</span>
-      </router-link>
+          <router-link to="/mensajes" class="sidebar-link" :class="{ active: isActive('/mensajes') }">
+            <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <span>Mensajes</span>
+          </router-link>
 
-      <router-link to="/publicaciones" class="tab-item" :class="{ active: isActive('/publicaciones') }">
-        <div class="tab-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
-        </div>
-        <span class="tab-label">Descubrir</span>
-      </router-link>
+          <router-link to="/amigos" class="sidebar-link" :class="{ active: isActive('/amigos') }">
+            <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Amigos</span>
+          </router-link>
 
-      <div class="tab-item plus-btn-container">
-        <button class="plus-btn" :class="{ 'plus-active': showFabMenu }" @click="toggleFab" aria-label="Crear publicación">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </button>
+          <router-link to="/profile" class="sidebar-link" :class="{ active: isActive('/profile') }">
+            <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Mi Perfil</span>
+          </router-link>
+        </nav>
+
+        <!-- Quick Post Creation CTAs -->
+        <div class="sidebar-cta-group">
+          <router-link to="/create-consulta" class="btn btn-primary sidebar-create-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Nueva Consulta</span>
+          </router-link>
+          <router-link to="/create-experiencia" class="btn btn-secondary sidebar-create-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Nueva Experiencia</span>
+          </router-link>
+        </div>
       </div>
 
-      <router-link to="/amigos" class="tab-item" :class="{ active: isActive('/amigos') }">
-        <div class="tab-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <!-- Bottom User Profile, Theme Toggle & Logout -->
+      <div class="sidebar-bottom">
+        <div class="sidebar-user-card" @click="router.push('/profile')">
+          <img :src="getProfilePic(authStore.user?.fotoPerfil)" alt="Avatar" class="sidebar-avatar" />
+          <div class="sidebar-user-info">
+            <span class="sidebar-user-name">{{ authStore.user?.nombre }} {{ authStore.user?.apellido }}</span>
+            <span class="sidebar-user-role">{{ authStore.user?.tipoPerfil || 'Estudiante' }}</span>
+          </div>
         </div>
-        <span class="tab-label">Amigos</span>
-      </router-link>
 
-      <router-link to="/profile" class="tab-item" :class="{ active: isActive('/profile') }">
-        <div class="tab-icon-wrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div class="sidebar-bottom-actions">
+          <button class="sidebar-icon-btn" @click="handleToggleTheme" :title="isDark ? 'Activar modo claro' : 'Activar modo oscuro'" aria-label="Cambiar tema">
+            <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="sidebar-icon-btn text-danger" @click="handleLogout" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
         </div>
-        <span class="tab-label">Perfil</span>
-      </router-link>
-    </nav>
+      </div>
+    </aside>
+
+    <!-- ═════════════════════════════════════════════════════════════
+         MAIN CONTENT STAGE
+         ═════════════════════════════════════════════════════════════ -->
+    <main class="app-main-content">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
+
+    <!-- ═════════════════════════════════════════════════════════════
+         DESKTOP RIGHT RAIL (Visible on Wide Desktop >= 1024px)
+         ═════════════════════════════════════════════════════════════ -->
+    <aside class="desktop-right-rail" v-if="showDesktopRightRail">
+      <!-- Muros Populares Widget -->
+      <div class="rail-widget">
+        <h3 class="rail-widget-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <span>Muros Destacados</span>
+        </h3>
+        <div class="rail-uni-list">
+          <router-link
+            v-for="uni in topUniversidades"
+            :key="uni.idUniversidad"
+            :to="`/universidad/${uni.idUniversidad}`"
+            class="rail-uni-item"
+          >
+            <div class="rail-uni-info">
+              <span class="rail-uni-name">{{ uni.nombre }}</span>
+              <span class="rail-uni-sub">{{ uni.totalExperiencias || 0 }} experiencias</span>
+            </div>
+            <span class="rail-score">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {{ uni.promedioGeneral || '5.0' }}
+            </span>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Quick Community Tips Widget -->
+      <div class="rail-widget">
+        <h3 class="rail-widget-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Comunidad U-Tell</span>
+        </h3>
+        <p class="rail-footer">
+          Comparte dudas sobre materias, docentes y sedes. Califica tu facultad para orientar a nuevos ingresantes universitarios.
+        </p>
+      </div>
+
+      <!-- Footer & Copyright -->
+      <div class="rail-footer text-center">
+        © 2026 U-Tell — Red Social Universitaria.
+      </div>
+    </aside>
+
+    <!-- ═════════════════════════════════════════════════════════════
+         MOBILE ONLY CONTROLS (< 768px)
+         ═════════════════════════════════════════════════════════════ -->
+    <div class="mobile-only-controls">
+      <!-- Full Screen Dark Overlay for FAB -->
+      <div v-if="showFabMenu" class="fab-overlay" @click="toggleFab"></div>
+
+      <!-- Floating Action Menu Items -->
+      <div class="fab-menu" :class="{ 'fab-menu-active': showFabMenu }">
+        <router-link to="/create-consulta" class="fab-menu-btn fab-consulta" @click="toggleFab">
+          <div class="fab-icon-wrap icon-consulta">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="fab-text">
+            <span class="fab-label">Consulta</span>
+            <span class="fab-desc">Pregunta a la comunidad</span>
+          </div>
+        </router-link>
+        <router-link to="/create-experiencia" class="fab-menu-btn fab-experiencia" @click="toggleFab">
+          <div class="fab-icon-wrap icon-experiencia">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="fab-text">
+            <span class="fab-label">Experiencia</span>
+            <span class="fab-desc">Califica tu facultad o carrera</span>
+          </div>
+        </router-link>
+      </div>
+
+      <!-- Modern Glassmorphism Bottom Tab Bar -->
+      <nav class="bottom-tab-bar" v-if="showTabBar">
+        <router-link to="/feed" class="tab-item" :class="{ active: isActive('/feed') }">
+          <div class="tab-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          </div>
+          <span class="tab-label">Feed</span>
+        </router-link>
+
+        <router-link to="/publicaciones" class="tab-item" :class="{ active: isActive('/publicaciones') }">
+          <div class="tab-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+          </div>
+          <span class="tab-label">Descubrir</span>
+        </router-link>
+
+        <div class="tab-item plus-btn-container">
+          <button class="plus-btn" :class="{ 'plus-active': showFabMenu }" @click="toggleFab" aria-label="Crear publicación">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <router-link to="/amigos" class="tab-item" :class="{ active: isActive('/amigos') }">
+          <div class="tab-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="tab-label">Amigos</span>
+        </router-link>
+
+        <router-link to="/profile" class="tab-item" :class="{ active: isActive('/profile') }">
+          <div class="tab-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <span class="tab-label">Perfil</span>
+        </router-link>
+      </nav>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from './store/auth'
+import { useToastStore } from './store/toast'
+import { getProfilePic, toggleTheme } from './utils'
+import { API_BASE_URL } from './api'
 import ToastContainer from './components/ToastContainer.vue'
+import axios from 'axios'
 
-const route = useRoute()
-const showFabMenu = ref(false)
+const route      = useRoute()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
+
+const showFabMenu      = ref(false)
+const topUniversidades = ref([])
+const isDark           = ref(typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') === 'dark' : false)
 
 const toggleFab = () => {
   showFabMenu.value = !showFabMenu.value
@@ -89,14 +230,59 @@ const isActive = (path) => {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-// Hide tab bar on login, register, and create pages
+const isAuthRoute = computed(() => {
+  return route.path === '/' || route.path === '/register'
+})
+
+const showDesktopSidebar = computed(() => {
+  return !isAuthRoute.value && !!authStore.user
+})
+
+const showDesktopRightRail = computed(() => {
+  return !isAuthRoute.value && !!authStore.user && (route.path === '/feed' || route.path === '/publicaciones')
+})
+
+// Hide mobile bottom tab bar on login, register, and create pages
 const showTabBar = computed(() => {
   const hiddenRoutes = ['/', '/register', '/create-consulta', '/create-experiencia']
   if (route.path.startsWith('/post/')) return false
   if (route.path.startsWith('/amigos')) return true
   return !hiddenRoutes.includes(route.path)
 })
+
+const handleToggleTheme = () => {
+  const newTheme = toggleTheme()
+  isDark.value   = (newTheme === 'dark')
+  toastStore.info(newTheme === 'dark' ? 'Modo Oscuro activado' : 'Modo Claro activado', 2000)
+}
+
+const handleLogout = () => {
+  authStore.logout()
+  toastStore.info('Sesión cerrada.')
+  router.push('/')
+}
+
+const fetchTopUniversidades = async () => {
+  try {
+    const res = await axios.get(`${API_BASE_URL}/universidades/con-experiencias`)
+    if (Array.isArray(res.data)) {
+      topUniversidades.value = res.data.slice(0, 4)
+    }
+  } catch (_) {
+    topUniversidades.value = [
+      { idUniversidad: 1, nombre: 'Universidad Nacional de Rosario', totalExperiencias: 14, promedioGeneral: '4.8' },
+      { idUniversidad: 2, nombre: 'Universidad de Buenos Aires', totalExperiencias: 28, promedioGeneral: '4.9' },
+      { idUniversidad: 3, nombre: 'Universidad Tecnológica Nacional', totalExperiencias: 19, promedioGeneral: '4.7' }
+    ]
+  }
+}
+
+onMounted(() => {
+  fetchTopUniversidades()
+  isDark.value = (document.documentElement.getAttribute('data-theme') === 'dark')
+})
 </script>
+
 
 <style scoped>
 .app-wrapper {

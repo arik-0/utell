@@ -151,16 +151,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import axios from 'axios'
 
-const route     = useRoute()
-const router    = useRouter()
-const authStore = useAuthStore()
+const route      = useRoute()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 const post                = ref(null)
 const respuestas          = ref([])
@@ -201,7 +203,7 @@ const toggleLike = async (postItem) => {
   const originalLiked = postItem.hasLiked
   const originalLikes = postItem.likes
   postItem.hasLiked   = originalLiked > 0 ? 0 : 1
-  postItem.likes      = originalLiked > 0 ? (postItem.likes - 1) : (postItem.likes + 1)
+  postItem.likes      = originalLiked > 0 ? Math.max(0, postItem.likes - 1) : (postItem.likes + 1)
 
   try {
     const fd = new FormData()
@@ -218,30 +220,66 @@ const toggleLike = async (postItem) => {
 }
 
 const submitReply = async () => {
-  if (!newReply.value.trim() || isSubmitting.value) return
+  const replyText = newReply.value.trim()
+  if (!replyText || isSubmitting.value) return
   isSubmitting.value = true
+
+  // Optimistic reply object
+  const tempId = Date.now()
+  const optimisticReply = {
+    idRespuesta: tempId,
+    idUsuario: authStore.user?.idUsuario,
+    nombre: authStore.user?.nombre || 'Tú',
+    apellido: authStore.user?.apellido || '',
+    fotoPerfil: authStore.user?.fotoPerfil,
+    texto: replyText,
+    fecha: new Date().toISOString().split('T')[0],
+    hora: new Date().toTimeString().split(' ')[0]
+  }
+  respuestas.value.push(optimisticReply)
+  newReply.value = ''
+
+  nextTick(() => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+  })
+
   try {
     const fd = new FormData()
     fd.append('idPublicacion', route.params.id)
-    fd.append('idUsuario', authStore.user.idUsuario)
-    fd.append('texto', newReply.value.trim())
+    fd.append('idUsuario', authStore.user?.idUsuario || 0)
+    fd.append('texto', replyText)
     await axios.post(`${API_BASE_URL}/respuesta/nuevo`, fd)
-    newReply.value = ''
+    toastStore.success('Comentario enviado con éxito.', 2000)
     await fetchRespuestas()
   } catch (error) {
     console.error('Error submitting reply:', error)
+    toastStore.error('No se pudo enviar la respuesta.')
+    respuestas.value = respuestas.value.filter(r => r.idRespuesta !== tempId)
+    newReply.value = replyText
   } finally {
     isSubmitting.value = false
   }
 }
 
-const shareCurrentPost = () => {
+const shareCurrentPost = async () => {
+  const shareUrl = window.location.href
   if (navigator.share && post.value) {
-    navigator.share({
-      title: post.value.titulo || 'Publicación en U-Tell',
-      text: post.value.texto,
-      url: window.location.href
-    }).catch(() => {})
+    try {
+      await navigator.share({
+        title: post.value.titulo || 'Publicación en U-Tell',
+        text: post.value.texto,
+        url: shareUrl
+      })
+      return
+    } catch (_) {}
+  }
+
+  // Fallback: Copy to clipboard
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    toastStore.success('Enlace de la publicación copiado al portapapeles.', 2500)
+  } catch (_) {
+    toastStore.info(`Enlace: ${shareUrl}`, 4000)
   }
 }
 
@@ -249,6 +287,7 @@ onMounted(() => {
   fetchPost()
   fetchRespuestas()
 })
+
 </script>
 
 <style scoped>

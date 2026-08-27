@@ -48,7 +48,7 @@
             <input type="checkbox" v-model="rememberMe" />
             <span>Recordar sesión</span>
           </label>
-          <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+          <a href="#" class="forgot-link" @click.prevent="handleForgotPassword">¿Olvidaste tu contraseña?</a>
         </div>
 
         <p v-if="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
@@ -82,17 +82,23 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 
-const router    = useRouter()
-const authStore = useAuthStore()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
-const email          = ref('')
-const password       = ref('')
-const showPassword   = ref(false)
-const rememberMe     = ref(false)
-const isLoading      = ref(false)
+const email           = ref('')
+const password        = ref('')
+const showPassword    = ref(false)
+const rememberMe      = ref(false)
+const isLoading       = ref(false)
 const isLoadingGoogle = ref(false)
-const errorMessage   = ref('')
+const errorMessage    = ref('')
+
+const handleForgotPassword = () => {
+  toastStore.info('Para restablecer tu contraseña, contacta al soporte técnico o al administrador universitario.', 4500)
+}
 
 // ─── Classic Login ───────────────────────────────────────────────────────────
 const handleLogin = async () => {
@@ -100,9 +106,11 @@ const handleLogin = async () => {
   errorMessage.value = ''
   try {
     await authStore.login(email.value, password.value)
+    toastStore.success(`¡Bienvenido de nuevo!`, 2500)
     router.push('/feed')
   } catch (error) {
     errorMessage.value = error.message || 'Credenciales incorrectas o error en el servidor.'
+    toastStore.error(errorMessage.value)
   } finally {
     isLoading.value = false
   }
@@ -116,9 +124,11 @@ const handleGoogleCallback = async (response) => {
   errorMessage.value    = ''
   try {
     await authStore.loginWithGoogle(response.credential)
+    toastStore.success('¡Sesión iniciada con Google!', 2500)
     router.push('/feed')
   } catch (error) {
-    errorMessage.value = 'No se pudo iniciar sesion con Google. Intenta de nuevo.'
+    errorMessage.value = 'No se pudo iniciar sesión con Google. Intenta de nuevo.'
+    toastStore.error(errorMessage.value)
   } finally {
     isLoadingGoogle.value = false
   }
@@ -127,7 +137,8 @@ const handleGoogleCallback = async (response) => {
 const handleGoogleLogin = () => {
   // Trigger the Google One Tap / popup flow
   if (typeof window.google === 'undefined') {
-    errorMessage.value = 'El servicio de Google no esta disponible en este momento.'
+    errorMessage.value = 'El servicio de Google no está disponible en este momento.'
+    toastStore.warning('El servicio de Google no está disponible.')
     return
   }
   window.google.accounts.id.prompt()
@@ -144,6 +155,7 @@ onMounted(() => {
     })
   }
 })
+
 </script>
 
 <style scoped>
@@ -390,4 +402,39 @@ onMounted(() => {
   font-weight: 600;
   margin-left: 4px;
 }
+
+/* ─── Desktop & Tablet Layout ─── */
+@media (min-width: 768px) {
+  .login-page {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-subtle);
+    padding: 40px 20px;
+  }
+
+  .top-section {
+    flex: 0 0 380px;
+    height: 560px;
+    border-radius: 28px 0 0 28px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .logo-cap {
+    width: 140px;
+  }
+
+  .bottom-card {
+    flex: 0 0 460px;
+    height: 560px;
+    margin-top: 0;
+    border-radius: 0 28px 28px 0;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    border-left: none;
+    overflow-y: auto;
+    padding: 40px 36px;
+  }
+}
 </style>
+

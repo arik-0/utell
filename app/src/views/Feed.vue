@@ -37,6 +37,33 @@
           <span>Tu red</span>
         </button>
       </div>
+
+      <!-- Quick Type Filter Chips -->
+      <div class="filter-chips">
+        <button 
+          class="chip-btn" 
+          :class="{ active: filterType === 'todos' }" 
+          @click="filterType = 'todos'"
+        >
+          <span>Todos</span>
+        </button>
+        <button 
+          class="chip-btn" 
+          :class="{ active: filterType === 'Consulta' }" 
+          @click="filterType = 'Consulta'"
+        >
+          <span class="type-dot type-dot-consulta"></span>
+          <span>Consultas</span>
+        </button>
+        <button 
+          class="chip-btn" 
+          :class="{ active: filterType === 'Experiencia' }" 
+          @click="filterType = 'Experiencia'"
+        >
+          <span class="type-dot type-dot-experiencia"></span>
+          <span>Experiencias</span>
+        </button>
+      </div>
     </header>
 
     <!-- Feed Content -->
@@ -133,7 +160,7 @@
               <span class="count">{{ post.cantidadRespuestas || 0 }}</span>
             </button>
 
-            <button class="action-btn share-btn" @click.stop="sharePost(post)">
+            <button class="action-btn share-btn" @click.stop="sharePost(post)" aria-label="Compartir">
               <div class="icon-wrap">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               </div>
@@ -149,17 +176,20 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
-const router    = useRouter()
-const authStore = useAuthStore()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 const posts       = ref([])
 const isLoading   = ref(true)
 const activeTab   = ref('parati')
+const filterType  = ref('todos')
 const showSearch  = ref(false)
 const searchQuery = ref('')
 const isScrolled  = ref(false)
@@ -190,9 +220,17 @@ const switchTab = (tab) => {
 }
 
 const filteredPosts = computed(() => {
-  if (!searchQuery.value.trim()) return posts.value
+  let list = posts.value
+
+  // Filter by Type
+  if (filterType.value !== 'todos') {
+    list = list.filter(p => p.tipoPublicacion === filterType.value)
+  }
+
+  // Filter by Search Query
+  if (!searchQuery.value.trim()) return list
   const q = searchQuery.value.toLowerCase()
-  return posts.value.filter(p => 
+  return list.filter(p => 
     (p.titulo && p.titulo.toLowerCase().includes(q)) ||
     (p.texto && p.texto.toLowerCase().includes(q)) ||
     (p.nombre && p.nombre.toLowerCase().includes(q)) ||
@@ -214,7 +252,7 @@ const toggleLike = async (post) => {
 
   // Optimistic update
   post.hasLiked = originalLiked > 0 ? 0 : 1
-  post.likes    = originalLiked > 0 ? (post.likes - 1) : (post.likes + 1)
+  post.likes    = originalLiked > 0 ? Math.max(0, post.likes - 1) : (post.likes + 1)
 
   try {
     const fd = new FormData()
@@ -231,13 +269,25 @@ const toggleLike = async (post) => {
   }
 }
 
-const sharePost = (post) => {
+const sharePost = async (post) => {
+  const shareUrl = window.location.origin + `/post/${post.idPublicacion}`
   if (navigator.share) {
-    navigator.share({
-      title: post.titulo || 'Publicación en U-Tell',
-      text: post.texto,
-      url: window.location.origin + `/post/${post.idPublicacion}`
-    }).catch(() => {})
+    try {
+      await navigator.share({
+        title: post.titulo || 'Publicación en U-Tell',
+        text: post.texto,
+        url: shareUrl
+      })
+      return
+    } catch (_) {}
+  }
+
+  // Fallback: Copy to clipboard
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    toastStore.success('Enlace de la publicación copiado al portapapeles.', 2500)
+  } catch (_) {
+    toastStore.info(`Enlace: ${shareUrl}`, 4000)
   }
 }
 
@@ -249,6 +299,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
 })
+
 </script>
 
 <style scoped>

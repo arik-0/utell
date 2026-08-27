@@ -139,12 +139,17 @@
           </div>
 
           <div class="input-field">
-            <label class="field-label">Relato de tu experiencia</label>
+            <div class="field-label-row">
+              <label class="field-label">Relato de tu experiencia *</label>
+              <span class="char-count" :class="{ 'char-limit': form.texto.length > 900 }">{{ form.texto.length }}/1000</span>
+            </div>
             <textarea 
               v-model="form.texto" 
               placeholder="Comparte detalles sobre tu cursada, profesores, instalaciones o consejos para futuros ingresantes..." 
               class="form-textarea"
               rows="6"
+              maxlength="1000"
+              required
             ></textarea>
           </div>
         </div>
@@ -183,41 +188,52 @@ const form = ref({
 
 onMounted(async () => {
   try {
-    const resUni = await axios.get(`${API_BASE_URL}/universidades`)
-    if (Array.isArray(resUni.data)) universidades.value = resUni.data
-    const resCar = await axios.get(`${API_BASE_URL}/carreras`)
-    if (Array.isArray(resCar.data)) carreras.value = resCar.data
-  } catch(e) { console.error('Error loading combos', e) }
+    const [resUni, resCar] = await Promise.allSettled([
+      axios.get(`${API_BASE_URL}/universidades`),
+      axios.get(`${API_BASE_URL}/carreras`)
+    ])
+    if (resUni.status === 'fulfilled' && Array.isArray(resUni.value.data)) {
+      universidades.value = resUni.value.data
+    }
+    if (resCar.status === 'fulfilled' && Array.isArray(resCar.value.data)) {
+      carreras.value = resCar.value.data
+    }
+  } catch(e) {
+    console.error('Error loading combos', e)
+  }
 })
 
 const submitPost = async () => {
   if (!form.value.texto.trim()) { 
     errorMsg.value = 'El relato de la experiencia no puede estar vacío.'
+    toastStore.warning(errorMsg.value)
     return 
   }
   isLoading.value = true
   errorMsg.value = ''
   try {
     const formData = new FormData()
-    formData.append('idUsuario', authStore.user.idUsuario)
+    formData.append('idUsuario', authStore.user?.idUsuario || 0)
     formData.append('tipoPublicacion', 'Experiencia')
-    formData.append('titulo', form.value.titulo)
-    formData.append('texto', form.value.texto)
+    formData.append('titulo', form.value.titulo.trim())
+    formData.append('texto', form.value.texto.trim())
     formData.append('puntuacionClima', form.value.puntuacionClima)
     formData.append('puntuacionInfraestructura', form.value.puntuacionInfraestructura)
     formData.append('puntuacionAcademica', form.value.puntuacionAcademica)
 
-    if (form.value.universidad) {
-      const uniObj = universidades.value.find(u => u.nombre === form.value.universidad)
-      if (uniObj && uniObj.idUniversidad) formData.append('idUniversidad', uniObj.idUniversidad)
+    if (form.value.universidad && form.value.universidad.trim()) {
+      formData.append('universidad', form.value.universidad.trim())
     }
-    if (form.value.carrera) {
-      const carObj = carreras.value.find(c => c.nombre === form.value.carrera)
-      if (carObj && carObj.idCarrera) formData.append('idCarrera', carObj.idCarrera)
+    if (form.value.carrera && form.value.carrera.trim()) {
+      formData.append('carrera', form.value.carrera.trim())
     }
+
     const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
-    if (typeof res.data === 'string' && res.data.includes('error')) throw new Error(res.data)
-    toastStore.success('Experiencia y reseña publicada exitosamente.')
+    if (typeof res.data === 'string' && res.data.toLowerCase().includes('error')) {
+      throw new Error(res.data)
+    }
+    
+    toastStore.success('¡Experiencia y reseña publicada con éxito!')
     router.push('/feed')
   } catch (error) { 
     errorMsg.value = error.message || 'Hubo un error al publicar la experiencia.' 
@@ -227,6 +243,7 @@ const submitPost = async () => {
   }
 }
 </script>
+
 
 <style scoped>
 .create-page {

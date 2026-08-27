@@ -281,14 +281,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
 import { API_BASE_URL } from '../api'
 import EmptyState from '../components/EmptyState.vue'
 import axios from 'axios'
 
-const route     = useRoute()
-const router    = useRouter()
-const authStore = useAuthStore()
+const route      = useRoute()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 const wallData  = ref(null)
 const isLoading = ref(true)
@@ -340,7 +342,7 @@ const toggleLike = async (post) => {
   const originalLiked = post.hasLiked
   const originalLikes = post.likes
   post.hasLiked = originalLiked > 0 ? 0 : 1
-  post.likes    = originalLiked > 0 ? (post.likes - 1) : (post.likes + 1)
+  post.likes    = originalLiked > 0 ? Math.max(0, post.likes - 1) : (post.likes + 1)
 
   try {
     const fd = new FormData()
@@ -356,17 +358,32 @@ const toggleLike = async (post) => {
   }
 }
 
-const shareUniversity = () => {
+const shareUniversity = async () => {
+  const shareUrl = window.location.href
+  const uniName = wallData.value?.universidad?.nombre || 'Universidad'
+
   if (navigator.share && wallData.value) {
-    navigator.share({
-      title: `Muro Institucional - ${wallData.value.universidad.nombre}`,
-      text: `Conoce las opiniones y calificaciones de estudiantes sobre ${wallData.value.universidad.nombre} en U-Tell.`,
-      url: window.location.href
-    }).catch(() => {})
+    try {
+      await navigator.share({
+        title: `Muro Institucional - ${uniName}`,
+        text: `Conoce las opiniones y calificaciones de estudiantes sobre ${uniName} en U-Tell.`,
+        url: shareUrl
+      })
+      return
+    } catch (_) {}
+  }
+
+  // Fallback: Copy to clipboard
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    toastStore.success(`Enlace de ${uniName} copiado al portapapeles.`, 2500)
+  } catch (_) {
+    toastStore.info(`Enlace: ${shareUrl}`, 4000)
   }
 }
 
 onMounted(fetchWall)
+
 </script>
 
 <style scoped>

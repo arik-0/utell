@@ -68,6 +68,14 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
+    // ─── Update partial user data in state + storage ──────────────────────
+    updateUser(partial) {
+      if (this.user) {
+        this.user = { ...this.user, ...partial }
+        localStorage.setItem('utell_user', JSON.stringify(this.user))
+      }
+    },
+
     // ─── Logout ───────────────────────────────────────────────────────────
     logout() {
       this.user = null
@@ -75,3 +83,4 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
+

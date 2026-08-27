@@ -443,11 +443,23 @@ onUnmounted(() => {
   box-shadow: 0 0 50px rgba(15, 23, 42, 0.08);
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 768px) {
   .mensajes-page.in-chat {
-    max-width: 720px;
+    position: relative;
+    left: auto;
+    transform: none;
+    max-width: 100%;
+    box-shadow: none;
+    z-index: 10;
   }
 }
+
+@media (min-width: 1200px) {
+  .mensajes-page.in-chat {
+    max-width: 100%;
+  }
+}
+
 
 /* ─── Inbox Header ─── */
 .inbox-header {

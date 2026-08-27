@@ -10,7 +10,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     try {
-      const userRaw = localStorage.getItem('user')
+      const userRaw = localStorage.getItem('utell_user')
       if (userRaw) {
         const user = JSON.parse(userRaw)
         if (user && user.token) {
@@ -28,7 +28,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('user')
+      localStorage.removeItem('utell_user')
       if (window.location.pathname !== '/' && window.location.pathname !== '/register') {
         window.location.href = '/'
       }
@@ -38,3 +38,4 @@ api.interceptors.response.use(
 )
 
 export default api
+
