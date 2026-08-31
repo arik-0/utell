@@ -51,5 +51,7 @@ require __DIR__ . '/../src/rutas/respuestas.php';
 require __DIR__ . '/../src/rutas/amistades.php';
 require __DIR__ . '/../src/rutas/mensajes.php';
 require __DIR__ . '/../src/rutas/seguridad.php';
+require __DIR__ . '/../src/rutas/dashboard.php';
 
 $app->run();
+

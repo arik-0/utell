@@ -4,7 +4,19 @@ use \Psr\Http\Message\ResponseInterface as Response;
 
 require_once __DIR__ . '/../Services/PublicacionService.php';
 
+$app->get('/publicaciones', function(Request $request, Response $response){
+  $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
+  try{
+    $service = PublicacionService::getInstance();
+    $posts = $service->obtenerParati($idUsuario);
+    echo json_encode($posts ?: []);
+  }catch(Exception $e){
+    echo '{"error" : {"text":"'.$e->getMessage().'"}}';
+  }
+});
+
 $app->get('/consultas', function(Request $request, Response $response){
+
   try{
     $service = PublicacionService::getInstance();
     $consultas = $service->obtenerConsultas();
