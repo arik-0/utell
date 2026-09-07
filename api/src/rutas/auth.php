@@ -1,71 +1,109 @@
 <?php
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
+use Firebase\JWT\JWT;
+use Firebase\JWT\JWK;
 
 require_once __DIR__ . '/../Services/AuthService.php';
 
+// ─── Helper: write JSON response ──────────────────────────────────────────────
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(Response $response, $data, int $status = 200): Response {
+        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+}
+
 // ─── POST /login ──────────────────────────────────────────────────────────────
 $app->post('/login', function(Request $request, Response $response) {
-    $email    = $request->getParam('email');
-    $password = $request->getParam('password');
+    $email    = trim($request->getParam('email') ?? '');
+    $password = $request->getParam('password') ?? '';
+
+    if (empty($email) || empty($password)) {
+        return jsonResponse($response, ['error' => ['text' => 'Email y contraseña son requeridos.']], 400);
+    }
 
     try {
         $authService = AuthService::getInstance();
         $usuario     = $authService->login($email, $password);
 
         if ($usuario) {
-            echo json_encode($usuario);
+            return jsonResponse($response, $usuario);
         } else {
-            echo json_encode("Error de email y/o contrasena");
+            return jsonResponse($response, ['error' => ['text' => 'Email o contraseña incorrectos.']], 401);
         }
-    } catch (PDOException $e) {
-        echo '{"error":{"text":"' . $e->getMessage() . '"}}';
+    } catch (Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
 // ─── POST /login/google ───────────────────────────────────────────────────────
-// Receives a Google Identity JWT credential, decodes it without signature
-// verification (suitable for trusted localhost dev; add proper verification
-// using a JWT library like firebase/php-jwt for production).
+// Verifica el Google Identity JWT usando las claves públicas de Google (JWKS).
+// Si GOOGLE_CLIENT_ID no está configurado, el login con Google queda deshabilitado.
 $app->post('/login/google', function(Request $request, Response $response) {
-    $credential = $request->getParam('credential');
+    $credential = $request->getParam('credential') ?? '';
 
     if (empty($credential)) {
-        echo '{"error":{"text":"No se recibio el token de Google."}}';
-        return;
+        return jsonResponse($response, ['error' => ['text' => 'Token de Google no recibido.']], 400);
+    }
+
+    $clientId = getenv('GOOGLE_CLIENT_ID');
+    if (empty($clientId)) {
+        return jsonResponse($response, ['error' => ['text' => 'Login con Google no está configurado en el servidor.']], 501);
     }
 
     try {
-        // Decode JWT payload (middle segment, base64url-encoded)
-        $parts = explode('.', $credential);
-        if (count($parts) !== 3) {
-            throw new Exception('Token de Google invalido.');
+        // Obtener JWKS de Google (con caché básico en archivo)
+        $jwksCache = sys_get_temp_dir() . '/google_jwks_cache.json';
+        $cacheLife = 3600; // 1 hora
+
+        if (file_exists($jwksCache) && (time() - filemtime($jwksCache)) < $cacheLife) {
+            $jwksJson = file_get_contents($jwksCache);
+        } else {
+            $ch = curl_init('https://www.googleapis.com/oauth2/v3/certs');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            $jwksJson = curl_exec($ch);
+            if (curl_errno($ch) || !$jwksJson) {
+                throw new Exception('No se pudo obtener las claves públicas de Google.');
+            }
+            curl_close($ch);
+            file_put_contents($jwksCache, $jwksJson);
         }
 
-        // base64url to base64 standard
-        $payload = base64_decode(str_pad(
-            str_replace(['-', '_'], ['+', '/'], $parts[1]),
-            strlen($parts[1]) % 4 === 0 ? strlen($parts[1]) : strlen($parts[1]) + 4 - strlen($parts[1]) % 4,
-            '='
-        ));
+        $jwks = json_decode($jwksJson, true);
+        if (empty($jwks['keys'])) {
+            throw new Exception('JWKS de Google inválido.');
+        }
 
-        $data = json_decode($payload, true);
-        if (!$data || empty($data['email'])) {
-            throw new Exception('No se pudo decodificar el token de Google.');
+        // Verificar token con firebase/php-jwt
+        $keys = JWK::parseKeySet($jwks);
+        $decoded = (array) JWT::decode($credential, $keys);
+
+        // Validar audience y emisor
+        if (($decoded['aud'] ?? '') !== $clientId) {
+            throw new Exception('Token de Google no es válido para esta aplicación.');
+        }
+        if (!in_array($decoded['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true)) {
+            throw new Exception('Emisor del token de Google no reconocido.');
+        }
+        if (empty($decoded['email'])) {
+            throw new Exception('El token de Google no contiene un email válido.');
         }
 
         $authService = AuthService::getInstance();
         $usuario     = $authService->loginOrCreateGoogle(
-            $data['email'],
-            $data['name']  ?? '',
-            $data['given_name']  ?? '',
-            $data['family_name'] ?? '',
-            $data['picture'] ?? ''
+            $decoded['email'],
+            $decoded['name']        ?? '',
+            $decoded['given_name']  ?? '',
+            $decoded['family_name'] ?? '',
+            $decoded['picture']     ?? ''
         );
 
-        echo json_encode($usuario);
+        return jsonResponse($response, $usuario);
+
     } catch (Exception $e) {
-        echo '{"error":{"text":"' . $e->getMessage() . '"}}';
+        return jsonResponse($response, ['error' => ['text' => 'Error al verificar token de Google: ' . $e->getMessage()]], 401);
     }
 });
 
@@ -89,16 +127,21 @@ $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
         'idCarrera'      => $request->getParam('idCarrera')     ?? null,
     ];
 
+    // Validaciones mínimas
+    if (empty($datos['nombre']) || empty($datos['email']) || empty($datos['password'])) {
+        return jsonResponse($response, ['error' => ['text' => 'Nombre, email y contraseña son requeridos.']], 400);
+    }
+
     try {
         $authService = AuthService::getInstance();
         $exito       = $authService->registro($datos);
 
         if ($exito) {
-            echo json_encode("Nuevo usuario guardado.");
+            return jsonResponse($response, ['mensaje' => 'Nuevo usuario guardado.'], 201);
         } else {
-            echo json_encode("Error al guardar el usuario.");
+            return jsonResponse($response, ['error' => ['text' => 'Error al guardar el usuario.']], 500);
         }
     } catch (Exception $e) {
-        echo '{"error":{"text":"' . $e->getMessage() . '"}}';
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });

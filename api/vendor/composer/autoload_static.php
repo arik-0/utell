@@ -11,44 +11,49 @@ class ComposerStaticInit41077d31bbf663a50104a0df921cc7e8
     );
 
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'S' =>
         array (
             'Slim\\' => 5,
         ),
-        'P' => 
+        'P' =>
         array (
             'Psr\\Http\\Message\\' => 17,
             'Psr\\Container\\' => 14,
         ),
-        'F' => 
+        'F' =>
         array (
+            'Firebase\\JWT\\' => 13,
             'FastRoute\\' => 10,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Slim\\' => 
+        'Slim\\' =>
         array (
             0 => __DIR__ . '/..' . '/slim/slim/Slim',
         ),
-        'Psr\\Http\\Message\\' => 
+        'Psr\\Http\\Message\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
-        'FastRoute\\' => 
+        'Firebase\\JWT\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
+        ),
+        'FastRoute\\' =>
         array (
             0 => __DIR__ . '/..' . '/nikic/fast-route/src',
         ),
     );
 
     public static $prefixesPsr0 = array (
-        'P' => 
+        'P' =>
         array (
-            'Pimple' => 
+            'Pimple' =>
             array (
                 0 => __DIR__ . '/..' . '/pimple/pimple/src',
             ),

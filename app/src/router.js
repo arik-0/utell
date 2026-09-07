@@ -1,41 +1,31 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './store/auth'
 
-// Views
-import Login              from './views/Login.vue'
-import Register           from './views/Register.vue'
-import Feed               from './views/Feed.vue'
-import Profile            from './views/Profile.vue'
-import CreateConsulta     from './views/CreateConsulta.vue'
-import CreateExperiencia  from './views/CreateExperiencia.vue'
-import PostDetail         from './views/PostDetail.vue'
-import PublicacionesView  from './views/PublicacionesView.vue'
-import MensajesView       from './views/MensajesView.vue'
-import AmigosView         from './views/AmigosView.vue'
-import UniversidadWall    from './views/UniversidadWall.vue'
-import DashboardView      from './views/DashboardView.vue'
-
+// Route definitions with dynamic imports (lazy loading)
 const routes = [
-  { path: '/',                   name: 'Login',             component: Login },
-  { path: '/register',           name: 'Register',          component: Register },
-  { path: '/dashboard',          name: 'Dashboard',         component: DashboardView },
-  { path: '/feed',               name: 'Feed',              component: Feed,               meta: { requiresAuth: true } },
-  { path: '/profile',            name: 'Profile',           component: Profile,            meta: { requiresAuth: true } },
-  { path: '/perfil/:id',         name: 'UserProfile',       component: Profile,            meta: { requiresAuth: true } },
-  { path: '/usuario/:id',        name: 'UserProfileAlt',    component: Profile,            meta: { requiresAuth: true } },
-  { path: '/amigos',             name: 'Amigos',            component: AmigosView,         meta: { requiresAuth: true } },
-  { path: '/publicaciones',      name: 'Publicaciones',     component: PublicacionesView,   meta: { requiresAuth: true } },
-  { path: '/mensajes',           name: 'Mensajes',          component: MensajesView,       meta: { requiresAuth: true } },
-  { path: '/universidad/:id',    name: 'UniversidadWall',   component: UniversidadWall,    meta: { requiresAuth: true } },
-  { path: '/create-consulta',    name: 'CreateConsulta',    component: CreateConsulta,    meta: { requiresAuth: true } },
-  { path: '/create-experiencia', name: 'CreateExperiencia', component: CreateExperiencia, meta: { requiresAuth: true } },
-  { path: '/post/:id',           name: 'PostDetail',        component: PostDetail,        meta: { requiresAuth: true } },
+  { path: '/',                   name: 'Login',             component: () => import('./views/Login.vue') },
+  { path: '/register',           name: 'Register',          component: () => import('./views/Register.vue') },
+  { path: '/dashboard',          name: 'Dashboard',         component: () => import('./views/DashboardView.vue') },
+  { path: '/feed',               name: 'Feed',              component: () => import('./views/Feed.vue'),               meta: { requiresAuth: true } },
+  { path: '/profile',            name: 'Profile',           component: () => import('./views/Profile.vue'),            meta: { requiresAuth: true } },
+  { path: '/perfil/:id',         name: 'UserProfile',       component: () => import('./views/Profile.vue'),            meta: { requiresAuth: true } },
+  { path: '/usuario/:id',        name: 'UserProfileAlt',    component: () => import('./views/Profile.vue'),            meta: { requiresAuth: true } },
+  { path: '/amigos',             name: 'Amigos',            component: () => import('./views/AmigosView.vue'),         meta: { requiresAuth: true } },
+  { path: '/publicaciones',      name: 'Publicaciones',     component: () => import('./views/PublicacionesView.vue'),   meta: { requiresAuth: true } },
+  { path: '/mensajes',           name: 'Mensajes',          component: () => import('./views/MensajesView.vue'),       meta: { requiresAuth: true } },
+  { path: '/universidad/:id',    name: 'UniversidadWall',   component: () => import('./views/UniversidadWall.vue'),    meta: { requiresAuth: true } },
+  { path: '/create-consulta',    name: 'CreateConsulta',    component: () => import('./views/CreateConsulta.vue'),    meta: { requiresAuth: true } },
+  { path: '/create-experiencia', name: 'CreateExperiencia', component: () => import('./views/CreateExperiencia.vue'), meta: { requiresAuth: true } },
+  { path: '/post/:id',           name: 'PostDetail',        component: () => import('./views/PostDetail.vue'),        meta: { requiresAuth: true } },
 ]
 
 
 const router = createRouter({
-  history: createWebHistory(),
-  routes
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    ...routes,
+    { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' }
+  ]
 })
 
 // Auth & Role guard

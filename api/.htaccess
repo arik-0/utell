@@ -1,0 +1,23 @@
+# Deny access to sensitive files and directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Pass Authorization header to PHP
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Block direct access to sensitive files/dirs
+    RewriteRule ^(src|vendor|composer\.|info\.php|\.env) - [F,L]
+    
+    # Redirect everything else to public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Extra protection
+<FilesMatch "\.(env|json|lock|md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>

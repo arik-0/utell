@@ -13,10 +13,10 @@ class AuthService {
     }
 
     // ─── Classic email/password login ─────────────────────────────────────────
-    // Supports bcrypt hashes and plain-text passwords (auto-migrates to bcrypt).
+    // Supports only bcrypt hashes. Plain-text passwords are rejected.
     public function login(string $email, string $password) {
         $db   = db::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email");
+        $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
         $stmt->bindParam(':email', $email);
         $stmt->execute();
 
@@ -28,13 +28,8 @@ class AuthService {
                 throw new Exception('Cuenta bloqueada. Contacta al administrador.');
             }
 
-            if (password_verify($password, $user->password) || $password === $user->password) {
-                if ($password === $user->password && !password_get_info($user->password)['algo']) {
-                    $hash       = password_hash($password, PASSWORD_DEFAULT);
-                    $updateStmt = $db->prepare("UPDATE usuarios SET password = :hash WHERE idUsuario = :id");
-                    $updateStmt->execute([':hash' => $hash, ':id' => $user->idUsuario]);
-                }
-
+            // Only accept bcrypt-hashed passwords — no plain-text fallback
+            if (password_verify($password, $user->password)) {
                 require_once __DIR__ . '/SeguridadService.php';
                 require_once __DIR__ . '/JWTService.php';
 

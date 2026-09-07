@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => {
@@ -12,7 +11,6 @@ export const useAuthStore = defineStore('auth', {
 
     return {
       user:   storedUser,
-      apiUrl: API_BASE_URL,
     }
   },
 
@@ -49,7 +47,7 @@ export const useAuthStore = defineStore('auth', {
       fd.append('email', email)
       fd.append('password', password)
 
-      const response = await axios.post(`${this.apiUrl}/login`, fd)
+      const response = await api.post('/login', fd)
       const user     = this._parseUserResponse(response.data)
       this._setUser(user)
       return true
@@ -62,7 +60,7 @@ export const useAuthStore = defineStore('auth', {
       const fd = new FormData()
       fd.append('credential', credential)
 
-      const response = await axios.post(`${this.apiUrl}/login/google`, fd)
+      const response = await api.post('/login/google', fd)
       const user     = this._parseUserResponse(response.data)
       this._setUser(user)
       return true

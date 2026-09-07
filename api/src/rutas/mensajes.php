@@ -3,78 +3,61 @@ use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 
 require_once __DIR__ . '/../Services/MensajeService.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-// GET Listado de conversaciones del usuario
-$app->get('/mensajes/conversaciones', function(Request $request, Response $response){
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(Response $response, $data, int $status = 200): Response {
+        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+}
+
+// GET Conversaciones del usuario
+$app->get('/mensajes/conversaciones', function(Request $request, Response $response) {
     $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
-
-    if ($idUsuario === 0) {
-        echo json_encode([]);
-        return;
-    }
-
+    if ($idUsuario === 0) return jsonResponse($response, []);
     try {
-        $service = MensajeService::getInstance();
-        $conversaciones = $service->obtenerConversaciones($idUsuario);
-        echo json_encode($conversaciones);
+        return jsonResponse($response, MensajeService::getInstance()->obtenerConversaciones($idUsuario));
     } catch(Exception $e) {
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+})->add(new AuthMiddleware());
 
-// GET Historial de mensajes entre dos usuarios
-$app->get('/mensajes/chat/{idContacto}', function(Request $request, Response $response, array $args){
+// GET Historial de chat
+$app->get('/mensajes/chat/{idContacto:[0-9]+}', function(Request $request, Response $response, array $args) {
     $idContacto = (int)$args['idContacto'];
     $idUsuario  = (int)($request->getQueryParam('idUsuario') ?? 0);
-
-    if ($idUsuario === 0 || $idContacto === 0) {
-        echo json_encode([]);
-        return;
-    }
-
+    if ($idUsuario === 0 || $idContacto === 0) return jsonResponse($response, []);
     try {
-        $service = MensajeService::getInstance();
-        $chat = $service->obtenerChat($idUsuario, $idContacto);
-        echo json_encode($chat);
+        return jsonResponse($response, MensajeService::getInstance()->obtenerChat($idUsuario, $idContacto));
     } catch(Exception $e) {
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+})->add(new AuthMiddleware());
 
-// GET Conteo global de mensajes no leídos
-$app->get('/mensajes/no-leidos', function(Request $request, Response $response){
+// GET Conteo de mensajes no leidos
+$app->get('/mensajes/no-leidos', function(Request $request, Response $response) {
     $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
-
-    if ($idUsuario === 0) {
-        echo json_encode(['totalNoLeidos' => 0]);
-        return;
-    }
-
+    if ($idUsuario === 0) return jsonResponse($response, ['totalNoLeidos' => 0]);
     try {
-        $service = MensajeService::getInstance();
-        $total = $service->obtenerTotalNoLeidos($idUsuario);
-        echo json_encode(['totalNoLeidos' => $total]);
+        $total = MensajeService::getInstance()->obtenerTotalNoLeidos($idUsuario);
+        return jsonResponse($response, ['totalNoLeidos' => $total]);
     } catch(Exception $e) {
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+})->add(new AuthMiddleware());
 
-// POST Enviar nuevo mensaje directo
-$app->post('/mensajes/enviar', function(Request $request, Response $response){
+// POST Enviar mensaje directo
+$app->post('/mensajes/enviar', function(Request $request, Response $response) {
     $idEmisor   = (int)($request->getParam('idEmisor') ?? 0);
     $idReceptor = (int)($request->getParam('idReceptor') ?? 0);
     $texto      = (string)($request->getParam('texto') ?? '');
-
     if ($idEmisor === 0 || $idReceptor === 0 || empty(trim($texto))) {
-        echo '{"error":{"text":"Parámetros requeridos: idEmisor, idReceptor, texto."}}';
-        return;
+        return jsonResponse($response, ['error' => ['text' => 'Parametros requeridos: idEmisor, idReceptor, texto.']], 400);
     }
-
     try {
-        $service = MensajeService::getInstance();
-        $resultado = $service->enviar($idEmisor, $idReceptor, $texto);
-        echo json_encode($resultado);
+        return jsonResponse($response, MensajeService::getInstance()->enviar($idEmisor, $idReceptor, $texto));
     } catch(Exception $e) {
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+})->add(new AuthMiddleware());

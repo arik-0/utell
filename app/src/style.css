@@ -213,12 +213,39 @@ body {
   max-width: 1360px;
   margin: 0 auto;
   position: relative;
+  background-color: var(--bg-main);
 }
 
+/* Fullscreen Auth Layout (Login & Register) */
 .app-layout.auth-layout {
-  max-width: 100%;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
   justify-content: center;
   align-items: center;
+  background-color: var(--bg-main) !important;
+}
+
+.app-layout.auth-layout .app-main-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  border-right: none !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent !important;
+}
+
+/* Fullwidth Layout (Dashboard, Messages, Profiles) */
+.app-layout.fullwidth-layout {
+  max-width: 100% !important;
+}
+
+.app-layout.fullwidth-layout .app-main-content {
+  max-width: 100% !important;
+  border-right: none !important;
 }
 
 /* ─── Desktop Sidebar ─── */
@@ -240,6 +267,8 @@ body {
     background: var(--bg-card);
     z-index: 50;
     flex-shrink: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 }
 

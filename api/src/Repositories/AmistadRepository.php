@@ -6,17 +6,6 @@ class AmistadRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTabla();
-    }
-
-    private function asegurarTabla(): void {
-        $this->db->exec("CREATE TABLE IF NOT EXISTS amigos (
-            idAmistad     INT AUTO_INCREMENT PRIMARY KEY,
-            idSolicitante INT NOT NULL,
-            idReceptor    INT NOT NULL,
-            fechaInicio   DATE NOT NULL,
-            estado        VARCHAR(20) NOT NULL DEFAULT 'pendiente'
-        )");
     }
 
     public function existeRelacion(int $idA, int $idB): ?array {

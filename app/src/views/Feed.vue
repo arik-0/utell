@@ -173,14 +173,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const router     = useRouter()
 const authStore  = useAuthStore()
@@ -199,12 +198,12 @@ const handleScroll = () => {
 }
 
 const fetchFeed = async () => {
-  if (!authStore.user) return
   isLoading.value = true
   try {
+    const userId   = authStore.user?.idUsuario || 0
     const endpoint = activeTab.value === 'parati' ? '/parati' : '/tured'
-    const res = await axios.get(`${API_BASE_URL}${endpoint}?idUsuario=${authStore.user.idUsuario}`)
-    posts.value = Array.isArray(res.data) ? res.data : []
+    const res      = await api.get(`${endpoint}?idUsuario=${userId}`)
+    posts.value    = Array.isArray(res.data) ? res.data : []
   } catch (error) {
     console.error('Error loading feed:', error)
     posts.value = []
@@ -212,6 +211,10 @@ const fetchFeed = async () => {
     isLoading.value = false
   }
 }
+
+watch(() => authStore.user, () => {
+  fetchFeed()
+})
 
 const switchTab = (tab) => {
   if (activeTab.value === tab) return
@@ -257,7 +260,7 @@ const toggleLike = async (post) => {
   try {
     const fd = new FormData()
     fd.append('idUsuario', authStore.user.idUsuario)
-    const res = await axios.post(`${API_BASE_URL}/publicacion/${post.idPublicacion}/like`, fd)
+    const res = await api.post(`/publicacion/${post.idPublicacion}/like`, fd)
     if (res.data && res.data.totalLikes !== undefined) {
       post.likes    = res.data.totalLikes
       post.hasLiked = res.data.likedByUser ? 1 : 0

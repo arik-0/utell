@@ -156,8 +156,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
-import axios from 'axios'
+import api from '../api'
 
 const route      = useRoute()
 const router     = useRouter()
@@ -174,7 +173,7 @@ const isSubmitting        = ref(false)
 const fetchPost = async () => {
   try {
     const userId = authStore.user?.idUsuario || 0
-    const res    = await axios.get(`${API_BASE_URL}/publicacion/${route.params.id}?idUsuario=${userId}`)
+    const res    = await api.get(`/publicacion/${route.params.id}?idUsuario=${userId}`)
     if (res.data && typeof res.data === 'object' && !res.data.error) {
       post.value = res.data
     }
@@ -187,7 +186,7 @@ const fetchPost = async () => {
 
 const fetchRespuestas = async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/publicacion/${route.params.id}/respuestas`)
+    const res = await api.get(`/publicacion/${route.params.id}/respuestas`)
     if (Array.isArray(res.data)) {
       respuestas.value = res.data
     }
@@ -208,7 +207,7 @@ const toggleLike = async (postItem) => {
   try {
     const fd = new FormData()
     fd.append('idUsuario', authStore.user.idUsuario)
-    const res = await axios.post(`${API_BASE_URL}/publicacion/${postItem.idPublicacion}/like`, fd)
+    const res = await api.post(`/publicacion/${postItem.idPublicacion}/like`, fd)
     if (res.data && res.data.totalLikes !== undefined) {
       postItem.likes    = res.data.totalLikes
       postItem.hasLiked = res.data.likedByUser ? 1 : 0
@@ -248,7 +247,7 @@ const submitReply = async () => {
     fd.append('idPublicacion', route.params.id)
     fd.append('idUsuario', authStore.user?.idUsuario || 0)
     fd.append('texto', replyText)
-    await axios.post(`${API_BASE_URL}/respuesta/nuevo`, fd)
+    await api.post(`/respuesta/nuevo`, fd)
     toastStore.success('Comentario enviado con éxito.', 2000)
     await fetchRespuestas()
   } catch (error) {

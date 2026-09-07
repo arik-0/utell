@@ -3,42 +3,41 @@ use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 
 require_once __DIR__ . '/../Services/RespuestaService.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-// Get responses for a post
-$app->get('/publicacion/{id}/respuestas', function(Request $request, Response $response){
-  $id = (int)$request->getAttribute('id');
-  try{
-    $service = RespuestaService::getInstance();
-    $respuestas = $service->obtenerRespuestasPorPublicacion($id);
-
-    if (count($respuestas) > 0) {
-      echo json_encode($respuestas);
-    } else {
-      echo json_encode([]);
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(Response $response, $data, int $status = 200): Response {
+        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
-  }catch(Exception $e){
-    echo '{"error" : {"text":"'.$e->getMessage().'"}}';
-  }
+}
+
+// GET Respuestas de una publicacion (publico)
+$app->get('/publicacion/{id:[0-9]+}/respuestas', function(Request $request, Response $response, array $args) {
+    $id = (int)$args['id'];
+    try {
+        $respuestas = RespuestaService::getInstance()->obtenerRespuestasPorPublicacion($id);
+        return jsonResponse($response, $respuestas ?: []);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
+    }
 });
 
-// Create new response
-$app->post('/respuesta/nuevo', function(Request $request, Response $response){
-  $datos = [
-      'idPublicacion' => $request->getParam('idPublicacion'),
-      'idUsuario' => $request->getParam('idUsuario'),
-      'texto' => $request->getParam('texto')
-  ];
-  
-  try{
-    $service = RespuestaService::getInstance();
-    $guardado = $service->crearRespuesta($datos);
-    
-    if ($guardado) {
-        echo json_encode("Respuesta guardada.");
-    } else {
-        echo json_encode("Error al guardar respuesta.");
+// POST Crear respuesta (requiere JWT)
+$app->post('/respuesta/nuevo', function(Request $request, Response $response) {
+    $datos = [
+        'idPublicacion' => $request->getParam('idPublicacion'),
+        'idUsuario'     => $request->getParam('idUsuario'),
+        'texto'         => $request->getParam('texto'),
+    ];
+    if (empty($datos['idPublicacion']) || empty($datos['idUsuario']) || empty(trim($datos['texto'] ?? ''))) {
+        return jsonResponse($response, ['error' => ['text' => 'idPublicacion, idUsuario y texto son requeridos.']], 400);
     }
-  }catch(Exception $e){
-    echo '{"error" : {"text":"'.$e->getMessage().'"}}';
-  }
-});
+    try {
+        $guardado = RespuestaService::getInstance()->crearRespuesta($datos);
+        if ($guardado) return jsonResponse($response, ['mensaje' => 'Respuesta guardada.'], 201);
+        return jsonResponse($response, ['error' => ['text' => 'Error al guardar respuesta.']], 500);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
+    }
+})->add(new AuthMiddleware());

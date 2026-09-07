@@ -6,23 +6,6 @@ class MensajeRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTabla();
-    }
-
-    private function asegurarTabla(): void {
-        try {
-            $this->db->exec("CREATE TABLE IF NOT EXISTS mensajedirecto (
-                idMensajeDirecto INT AUTO_INCREMENT PRIMARY KEY,
-                idEmisor INT NOT NULL,
-                idReceptor INT NOT NULL,
-                fechaMensaje DATE NOT NULL,
-                horaMensaje TIME NOT NULL,
-                textoMensaje TEXT NOT NULL,
-                leido TINYINT(1) NOT NULL DEFAULT 0,
-                INDEX idx_emisor (idEmisor),
-                INDEX idx_receptor (idReceptor)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
-        } catch (Exception $e) {}
     }
 
     public function enviarMensaje(int $idEmisor, int $idReceptor, string $texto): array {

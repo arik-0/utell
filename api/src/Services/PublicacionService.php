@@ -1,5 +1,11 @@
 <?php
+// api/src/Services/PublicacionService.php
+
 require_once __DIR__ . '/../Repositories/PublicacionRepository.php';
+require_once __DIR__ . '/../Strategies/IFeedStrategy.php';
+require_once __DIR__ . '/../Strategies/ParaTiFeedStrategy.php';
+require_once __DIR__ . '/../Strategies/TuRedFeedStrategy.php';
+require_once __DIR__ . '/../Factories/PublicacionFactory.php';
 
 class PublicacionService {
     private static $instance = null;
@@ -11,34 +17,48 @@ class PublicacionService {
 
     private function __clone() {}
 
-    public static function getInstance() {
+    public static function getInstance(): self {
         if (self::$instance == null) {
             self::$instance = new self();
         }
         return self::$instance;
     }
 
-    public function obtenerConsultas() {
+    public function obtenerConsultas(): array {
         return $this->publicacionRepository->obtenerConsultas();
     }
 
-    public function obtenerParati(int $idUsuario) {
-        return $this->publicacionRepository->obtenerParati($idUsuario);
+    /**
+     * Patrón Strategy: Obtiene el feed según el algoritmo suministrado
+     */
+    public function obtenerFeedSegunEstrategia(IFeedStrategy $strategy, int $idUsuario): array {
+        return $strategy->obtenerFeed($idUsuario);
     }
 
-    public function obtenerTuRed(int $idUsuario) {
-        return $this->publicacionRepository->obtenerTuRed($idUsuario);
+    /**
+     * Feed "Para ti": Delega a ParaTiFeedStrategy
+     */
+    public function obtenerParati(int $idUsuario): array {
+        return $this->obtenerFeedSegunEstrategia(new ParaTiFeedStrategy($this->publicacionRepository), $idUsuario);
+    }
+
+    /**
+     * Feed "Tu red": Delega a TuRedFeedStrategy
+     */
+    public function obtenerTuRed(int $idUsuario): array {
+        return $this->obtenerFeedSegunEstrategia(new TuRedFeedStrategy($this->publicacionRepository), $idUsuario);
     }
 
     public function obtenerPorId(int $idPublicacion, int $idUsuario) {
         return $this->publicacionRepository->obtenerPorId($idPublicacion, $idUsuario);
     }
 
+    /**
+     * Patrón Factory Method: Normaliza y valida la publicación antes de persistir
+     */
     public function crear(array $datos): bool {
-        // Here we could resolve Universidad and Carrera names to IDs before saving
-        // But assuming the route or a separate InstitutionService handles it
-        // Or we handle it directly here if needed.
-        return $this->publicacionRepository->crear($datos);
+        $datosValidados = PublicacionFactory::crear($datos);
+        return $this->publicacionRepository->crear($datosValidados);
     }
 
     public function toggleLike(int $idPublicacion, int $idUsuario): array {
@@ -47,10 +67,10 @@ class PublicacionService {
         
         if ($favorito) {
             if ($favorito['estado'] == 'activo') {
-                $this->publicacionRepository->actualizarFavorito($favorito['idFavorito'], 'inactivo');
+                $this->publicacionRepository->actualizarFavorito((int)$favorito['idFavorito'], 'inactivo');
                 $isLiking = false;
             } else {
-                $this->publicacionRepository->actualizarFavorito($favorito['idFavorito'], 'activo');
+                $this->publicacionRepository->actualizarFavorito((int)$favorito['idFavorito'], 'activo');
             }
         } else {
             $this->publicacionRepository->insertarFavorito($idPublicacion, $idUsuario);

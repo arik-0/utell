@@ -4,35 +4,13 @@ class PublicacionRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTablaPublicaciones();
-    }
-
-    private function asegurarTablaPublicaciones(): void {
-        try {
-            $sql = "CREATE TABLE IF NOT EXISTS `publicaciones` (
-                      `idPublicacion` int(11) NOT NULL AUTO_INCREMENT,
-                      `idUsuario` int(11) NOT NULL,
-                      `tipoPublicacion` varchar(50) NOT NULL DEFAULT 'Consulta',
-                      `titulo` varchar(255) DEFAULT NULL,
-                      `fecha` date NOT NULL,
-                      `hora` time NOT NULL,
-                      `idUniversidad` int(11) DEFAULT NULL,
-                      `idSede` int(11) DEFAULT NULL,
-                      `idCarrera` int(11) DEFAULT NULL,
-                      `texto` text NOT NULL,
-                      `likes` int(11) DEFAULT 0,
-                      `resuelta` tinyint(1) DEFAULT 0,
-                      PRIMARY KEY (`idPublicacion`)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
-            $this->db->exec($sql);
-        } catch (Exception $e) {
-            // Silence if fails
-        }
     }
 
     public function obtenerConsultas() {
-        $sql = "SELECT p.*, u.nombre, u.apellido, u.fotoPerfil,
+        $sql = "SELECT p.*,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
+                       u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
                        c.nombre as nombreCarrera
                 FROM publicaciones p 
@@ -51,10 +29,11 @@ class PublicacionRepository {
      */
     public function obtenerParati(int $idUsuario) {
         $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
-                       p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
-                       u.nombre, u.apellido, u.fotoPerfil,
+                       p.idUniversidad, p.idSede, p.idCarrera, p.texto,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
+                       u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
                        c.nombre as nombreCarrera,
                        (
@@ -63,7 +42,7 @@ class PublicacionRepository {
                          -- Afinidad por Universidad (+30)
                          (CASE WHEN me.idUniversidad IS NOT NULL AND p.idUniversidad = me.idUniversidad THEN 30 ELSE 0 END) +
                          -- Puntuación por Engagement (3 pts por like, 4 pts por respuesta)
-                         (COALESCE(p.likes, 0) * 3) +
+                         ((SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') * 3) +
                          ((SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) * 4) +
                          -- Bonificación por amigos confirmados (+25)
                          (CASE WHEN p.idUsuario IN (
@@ -103,10 +82,11 @@ class PublicacionRepository {
      */
     public function obtenerTuRed(int $idUsuario) {
         $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
-                       p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
-                       u.nombre, u.apellido, u.fotoPerfil,
+                       p.idUniversidad, p.idSede, p.idCarrera, p.texto,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
+                       u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
                        c.nombre as nombreCarrera,
                        (CASE WHEN p.idUsuario = :meIdSelf THEN 1
@@ -154,8 +134,11 @@ class PublicacionRepository {
     }
 
     public function obtenerPorId(int $idPublicacion, int $idUsuario) {
-        $sql = "SELECT p.*, u.nombre, u.apellido, u.fotoPerfil,
+        $sql = "SELECT p.*,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
+                       (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
+                       u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
                        c.nombre as nombreCarrera
                 FROM publicaciones p 
@@ -173,8 +156,11 @@ class PublicacionRepository {
         if ($fila) return $fila;
 
         // Fallback a consultas
-        $sqlCon = "SELECT c.idConsulta as idPublicacion, c.*, 'Consulta' as tipoPublicacion, '' as titulo, u.nombre, u.apellido, u.fotoPerfil,
+        $sqlCon = "SELECT c.idConsulta as idPublicacion, c.*, 'Consulta' as tipoPublicacion, '' as titulo,
+                          (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = c.idConsulta AND f.estado = 'activo') as likes,
+                          (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = c.idConsulta) as cantidadRespuestas,
                           (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = c.idConsulta AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
+                          u.nombre, u.apellido, u.fotoPerfil,
                           uni.nombre as nombreUniversidad
                    FROM consultas c 
                    INNER JOIN usuarios u ON c.idUsuario = u.idUsuario
@@ -208,7 +194,8 @@ class PublicacionRepository {
                 if ($row) {
                     $idSede = (int)$row['idSede'];
                 } else {
-                    $this->db->exec("INSERT INTO sedes (idSede, idUniversidad, nombre) VALUES (1, $idUni, 'Sede Central')");
+                    $stmtSede = $this->db->prepare("INSERT INTO sedes (idSede, idUniversidad, nombre) VALUES (1, :idUni, 'Sede Central')");
+                    $stmtSede->execute([':idUni' => $idUni]);
                     $idSede = 1;
                 }
             }

@@ -16,6 +16,18 @@
       $this->dbName = getenv('DB_NAME') ?: 'u-tell';
       $this->dbPort = getenv('DB_PORT') ?: '3306';
 
+      // Support direct configuration file (crucial for InfinityFree / shared hosting without getenv)
+      if (file_exists(__DIR__ . '/db-config.php')) {
+          $cfg = require __DIR__ . '/db-config.php';
+          if (is_array($cfg)) {
+              $this->dbHost = $cfg['DB_HOST'] ?? $this->dbHost;
+              $this->dbUser = $cfg['DB_USER'] ?? $this->dbUser;
+              $this->dbPass = $cfg['DB_PASS'] ?? $this->dbPass;
+              $this->dbName = $cfg['DB_NAME'] ?? $this->dbName;
+              $this->dbPort = $cfg['DB_PORT'] ?? $this->dbPort;
+          }
+      }
+
       $databases = array_unique(array_filter([$this->dbName, 'utell', 'u_tell']));
       $connected = false;
       $lastException = null;

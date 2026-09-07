@@ -1,5 +1,5 @@
 <template>
-  <div class="app-layout" :class="{ 'auth-layout': isAuthRoute }">
+  <div class="app-layout" :class="{ 'auth-layout': isAuthRoute, 'fullwidth-layout': isFullWidthRoute }">
     <!-- Global Toast Notifications -->
     <ToastContainer />
 
@@ -211,9 +211,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './store/auth'
 import { useToastStore } from './store/toast'
 import { getProfilePic, toggleTheme } from './utils'
-import { API_BASE_URL } from './api'
+import api from './api'
 import ToastContainer from './components/ToastContainer.vue'
-import axios from 'axios'
 
 const route      = useRoute()
 const router     = useRouter()
@@ -234,6 +233,10 @@ const isActive = (path) => {
 
 const isAuthRoute = computed(() => {
   return route.path === '/' || route.path === '/register'
+})
+
+const isFullWidthRoute = computed(() => {
+  return route.path === '/dashboard' || route.path === '/mensajes' || route.path.startsWith('/perfil/') || route.path.startsWith('/usuario/') || route.path === '/profile'
 })
 
 const showDesktopSidebar = computed(() => {
@@ -274,7 +277,7 @@ const handleLogout = () => {
 
 const fetchTopUniversidades = async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/universidades/con-experiencias`)
+    const res = await api.get('/universidades/con-experiencias')
     if (Array.isArray(res.data)) {
       topUniversidades.value = res.data.slice(0, 4)
     }

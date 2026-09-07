@@ -125,9 +125,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const router     = useRouter()
 const authStore  = useAuthStore()
@@ -152,7 +151,7 @@ const loadAmigos = async () => {
   if (!authStore.user) return
   isLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/amigos`)
+    const res = await api.get(`/usuarios/${authStore.user.idUsuario}/amigos`)
     amigos.value = Array.isArray(res.data) ? res.data : []
   } catch (_) {
     amigos.value = []
@@ -165,7 +164,7 @@ const loadSolicitudes = async () => {
   if (!authStore.user) return
   isLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/solicitudes`)
+    const res = await api.get(`/usuarios/${authStore.user.idUsuario}/solicitudes`)
     pendientes.value = Array.isArray(res.data) ? res.data : []
   } catch (_) {
     pendientes.value = []
@@ -178,7 +177,7 @@ const responder = async (idAmistad, accion) => {
   try {
     const fd = new FormData()
     fd.append('accion', accion)
-    await axios.post(`${API_BASE_URL}/amistad/${idAmistad}/responder`, fd)
+    await api.post(`/amistad/${idAmistad}/responder`, fd)
     if (accion === 'aceptar') {
       toastStore.success('¡Solicitud aceptada! Ahora son amigos.', 2500)
     } else {
@@ -195,7 +194,7 @@ const responder = async (idAmistad, accion) => {
 const eliminarAmistad = async (idAmistad) => {
   if (!confirm('¿Estás seguro de que deseas eliminar este contacto de tus amigos?')) return
   try {
-    await axios.delete(`${API_BASE_URL}/amistad/${idAmistad}`)
+    await api.delete(`/amistad/${idAmistad}`)
     amigos.value = amigos.value.filter(a => a.idAmistad !== idAmistad)
     toastStore.info('Contacto eliminado de amigos.', 2000)
   } catch (e) {

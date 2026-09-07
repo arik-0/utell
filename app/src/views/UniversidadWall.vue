@@ -283,9 +283,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const route      = useRoute()
 const router     = useRouter()
@@ -321,7 +320,7 @@ const fetchWall = async () => {
   try {
     const uniId  = route.params.id
     const userId = authStore.user?.idUsuario || 0
-    const res    = await axios.get(`${API_BASE_URL}/universidades/${uniId}/muro?idUsuario=${userId}`)
+    const res    = await api.get(`/universidades/${uniId}/muro?idUsuario=${userId}`)
     if (res.data && res.data.universidad) {
       wallData.value = res.data
     }
@@ -347,7 +346,7 @@ const toggleLike = async (post) => {
   try {
     const fd = new FormData()
     fd.append('idUsuario', authStore.user.idUsuario)
-    const res = await axios.post(`${API_BASE_URL}/publicacion/${post.idPublicacion}/like`, fd)
+    const res = await api.post(`/publicacion/${post.idPublicacion}/like`, fd)
     if (res.data && res.data.totalLikes !== undefined) {
       post.likes    = res.data.totalLikes
       post.hasLiked = res.data.likedByUser ? 1 : 0

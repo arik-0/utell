@@ -2,12 +2,25 @@
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Message\ResponseInterface as Response;
 
-// Allow CORS with dynamic origin support or fallback to wildcard in local dev
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
-header("Access-Control-Allow-Origin: {$origin}");
-header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method, Authorization");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-header("Access-Control-Allow-Credentials: true");
+// ─── CORS Whitelist ────────────────────────────────────────────────────────────
+// Allowed origins configurable via ALLOWED_ORIGINS env var (comma-separated).
+// Defaults to localhost dev URLs if env var is not set.
+$defaultOrigins = 'http://localhost:5173,http://localhost:5174,http://localhost,http://127.0.0.1';
+$allowedOriginsRaw = getenv('ALLOWED_ORIGINS') ?: $defaultOrigins;
+$allowedOrigins = array_map('trim', explode(',', $allowedOriginsRaw));
+
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+// Automatically permit Vercel domains (*.vercel.app) or configured origins
+$isVercelDomain = !empty($requestOrigin) && (bool)preg_match('/^https:\/\/[a-zA-Z0-9._-]+\.vercel\.app$/', $requestOrigin);
+
+if (!empty($requestOrigin) && (in_array($requestOrigin, $allowedOrigins, true) || $isVercelDomain)) {
+    header("Access-Control-Allow-Origin: {$requestOrigin}");
+    header("Access-Control-Allow-Credentials: true");
+    header("Vary: Origin");
+    header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method, Authorization");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
+}
+
 header("Allow: GET, POST, OPTIONS, PUT, DELETE");
 header('Content-Type: application/json; charset=utf-8');
 
@@ -17,8 +30,8 @@ if ($method === "OPTIONS") {
     exit();
 }
 
-require __DIR__ . '/../vendor/autoload.php';
-require __DIR__ . '/../src/config/db.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/config/db.php';
 
 // Display errors dynamically based on APP_ENV (false for production)
 $isProduction = (getenv('APP_ENV') === 'production');

@@ -154,13 +154,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { timeAgo } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -181,7 +180,7 @@ const filteredUnis = computed(() => {
 const fetchUniversidades = async () => {
   isLoadingUnis.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/universidades/con-experiencias`)
+    const res = await api.get(`/universidades/con-experiencias`)
     if (Array.isArray(res.data)) {
       universidades.value = res.data
     }
@@ -193,12 +192,14 @@ const fetchUniversidades = async () => {
 }
 
 const fetchUserPosts = async () => {
-  if (!authStore.user) return
+  const userId = authStore.user?.idUsuario || 0
   isLoadingPosts.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/parati?idUsuario=${authStore.user.idUsuario}`)
+    const res = await api.get(`/parati?idUsuario=${userId}`)
     if (Array.isArray(res.data)) {
-      userPosts.value = res.data.filter(p => Number(p.idUsuario) === Number(authStore.user.idUsuario))
+      userPosts.value = userId > 0
+        ? res.data.filter(p => Number(p.idUsuario) === Number(userId))
+        : res.data
     }
   } catch (e) {
     console.error('Error fetching user posts:', e)
@@ -206,6 +207,10 @@ const fetchUserPosts = async () => {
     isLoadingPosts.value = false
   }
 }
+
+watch(() => authStore.user, () => {
+  fetchUserPosts()
+})
 
 const handleCreate = () => {
   router.push('/create-consulta')

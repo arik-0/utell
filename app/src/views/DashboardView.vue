@@ -589,9 +589,8 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
-import { getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
-import axios from 'axios'
+import { getProfilePic, timeAgo } from '../utils'
+import api from '../api'
 import Chart from 'chart.js/auto'
 
 const router = useRouter()
@@ -648,7 +647,7 @@ const handleDashboardLogin = async () => {
   loginError.value = ''
   isLoggingIn.value = true
   try {
-    const res = await axios.post(`${API_BASE_URL}/dashboard/login`, {
+    const res = await api.post(`/dashboard/login`, {
       email: loginForm.value.email.trim(),
       password: loginForm.value.password.trim()
     })
@@ -677,7 +676,7 @@ const handleLogout = () => {
 const fetchLevel1Data = async () => {
   isLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/dashboard/global`)
+    const res = await api.get(`/dashboard/global`)
     if (res.data && !res.data.error) {
       globalKpis.value = res.data.kpis
       universitiesList.value = res.data.universidades || []
@@ -703,7 +702,7 @@ const goToLevel1 = () => {
 const goToLevel2 = async (idUniversidad) => {
   isLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/dashboard/universidad/${idUniversidad}`)
+    const res = await api.get(`/dashboard/universidad/${idUniversidad}`)
     if (res.data && !res.data.error) {
       selectedUni.value = res.data.universidad
       level2Data.value = res.data
@@ -721,7 +720,7 @@ const goToLevel2 = async (idUniversidad) => {
 const goToLevel3 = async (idSede, idCarrera) => {
   isLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/dashboard/carrera-detalle/${idSede}/${idCarrera}`)
+    const res = await api.get(`/dashboard/carrera-detalle/${idSede}/${idCarrera}`)
     if (res.data && !res.data.error) {
       level3Data.value = res.data
       currentLevel.value = 3

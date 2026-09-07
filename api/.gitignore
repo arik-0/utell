@@ -1,2 +1,4 @@
 /vendor/
 .env
+src/config/db-config.php
+!src/config/db-config.example.php

@@ -163,9 +163,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import { useToastStore } from '../store/toast'
-import axios from 'axios'
 
 const router = useRouter()
 const toastStore = useToastStore()
@@ -234,8 +233,8 @@ onMounted(() => {
 const loadInstitutions = async () => {
   try {
     const [resUni, resCar] = await Promise.allSettled([
-      axios.get(`${API_BASE_URL}/universidades`),
-      axios.get(`${API_BASE_URL}/carreras`)
+      api.get(`/universidades`),
+      api.get(`/carreras`)
     ])
     if (resUni.status === 'fulfilled' && Array.isArray(resUni.value.data)) {
       universidades.value = resUni.value.data
@@ -251,7 +250,7 @@ const loadInstitutions = async () => {
 const loadCountries = async () => {
   loadingCountries.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/paises`)
+    const res = await api.get(`/paises`)
     if (Array.isArray(res.data) && res.data.length > 0) {
       countries.value = res.data.map(p => p.nombre || p).sort()
     } else {
@@ -277,7 +276,7 @@ const loadStates = async () => {
   loadingStates.value = true
 
   try {
-    const res = await axios.get(`${API_BASE_URL}/provincias`)
+    const res = await api.get(`/provincias`)
     if (Array.isArray(res.data) && res.data.length > 0) {
       states.value = res.data.map(p => p.nombre || p).sort()
     } else if (defaultLocations[form.value.pais]) {
@@ -307,7 +306,7 @@ const loadCities = async () => {
   loadingCities.value = true
 
   try {
-    const res = await axios.get(`${API_BASE_URL}/ciudades`)
+    const res = await api.get(`/ciudades`)
     if (Array.isArray(res.data) && res.data.length > 0) {
       cities.value = res.data.map(c => c.nombre || c).sort()
     } else if (defaultLocations[form.value.pais]?.[form.value.provincia]) {
@@ -385,7 +384,7 @@ const handleRegister = async () => {
       }
     }
 
-    const response = await axios.post(`${API_BASE_URL}/usuarios/nuevo`, formData)
+    const response = await api.post(`/usuarios/nuevo`, formData)
     let data = response.data
     if (typeof data === 'string') {
       try { data = JSON.parse(data) } catch (e) {}
@@ -668,8 +667,9 @@ const handleRegister = async () => {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    background: var(--bg-subtle);
+    background: transparent;
     padding: 40px 20px;
+    width: 100%;
   }
 
   .top-section {
@@ -693,6 +693,7 @@ const handleRegister = async () => {
     border-left: none;
     overflow-y: auto;
     padding: 36px 32px;
+    background: var(--bg-card);
   }
 }
 </style>

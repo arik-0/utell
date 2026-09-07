@@ -1,3 +1,6 @@
 # Root gitignore
 .DS_Store
 *.sql
+!u-tell.sql
+!utell_refactored.sql
+!mock_data_corregido.sql

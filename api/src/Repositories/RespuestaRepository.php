@@ -4,15 +4,6 @@ class RespuestaRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarColumnas();
-    }
-
-    private function asegurarColumnas(): void {
-        try {
-            $this->db->exec("ALTER TABLE respuestas ADD COLUMN idPublicacion int(11) NULL AFTER idConsulta");
-        } catch (Exception $e) {
-            // Ignorar si la columna ya existe
-        }
     }
 
     public function obtenerRespuestasPorPublicacion(int $idPublicacion) {

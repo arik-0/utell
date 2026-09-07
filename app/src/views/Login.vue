@@ -117,7 +117,7 @@ const handleLogin = async () => {
 }
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID' // Replace with actual client ID from Google Cloud Console
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 const handleGoogleCallback = async (response) => {
   isLoadingGoogle.value = true
@@ -127,7 +127,7 @@ const handleGoogleCallback = async (response) => {
     toastStore.success('¡Sesión iniciada con Google!', 2500)
     router.push('/feed')
   } catch (error) {
-    errorMessage.value = 'No se pudo iniciar sesión con Google. Intenta de nuevo.'
+    errorMessage.value = error.message || 'No se pudo iniciar sesión con Google. Intenta de nuevo.'
     toastStore.error(errorMessage.value)
   } finally {
     isLoadingGoogle.value = false
@@ -135,18 +135,21 @@ const handleGoogleCallback = async (response) => {
 }
 
 const handleGoogleLogin = () => {
-  // Trigger the Google One Tap / popup flow
-  if (typeof window.google === 'undefined') {
-    errorMessage.value = 'El servicio de Google no está disponible en este momento.'
-    toastStore.warning('El servicio de Google no está disponible.')
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    toastStore.warning('El inicio con Google requiere configurar VITE_GOOGLE_CLIENT_ID en el archivo .env', 5000)
     return
   }
+
+  if (typeof window.google === 'undefined' || !window.google.accounts || !window.google.accounts.id) {
+    toastStore.error('El script de Google Identity Services no está cargado.')
+    return
+  }
+
   window.google.accounts.id.prompt()
 }
 
 onMounted(() => {
-  // Initialize Google Identity Services if GSI script is loaded
-  if (typeof window.google !== 'undefined') {
+  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID' && typeof window.google !== 'undefined' && window.google.accounts) {
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleCallback,
@@ -409,8 +412,9 @@ onMounted(() => {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    background: var(--bg-subtle);
+    background: transparent;
     padding: 40px 20px;
+    width: 100%;
   }
 
   .top-section {
@@ -434,6 +438,7 @@ onMounted(() => {
     border-left: none;
     overflow-y: auto;
     padding: 40px 36px;
+    background: var(--bg-card);
   }
 }
 </style>

@@ -8,32 +8,6 @@ class SeguridadRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTablasEIndices();
-    }
-
-    private function asegurarTablasEIndices(): void {
-        try {
-            // Asegurar roles institucionales y moderadores
-            $this->db->exec("INSERT IGNORE INTO roles (idRol, nombreRol) VALUES 
-                (1, 'Administrador'),
-                (2, 'Estudiante'),
-                (3, 'Docente'),
-                (4, 'Graduado'),
-                (5, 'Moderador'),
-                (6, 'Institución')");
-
-            // Asegurar permisos base
-            $this->db->exec("INSERT IGNORE INTO permisos (idPermiso, nombre, codigoAccion) VALUES 
-                (1, 'Crear Publicaciones', 'POST_CREATE'),
-                (2, 'Responder Consultas', 'POST_REPLY'),
-                (3, 'Calificar Instituciones', 'RATE_UNIVERSITY'),
-                (4, 'Moderar Comentarios y Posts', 'MODERATE_CONTENT'),
-                (5, 'Gestionar Usuarios', 'MANAGE_USERS'),
-                (6, 'Enviar Mensajes Directos', 'SEND_DIRECT_MESSAGE'),
-                (7, 'Ver Métricas Institucionales', 'VIEW_INSTITUTION_METRICS')");
-        } catch (Exception $e) {
-            error_log("Error inicializando tablas de seguridad: " . $e->getMessage());
-        }
     }
 
     /**

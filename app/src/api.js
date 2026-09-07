@@ -28,8 +28,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('utell_user')
-      if (window.location.pathname !== '/' && window.location.pathname !== '/register') {
+      const currentPath = window.location.pathname
+      const isAuthPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register' || currentPath === '/dashboard'
+      if (!isAuthPage) {
+        localStorage.removeItem('utell_user')
         window.location.href = '/'
       }
     }

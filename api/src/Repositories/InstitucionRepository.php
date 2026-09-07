@@ -73,7 +73,8 @@ class InstitucionRepository {
         // 3. Publicaciones del Muro (Experiencias y Consultas asociadas a la Universidad)
         $stmtPubs = $this->db->prepare("
             SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
-                   p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.likes,
+                   p.idUniversidad, p.idSede, p.idCarrera, p.texto,
+                   (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
                    u.nombre, u.apellido, u.fotoPerfil, u.tipoPerfil,
                    c.nombre as nombreCarrera,
                    s.nombre as nombreSede,

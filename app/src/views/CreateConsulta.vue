@@ -101,8 +101,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
-import axios from 'axios'
+import api from '../api'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -116,8 +115,8 @@ const form = ref({ titulo: '', universidad: '', carrera: '', texto: '' })
 onMounted(async () => {
   try {
     const [resUni, resCar] = await Promise.allSettled([
-      axios.get(`${API_BASE_URL}/universidades`),
-      axios.get(`${API_BASE_URL}/carreras`)
+      api.get(`/universidades`),
+      api.get(`/carreras`)
     ])
     if (resUni.status === 'fulfilled' && Array.isArray(resUni.value.data)) {
       universidades.value = resUni.value.data
@@ -152,7 +151,7 @@ const submitPost = async () => {
       formData.append('carrera', form.value.carrera.trim())
     }
 
-    const res = await axios.post(`${API_BASE_URL}/publicacion/nuevo`, formData)
+    const res = await api.post(`/publicacion/nuevo`, formData)
     if (typeof res.data === 'string' && res.data.toLowerCase().includes('error')) {
       throw new Error(res.data)
     }

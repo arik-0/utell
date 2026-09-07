@@ -3,147 +3,132 @@ use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 
 require_once __DIR__ . '/../Services/InstitucionService.php';
+require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
-// Listado de universidades con estadísticas de experiencias
-$app->get('/universidades/con-experiencias', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        $data    = $service->obtenerUniversidadesConExperiencias();
-        echo json_encode(count($data) > 0 ? $data : []);
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(Response $response, $data, int $status = 200): Response {
+        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+}
+
+// Todas las rutas de instituciones son publicas (listados de referencia)
+
+$app->get('/universidades/con-experiencias', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerUniversidadesConExperiencias() ?: []);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-// Muro institucional de una universidad (Métricas consolidadas, experiencias, consultas y sedes)
-$app->get('/universidades/{id:[0-9]+}/muro', function(Request $request, Response $response, array $args){
+$app->get('/universidades/{id:[0-9]+}/muro', function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
     $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
-
-    try{
-        $service = InstitucionService::getInstance();
-        $muro    = $service->obtenerMuroUniversidad($id, $idUsuario);
-        if ($muro) {
-            echo json_encode($muro);
-        } else {
-            echo '{"error":{"text":"No se encontró la universidad especificada."}}';
-        }
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        $muro = InstitucionService::getInstance()->obtenerMuroUniversidad($id, $idUsuario);
+        if ($muro) return jsonResponse($response, $muro);
+        return jsonResponse($response, ['error' => ['text' => 'No se encontro la universidad especificada.']], 404);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-$app->get('/universidades', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        $data    = $service->obtenerUniversidades();
-        echo json_encode(count($data) > 0 ? $data : []);
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+$app->get('/universidades', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerUniversidades() ?: []);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-$app->get('/carreras', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerCarreras());
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+$app->get('/carreras', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerCarreras());
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-$app->get('/sedes', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerSedes());
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+$app->get('/sedes', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerSedes());
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-// Sedes de una universidad especifica
-$app->get('/universidades/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args){
+$app->get('/universidades/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerSedesPorUniversidad($id));
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerSedesPorUniversidad($id));
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-// Carreras dictadas en una sede (via oferta_academica)
-$app->get('/sedes/{id:[0-9]+}/carreras', function(Request $request, Response $response, array $args){
+$app->get('/sedes/{id:[0-9]+}/carreras', function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerCarrerasPorSede($id));
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerCarrerasPorSede($id));
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-// Sedes donde se dicta una carrera
-$app->get('/carreras/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args){
+$app->get('/carreras/{id:[0-9]+}/sedes', function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerSedesPorCarrera($id));
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerSedesPorCarrera($id));
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-// Crear oferta academica (vinculo carrera-sede)
-$app->post('/oferta-academica', function(Request $request, Response $response){
+// Crear oferta academica (requiere JWT)
+$app->post('/oferta-academica', function(Request $request, Response $response) {
     $idCarrera = (int)$request->getParam('idCarrera');
     $idSede    = (int)$request->getParam('idSede');
     $anio      = $request->getParam('anioImplementacion') ? (int)$request->getParam('anioImplementacion') : null;
-
-    try{
-        $service = InstitucionService::getInstance();
-        $ok      = $service->crearOfertaAcademica($idCarrera, $idSede, $anio);
-        echo json_encode($ok ? "Oferta academica creada." : "Error al crear oferta academica.");
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        $ok = InstitucionService::getInstance()->crearOfertaAcademica($idCarrera, $idSede, $anio);
+        return jsonResponse($response, $ok ? ['mensaje' => 'Oferta academica creada.'] : ['error' => ['text' => 'Error al crear oferta academica.']], $ok ? 201 : 500);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+})->add(new AuthMiddleware());
 
-// Eliminar oferta academica
-$app->delete('/oferta-academica/{id:[0-9]+}', function(Request $request, Response $response, array $args){
+// Eliminar oferta academica (requiere JWT)
+$app->delete('/oferta-academica/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
-    try{
-        $service = InstitucionService::getInstance();
-        $ok      = $service->eliminarOfertaAcademica($id);
-        echo json_encode($ok ? "Oferta academica eliminada." : "No se encontro la oferta.");
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+    try {
+        $ok = InstitucionService::getInstance()->eliminarOfertaAcademica($id);
+        return jsonResponse($response, $ok ? ['mensaje' => 'Oferta academica eliminada.'] : ['error' => ['text' => 'No se encontro la oferta.']], $ok ? 200 : 404);
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
+    }
+})->add(new AuthMiddleware());
+
+$app->get('/paises', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerPaises());
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-$app->get('/paises', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerPaises());
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+$app->get('/provincias', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerProvincias());
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });
 
-$app->get('/provincias', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerProvincias());
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
-    }
-});
-
-$app->get('/ciudades', function(Request $request, Response $response){
-    try{
-        $service = InstitucionService::getInstance();
-        echo json_encode($service->obtenerCiudades());
-    }catch(Exception $e){
-        echo '{"error":{"text":"'.$e->getMessage().'"}}';
+$app->get('/ciudades', function(Request $request, Response $response) {
+    try {
+        return jsonResponse($response, InstitucionService::getInstance()->obtenerCiudades());
+    } catch(Exception $e) {
+        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
 });

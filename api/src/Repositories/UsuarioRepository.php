@@ -11,16 +11,6 @@ class UsuarioRepository {
     public function guardar(Usuario $usuario): int {
         $idCiudad = $usuario->getIdCiudad() ?: 1;
 
-        // Asegurar que existan registros base para evitar violaciones de clave foránea
-        try {
-            $this->db->exec("INSERT INTO roles (idRol, nombreRol) VALUES (1, 'Administrador'), (2, 'Usuario') ON DUPLICATE KEY UPDATE nombreRol=VALUES(nombreRol)");
-            $this->db->exec("INSERT INTO paises (idPais, nombre) VALUES (1, 'Argentina') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
-            $this->db->exec("INSERT INTO provincias (idProvincia, idPais, nombre) VALUES (1, 1, 'Santa Fe') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
-            $this->db->exec("INSERT INTO ciudades (idCiudad, idProvincia, nombre) VALUES (1, 1, 'Rosario') ON DUPLICATE KEY UPDATE nombre=VALUES(nombre)");
-        } catch (Exception $e) {
-            // Ignorar silenciosamente si ya existen
-        }
-
         $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera) 
                 VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad, :uni, :car)";
         

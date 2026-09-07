@@ -226,11 +226,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { getProfilePic, timeAgo, toggleTheme } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import { useToastStore } from '../store/toast'
 import SectionCard from '../components/SectionCard.vue'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const route      = useRoute()
 const router     = useRouter()
@@ -274,7 +273,7 @@ const fetchProfileData = async () => {
 
   try {
     // 1. Fetch User Data
-    const res = await axios.get(`${API_BASE_URL}/usuarios/${targetId}`)
+    const res = await api.get(`/usuarios/${targetId}`)
     const data = Array.isArray(res.data) ? res.data[0] : res.data
 
     if (data && data.idUsuario) {
@@ -288,7 +287,7 @@ const fetchProfileData = async () => {
     // 2. Fetch Relationship status if external profile
     if (isOtherUser.value && authStore.user) {
       try {
-        const relRes = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/relacion/${targetId}`)
+        const relRes = await api.get(`/usuarios/${authStore.user.idUsuario}/relacion/${targetId}`)
         if (relRes.data) {
           relacionEstado.value = relRes.data.estado || 'ninguno'
           idAmistadRel.value   = relRes.data.idAmistad || null
@@ -299,7 +298,7 @@ const fetchProfileData = async () => {
 
       // 3. Fetch user's publications
       try {
-        const postsRes = await axios.get(`${API_BASE_URL}/parati?idUsuario=${targetId}`)
+        const postsRes = await api.get(`/parati?idUsuario=${targetId}`)
         if (Array.isArray(postsRes.data)) {
           userPosts.value = postsRes.data.filter(p => Number(p.idUsuario) === targetId)
         }
@@ -309,8 +308,8 @@ const fetchProfileData = async () => {
     } else if (!isOtherUser.value && authStore.user) {
       // Fetch own live stats
       const [friendsRes, postsRes] = await Promise.allSettled([
-        axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/amigos`),
-        axios.get(`${API_BASE_URL}/parati?idUsuario=${authStore.user.idUsuario}`)
+        api.get(`/usuarios/${authStore.user.idUsuario}/amigos`),
+        api.get(`/parati?idUsuario=${authStore.user.idUsuario}`)
       ])
       if (friendsRes.status === 'fulfilled' && Array.isArray(friendsRes.value.data)) {
         amigoCount.value = friendsRes.value.data.length
@@ -334,7 +333,7 @@ const enviarSolicitud = async () => {
     const fd = new FormData()
     fd.append('idSolicitante', authStore.user.idUsuario)
     fd.append('idReceptor', profileUser.value.idUsuario)
-    await axios.post(`${API_BASE_URL}/amistad/solicitar`, fd)
+    await api.post(`/amistad/solicitar`, fd)
     relacionEstado.value = 'pendiente_enviada'
     toastStore.success('Solicitud de amistad enviada con éxito.')
   } catch (e) {
@@ -351,7 +350,7 @@ const responderSolicitud = async (accion) => {
   try {
     const fd = new FormData()
     fd.append('accion', accion)
-    await axios.post(`${API_BASE_URL}/amistad/${idAmistadRel.value}/responder`, fd)
+    await api.post(`/amistad/${idAmistadRel.value}/responder`, fd)
     relacionEstado.value = (accion === 'aceptar') ? 'aceptada' : 'ninguno'
     if (accion === 'aceptar') {
       amigoCount.value++
@@ -371,7 +370,7 @@ const eliminarAmistad = async () => {
   if (!idAmistadRel.value) return
   if (!confirm(`¿Deseas eliminar a ${profileUser.value?.nombre} de tus amigos?`)) return
   try {
-    await axios.delete(`${API_BASE_URL}/amistad/${idAmistadRel.value}`)
+    await api.delete(`/amistad/${idAmistadRel.value}`)
     relacionEstado.value = 'ninguno'
     amigoCount.value = Math.max(0, amigoCount.value - 1)
     toastStore.info('Amistad eliminada.')

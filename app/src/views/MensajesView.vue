@@ -207,9 +207,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { timeAgo, getProfilePic } from '../utils'
-import { API_BASE_URL } from '../api'
+import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
-import axios from 'axios'
 
 const route     = useRoute()
 const router    = useRouter()
@@ -260,7 +259,7 @@ const filteredConversaciones = computed(() => {
 const fetchConversaciones = async () => {
   if (!authStore.user) return
   try {
-    const res = await axios.get(`${API_BASE_URL}/mensajes/conversaciones?idUsuario=${authStore.user.idUsuario}`)
+    const res = await api.get(`/mensajes/conversaciones?idUsuario=${authStore.user.idUsuario}`)
     if (Array.isArray(res.data)) {
       conversaciones.value = res.data
       totalNoLeidos.value = res.data.reduce((acc, c) => acc + Number(c.noLeidos || 0), 0)
@@ -276,7 +275,7 @@ const fetchChatMessages = async (contactId, silent = false) => {
   if (!authStore.user || !contactId) return
   if (!silent) isLoadingChat.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/mensajes/chat/${contactId}?idUsuario=${authStore.user.idUsuario}`)
+    const res = await api.get(`/mensajes/chat/${contactId}?idUsuario=${authStore.user.idUsuario}`)
     if (Array.isArray(res.data)) {
       const prevLength = messages.value.length
       messages.value = res.data
@@ -340,7 +339,7 @@ const sendMessage = async () => {
     fd.append('idReceptor', activeContact.value.idUsuario)
     fd.append('texto', texto)
 
-    const res = await axios.post(`${API_BASE_URL}/mensajes/enviar`, fd)
+    const res = await api.post(`/mensajes/enviar`, fd)
     if (res.data && res.data.data) {
       // Replace optimistic entry with backend response
       const idx = messages.value.findIndex(m => m.idMensajeDirecto === tempMsg.idMensajeDirecto)
@@ -378,7 +377,7 @@ const openNewChatModal = async () => {
   showNewModal.value = true
   isLoadingAmigos.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/usuarios/${authStore.user.idUsuario}/amigos`)
+    const res = await api.get(`/usuarios/${authStore.user.idUsuario}/amigos`)
     amigosDisponibles.value = Array.isArray(res.data) ? res.data : []
   } catch (e) {
     amigosDisponibles.value = []
@@ -405,7 +404,7 @@ onMounted(async () => {
     const cid = Number(route.query.contacto)
     // Load contact info
     try {
-      const res = await axios.get(`${API_BASE_URL}/usuarios/${cid}`)
+      const res = await api.get(`/usuarios/${cid}`)
       if (res.data && res.data.idUsuario) {
         openChat(res.data)
       }
