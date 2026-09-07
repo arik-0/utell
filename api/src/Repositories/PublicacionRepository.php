@@ -38,9 +38,9 @@ class PublicacionRepository {
                        c.nombre as nombreCarrera,
                        (
                          -- Afinidad por Carrera (+40)
-                         (CASE WHEN me.idCarrera IS NOT NULL AND p.idCarrera = me.idCarrera THEN 40 ELSE 0 END) +
+                         (CASE WHEN meIns.idCarrera IS NOT NULL AND p.idCarrera = meIns.idCarrera THEN 40 ELSE 0 END) +
                          -- Afinidad por Universidad (+30)
-                         (CASE WHEN me.idUniversidad IS NOT NULL AND p.idUniversidad = me.idUniversidad THEN 30 ELSE 0 END) +
+                         (CASE WHEN meIns.idUniversidad IS NOT NULL AND p.idUniversidad = meIns.idUniversidad THEN 30 ELSE 0 END) +
                          -- Puntuación por Engagement (3 pts por like, 4 pts por respuesta)
                          ((SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') * 3) +
                          ((SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) * 4) +
@@ -98,7 +98,7 @@ class PublicacionRepository {
                              ) THEN 1 ELSE 0 END) as esAmigoDirecto
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-                LEFT JOIN usuarios me ON me.idUsuario = :meId
+                LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 WHERE p.idUsuario = :meIdSelf2
@@ -108,8 +108,8 @@ class PublicacionRepository {
                        WHERE (a.idSolicitante = :idUsuarioFriend5 OR a.idReceptor = :idUsuarioFriend6)
                          AND a.estado = 'aceptada'
                    )
-                   OR (me.idUniversidad IS NOT NULL AND p.idUniversidad = me.idUniversidad)
-                   OR (me.idCarrera IS NOT NULL AND p.idCarrera = me.idCarrera)
+                   OR (meIns.idUniversidad IS NOT NULL AND p.idUniversidad = meIns.idUniversidad)
+                   OR (meIns.idCarrera IS NOT NULL AND p.idCarrera = meIns.idCarrera)
                 ORDER BY esAmigoDirecto DESC, p.fecha DESC, p.hora DESC";
                 
         try {
