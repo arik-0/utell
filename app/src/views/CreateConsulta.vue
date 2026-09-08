@@ -345,7 +345,7 @@ const submitPost = async () => {
 
 .form-input:focus {
   border-color: var(--primary);
-  background: #FFFFFF;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 
@@ -383,7 +383,7 @@ const submitPost = async () => {
 
 .form-textarea:focus {
   border-color: var(--primary);
-  background: #FFFFFF;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 

@@ -609,7 +609,7 @@ onUnmounted(() => {
 .conv-card:active { transform: scale(0.985); }
 
 .conv-card.has-unread {
-  background: #FFFBF9;
+  background: var(--primary-light);
   border-color: rgba(255, 107, 53, 0.3);
 }
 
@@ -909,7 +909,7 @@ onUnmounted(() => {
 
 .chat-input:focus {
   border-color: var(--primary);
-  background: #FFFFFF;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 

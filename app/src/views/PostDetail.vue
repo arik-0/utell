@@ -693,7 +693,7 @@ onMounted(() => {
 
 .reply-input:focus {
   border-color: var(--primary);
-  background-color: #FFFFFF;
+  background-color: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 

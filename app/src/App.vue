@@ -68,8 +68,8 @@
         </div>
 
         <div class="sidebar-bottom-actions">
-          <button class="sidebar-icon-btn" @click="handleToggleTheme" :title="isDark ? 'Activar modo claro' : 'Activar modo oscuro'" aria-label="Cambiar tema">
-            <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <button class="sidebar-icon-btn" @click="handleToggleTheme" :title="themeStore.isDark ? 'Activar modo claro' : 'Activar modo oscuro'" aria-label="Cambiar tema">
+            <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
           <button class="sidebar-icon-btn text-danger" @click="handleLogout" title="Cerrar sesión" aria-label="Cerrar sesión">
@@ -210,7 +210,8 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './store/auth'
 import { useToastStore } from './store/toast'
-import { getProfilePic, toggleTheme } from './utils'
+import { useThemeStore } from './store/theme'
+import { getProfilePic } from './utils'
 import api from './api'
 import ToastContainer from './components/ToastContainer.vue'
 
@@ -218,10 +219,10 @@ const route      = useRoute()
 const router     = useRouter()
 const authStore  = useAuthStore()
 const toastStore = useToastStore()
+const themeStore = useThemeStore()
 
 const showFabMenu      = ref(false)
 const topUniversidades = ref([])
-const isDark           = ref(typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') === 'dark' : false)
 
 const toggleFab = () => {
   showFabMenu.value = !showFabMenu.value
@@ -264,8 +265,7 @@ const showTabBar = computed(() => {
 })
 
 const handleToggleTheme = () => {
-  const newTheme = toggleTheme()
-  isDark.value   = (newTheme === 'dark')
+  const newTheme = themeStore.toggle()
   toastStore.info(newTheme === 'dark' ? 'Modo Oscuro activado' : 'Modo Claro activado', 2000)
 }
 
@@ -292,7 +292,6 @@ const fetchTopUniversidades = async () => {
 
 onMounted(() => {
   fetchTopUniversidades()
-  isDark.value = (document.documentElement.getAttribute('data-theme') === 'dark')
 })
 </script>
 

@@ -1,5 +1,15 @@
 <template>
   <div class="login-page">
+    <button
+      class="auth-theme-btn"
+      @click="themeStore.toggle()"
+      :title="themeStore.isDark ? 'Activar modo claro' : 'Activar modo oscuro'"
+      type="button"
+      aria-label="Cambiar tema"
+    >
+      <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <div class="top-section">
       <img src="/img/logo.png" alt="U-Tell Logo" class="logo-cap" />
     </div>
@@ -83,10 +93,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
+import { useThemeStore } from '../store/theme'
 
 const router     = useRouter()
 const authStore  = useAuthStore()
 const toastStore = useToastStore()
+const themeStore = useThemeStore()
 
 const email           = ref('')
 const password        = ref('')
@@ -163,11 +175,41 @@ onMounted(() => {
 
 <style scoped>
 .login-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg-main);
+}
+
+.auth-theme-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  transition: all var(--duration-fast);
+}
+
+.auth-theme-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.06);
+}
+
+.auth-theme-btn:active {
+  transform: scale(0.95);
 }
 
 /* ─── Top Hero ─── */

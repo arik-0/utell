@@ -48,18 +48,32 @@ export function getProfilePic(pic) {
  * Theme Management Utilities (Light / Dark Mode)
  */
 export function initTheme() {
-  const saved = localStorage.getItem('utell_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  let saved = 'light'
+  try {
+    saved = localStorage.getItem('utell_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  } catch (_) {}
   setTheme(saved)
   return saved
 }
 
 export function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme)
-  localStorage.setItem('utell_theme', theme)
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', theme)
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+      if (document.body) document.body.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      if (document.body) document.body.classList.remove('dark')
+    }
+  }
+  try {
+    localStorage.setItem('utell_theme', theme)
+  } catch (_) {}
 }
 
 export function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
+  const current = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark') ? 'dark' : 'light'
   const next = current === 'dark' ? 'light' : 'dark'
   setTheme(next)
   return next

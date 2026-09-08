@@ -144,16 +144,77 @@
 
 [data-theme="dark"] .input-wrap input,
 [data-theme="dark"] .input-control,
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-textarea,
+[data-theme="dark"] .reply-input,
 [data-theme="dark"] .chat-input {
-  background: #111827;
-  border-color: #243247;
-  color: var(--text-strong);
+  background-color: #111827 !important;
+  border-color: #243247 !important;
+  color: var(--text-strong) !important;
 }
 
 [data-theme="dark"] .input-wrap input:focus,
 [data-theme="dark"] .input-control:focus,
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] .form-textarea:focus,
+[data-theme="dark"] .reply-input:focus,
 [data-theme="dark"] .chat-input:focus {
-  background: #151F30;
+  background-color: #151F30 !important;
+  border-color: var(--primary) !important;
+  color: var(--text-strong) !important;
+}
+
+[data-theme="dark"] select option {
+  background-color: #151F30 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .conv-card.has-unread {
+  background: rgba(255, 107, 53, 0.12) !important;
+  border-color: rgba(255, 107, 53, 0.3) !important;
+}
+
+[data-theme="dark"] .error-banner,
+[data-theme="dark"] .error-msg {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #FCA5A5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] .alert-warning,
+[data-theme="dark"] .pill-yellow,
+[data-theme="dark"] .box-amber,
+[data-theme="dark"] .access-restriction-tag {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #FCD34D !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .badge-consulta {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #FBBF24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Smooth transition when toggling themes */
+body,
+.desktop-sidebar,
+.feed-header,
+.wall-header,
+.publicaciones-header,
+.inbox-header,
+.chat-header,
+.chat-input-bar,
+.reply-bar,
+.profile-header-bar,
+.bottom-tab-bar,
+.post-card,
+.settings-card,
+.section-card,
+.rail-widget {
+  transition: background-color var(--duration-normal) ease,
+              border-color var(--duration-normal) ease,
+              color var(--duration-normal) ease;
 }
 
 /* ═══════════════════════════════════
@@ -699,7 +760,7 @@ h4 { font-size: 15px; }
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3.5px var(--primary-ghost);
-  background-color: #FFFFFF;
+  background-color: var(--bg-card);
 }
 
 .input-control::placeholder {

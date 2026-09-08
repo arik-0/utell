@@ -8,6 +8,10 @@
           <span class="logo-text">U-Tell</span>
         </div>
         <div class="header-actions">
+          <button class="icon-btn" @click="themeStore.toggle()" :title="themeStore.isDark ? 'Activar modo claro' : 'Activar modo oscuro'" aria-label="Cambiar tema">
+            <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
           <button class="icon-btn" @click="showSearch = !showSearch" aria-label="Buscar">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
@@ -177,6 +181,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
+import { useThemeStore } from '../store/theme'
 import { timeAgo, getProfilePic } from '../utils'
 import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
@@ -184,6 +189,7 @@ import EmptyState from '../components/EmptyState.vue'
 const router     = useRouter()
 const authStore  = useAuthStore()
 const toastStore = useToastStore()
+const themeStore = useThemeStore()
 
 const posts       = ref([])
 const isLoading   = ref(true)
