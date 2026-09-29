@@ -73,10 +73,13 @@ $app->get('/publicacion/{id:[0-9]+}', function(Request $request, Response $respo
 $app->post('/publicacion/nuevo', function(Request $request, Response $response) {
     $db = db::getInstance()->getConnection();
 
-    $idUsuario       = $request->getParam('idUsuario');
+    $jwtPayload = $request->getAttribute('jwtPayload');
+    $idUsuario  = !empty($jwtPayload['idUsuario']) ? (int)$jwtPayload['idUsuario'] : (int)($request->getParam('idUsuario') ?? 0);
     $tipoPublicacion = $request->getParam('tipoPublicacion') ?? 'Consulta';
     $titulo          = $request->getParam('titulo') ?? '';
     $texto           = $request->getParam('texto') ?? '';
+    $idUniversidad   = $request->getParam('idUniversidad');
+    $idCarrera       = $request->getParam('idCarrera');
     $nombreUniversidad = $request->getParam('universidad');
     $nombreCarrera     = $request->getParam('carrera');
 
@@ -85,29 +88,23 @@ $app->post('/publicacion/nuevo', function(Request $request, Response $response) 
     }
 
     try {
-        $idUni = null;
-        if (!empty($nombreUniversidad)) {
+        $idUni = !empty($idUniversidad) ? (int)$idUniversidad : null;
+        if (empty($idUni) && !empty($nombreUniversidad)) {
             $stmtUni = $db->prepare("SELECT idUniversidad FROM universidades WHERE nombre = :nombre LIMIT 1");
             $stmtUni->execute([':nombre' => $nombreUniversidad]);
             $rowUni = $stmtUni->fetch(PDO::FETCH_ASSOC);
             if ($rowUni) {
-                $idUni = $rowUni['idUniversidad'];
-            } else {
-                $db->prepare("INSERT INTO universidades (nombre, email, password) VALUES (:nombre, '', '')")->execute([':nombre' => $nombreUniversidad]);
-                $idUni = $db->lastInsertId();
+                $idUni = (int)$rowUni['idUniversidad'];
             }
         }
 
-        $idCar = null;
-        if (!empty($nombreCarrera)) {
+        $idCar = !empty($idCarrera) ? (int)$idCarrera : null;
+        if (empty($idCar) && !empty($nombreCarrera)) {
             $stmtCar = $db->prepare("SELECT idCarrera FROM carreras WHERE nombre = :nombre LIMIT 1");
             $stmtCar->execute([':nombre' => $nombreCarrera]);
             $rowCar = $stmtCar->fetch(PDO::FETCH_ASSOC);
             if ($rowCar) {
-                $idCar = $rowCar['idCarrera'];
-            } else {
-                $db->prepare("INSERT INTO carreras (nombre) VALUES (:nombre)")->execute([':nombre' => $nombreCarrera]);
-                $idCar = $db->lastInsertId();
+                $idCar = (int)$rowCar['idCarrera'];
             }
         }
 

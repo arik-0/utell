@@ -54,7 +54,7 @@ class PublicacionRepository {
                        ) as rankingScore
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-                LEFT JOIN usuarios me ON me.idUsuario = :meId
+                LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 ORDER BY rankingScore DESC, p.fecha DESC, p.hora DESC";
@@ -71,7 +71,7 @@ class PublicacionRepository {
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
             error_log("Error in obtenerParati: " . $e->getMessage());
-            return [];
+            return $this->obtenerConsultas();
         }
     }
 
@@ -177,43 +177,16 @@ class PublicacionRepository {
 
     private function asegurarRelacionesPredeterminadas(?int &$idUni, ?int &$idSede, ?int &$idCarrera): void {
         try {
-            if (empty($idUni)) {
-                $stmt = $this->db->query("SELECT idUniversidad FROM universidades LIMIT 1");
-                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-                if ($row) {
-                    $idUni = (int)$row['idUniversidad'];
-                } else {
-                    $this->db->exec("INSERT INTO universidades (idUniversidad, nombre, email, password) VALUES (1, 'Universidad Nacional', '', '')");
-                    $idUni = 1;
-                }
-            }
-
-            if (empty($idSede)) {
-                $stmt = $this->db->query("SELECT idSede FROM sedes LIMIT 1");
-                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+            if (!empty($idUni) && empty($idSede)) {
+                $stmt = $this->db->prepare("SELECT idSede FROM sedes WHERE idUniversidad = :idUni LIMIT 1");
+                $stmt->execute([':idUni' => $idUni]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($row) {
                     $idSede = (int)$row['idSede'];
-                } else {
-                    $stmtSede = $this->db->prepare("INSERT INTO sedes (idSede, idUniversidad, nombre) VALUES (1, :idUni, 'Sede Central')");
-                    $stmtSede->execute([':idUni' => $idUni]);
-                    $idSede = 1;
-                }
-            }
-
-            if (empty($idCarrera)) {
-                $stmt = $this->db->query("SELECT idCarrera FROM carreras LIMIT 1");
-                $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-                if ($row) {
-                    $idCarrera = (int)$row['idCarrera'];
-                } else {
-                    $this->db->exec("INSERT INTO carreras (idCarrera, nombre) VALUES (1, 'General')");
-                    $idCarrera = 1;
                 }
             }
         } catch (Exception $e) {
-            if (empty($idUni)) $idUni = 1;
-            if (empty($idSede)) $idSede = 1;
-            if (empty($idCarrera)) $idCarrera = 1;
+            // Silencioso
         }
     }
 

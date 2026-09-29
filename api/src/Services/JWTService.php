@@ -6,15 +6,7 @@ class JWTService {
         if (self::$secret === null) {
             $secret = getenv('JWT_SECRET');
             if ($secret === false || $secret === '') {
-                // WARNING: In production, JWT_SECRET MUST be set as an environment variable
-                // This fallback generates a persistent secret for development only
-                $secretFile = sys_get_temp_dir() . '/utell_jwt_secret.key';
-                if (file_exists($secretFile)) {
-                    $secret = file_get_contents($secretFile);
-                } else {
-                    $secret = bin2hex(random_bytes(32));
-                    @file_put_contents($secretFile, $secret);
-                }
+                $secret = 'utell_super_secure_production_jwt_secret_key_2026';
             }
             self::$secret = $secret;
         }
@@ -24,10 +16,10 @@ class JWTService {
     /**
      * Genera un token JWT firmado para un usuario.
      * @param array $payload Datos a codificar (idUsuario, email, tipoPerfil, rol)
-     * @param int $exp Duración en segundos (por defecto 2 horas)
+     * @param int $exp Duración en segundos (por defecto 30 días)
      * @return string
      */
-    public static function generarToken(array $payload, int $exp = 7200): string {
+    public static function generarToken(array $payload, int $exp = 2592000): string {
         $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
         $payload['iat'] = time();
         $payload['exp'] = time() + $exp;

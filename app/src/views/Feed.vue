@@ -210,9 +210,22 @@ const fetchFeed = async () => {
     const endpoint = activeTab.value === 'parati' ? '/parati' : '/tured'
     const res      = await api.get(`${endpoint}?idUsuario=${userId}`)
     posts.value    = Array.isArray(res.data) ? res.data : []
+    
+    // Si el algoritmo de recomendación devuelve vacío (sin afinidad aún o error silencioso), mostrar consultas globales
+    if (activeTab.value === 'parati' && posts.value.length === 0) {
+      const fallback = await api.get(`/consultas`)
+      if (Array.isArray(fallback.data) && fallback.data.length > 0) {
+        posts.value = fallback.data
+      }
+    }
   } catch (error) {
     console.error('Error loading feed:', error)
-    posts.value = []
+    try {
+      const fallback = await api.get(`/consultas`)
+      posts.value = Array.isArray(fallback.data) ? fallback.data : []
+    } catch (_) {
+      posts.value = []
+    }
   } finally {
     isLoading.value = false
   }

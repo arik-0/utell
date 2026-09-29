@@ -14,7 +14,12 @@ api.interceptors.request.use(
       if (userRaw) {
         const user = JSON.parse(userRaw)
         if (user && user.token) {
-          config.headers.Authorization = `Bearer ${user.token}`
+          if (config.headers && typeof config.headers.set === 'function') {
+            config.headers.set('Authorization', `Bearer ${user.token}`)
+          } else {
+            config.headers = config.headers || {}
+            config.headers.Authorization = `Bearer ${user.token}`
+          }
         }
       }
     } catch (_) {}

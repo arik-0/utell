@@ -146,12 +146,25 @@ const submitPost = async () => {
     
     if (form.value.universidad && form.value.universidad.trim()) {
       formData.append('universidad', form.value.universidad.trim())
+      const uniObj = universidades.value.find(u => u.nombre === form.value.universidad.trim())
+      if (uniObj && uniObj.idUniversidad) {
+        formData.append('idUniversidad', uniObj.idUniversidad)
+      }
     }
     if (form.value.carrera && form.value.carrera.trim()) {
       formData.append('carrera', form.value.carrera.trim())
+      const carObj = carreras.value.find(c => c.nombre === form.value.carrera.trim())
+      if (carObj && carObj.idCarrera) {
+        formData.append('idCarrera', carObj.idCarrera)
+      }
     }
 
     const res = await api.post(`/publicacion/nuevo`, formData)
+    
+    if (res.data?.error) {
+      const msg = typeof res.data.error === 'object' ? res.data.error.text : res.data.error
+      throw new Error(msg || 'Error al guardar la consulta.')
+    }
     if (typeof res.data === 'string' && res.data.toLowerCase().includes('error')) {
       throw new Error(res.data)
     }
@@ -159,8 +172,13 @@ const submitPost = async () => {
     toastStore.success('¡Consulta publicada exitosamente!')
     router.push('/feed')
   } catch (error) { 
-    errorMsg.value = error.message || 'Hubo un error al publicar la consulta.' 
-    toastStore.error(errorMsg.value)
+    const serverMsg = error.response?.data?.error?.text 
+      || error.response?.data?.mensaje 
+      || (typeof error.response?.data?.error === 'string' ? error.response.data.error : null)
+      || error.message 
+      || 'Hubo un error al publicar la consulta.'
+    errorMsg.value = serverMsg
+    toastStore.error(serverMsg)
   } finally { 
     isLoading.value = false 
   }

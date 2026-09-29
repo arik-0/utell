@@ -12,6 +12,16 @@ class AuthMiddleware {
      */
     public function __invoke(Request $request, Response $response, callable $next): Response {
         $authHeader = $request->getHeaderLine('Authorization');
+        if (empty($authHeader)) {
+            if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+                $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+            } elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+                $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+            } elseif (function_exists('apache_request_headers')) {
+                $headers = apache_request_headers();
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            }
+        }
 
         if (empty($authHeader) || !preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
             return $this->unauthorized($response, 'Token de autenticacion requerido.');
