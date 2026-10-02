@@ -227,6 +227,29 @@ onMounted(loadAmigos)
   z-index: 10;
 }
 
+@media (min-width: 768px) {
+  .amigos-header {
+    top: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .list-container {
+    padding: 0;
+  }
+
+  .tabs-container {
+    margin: 14px 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .amigos-header {
+    top: 20px;
+  }
+}
+
 .amigos-header h1 {
   font-family: var(--font-family);
   font-size: 18px;

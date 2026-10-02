@@ -244,6 +244,29 @@ onMounted(() => {
   z-index: 10;
 }
 
+@media (min-width: 768px) {
+  .publicaciones-header {
+    top: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .content-area {
+    padding: 0;
+  }
+
+  .tabs-container {
+    margin: 14px 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .publicaciones-header {
+    top: 20px;
+  }
+}
+
 .header-left {
   display: flex;
   align-items: center;

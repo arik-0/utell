@@ -356,7 +356,22 @@ onUnmounted(() => {
 
 @media (min-width: 768px) {
   .feed-header {
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    top: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .feed-content {
+    padding: 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .feed-header {
+    top: 20px;
+    margin-bottom: 16px;
   }
 }
 

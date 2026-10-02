@@ -413,6 +413,23 @@ onMounted(fetchWall)
   z-index: 20;
 }
 
+@media (min-width: 768px) {
+  .wall-header {
+    top: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: 14px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .wall-header {
+    top: 20px;
+    margin-bottom: 16px;
+  }
+}
+
 .back-btn, .share-btn {
   background: none;
   border: none;
