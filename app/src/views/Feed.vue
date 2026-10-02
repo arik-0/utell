@@ -145,7 +145,10 @@
           <!-- Post Main Text -->
           <div class="post-body">
             <h3 v-if="post.titulo" class="post-title">{{ post.titulo }}</h3>
-            <p class="post-text">{{ post.texto }}</p>
+            <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+            <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+              <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+            </div>
           </div>
 
           <!-- Post Footer & Engagement -->
@@ -182,7 +185,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { useThemeStore } from '../store/theme'
-import { timeAgo, getProfilePic } from '../utils'
+import { timeAgo, getProfilePic, parsePostContent } from '../utils'
 import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -200,7 +203,7 @@ const searchQuery = ref('')
 const isScrolled  = ref(false)
 
 const handleScroll = () => {
-  isScrolled.value = window.scrollY > 8
+  isScrolled.value = (window.scrollY || document.documentElement.scrollTop || 0) > 8
 }
 
 const fetchFeed = async () => {
@@ -329,6 +332,7 @@ onUnmounted(() => {
   padding: 0;
   padding-bottom: 84px;
   background-color: var(--bg-main);
+  overflow: visible;
 }
 
 /* ─── Header ─── */
@@ -339,7 +343,7 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  border-bottom: 1px solid var(--border-light);
   padding-top: env(safe-area-inset-top, 0px);
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -347,7 +351,13 @@ onUnmounted(() => {
 .feed-header.is-scrolled {
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-  border-bottom-color: rgba(226, 232, 240, 1);
+  border-bottom-color: var(--border-light);
+}
+
+@media (min-width: 768px) {
+  .feed-header {
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
 }
 
 .header-top {

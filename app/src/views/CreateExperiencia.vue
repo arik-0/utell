@@ -152,6 +152,38 @@
               required
             ></textarea>
           </div>
+
+          <!-- Attachment Section -->
+          <div class="attachment-section">
+            <div v-if="attachedImage" class="attachment-preview-card">
+              <img :src="attachedImage.preview" alt="Adjunto" class="preview-thumb" />
+              <div class="preview-info">
+                <span class="preview-name">{{ attachedImage.file.name }}</span>
+                <span class="preview-size">{{ (attachedImage.file.size / 1024).toFixed(0) }} KB</span>
+              </div>
+              <button type="button" class="remove-attachment-btn" @click="removeAttachment" title="Quitar imagen">✕</button>
+            </div>
+
+            <div v-else class="attachment-trigger-row">
+              <button type="button" class="attach-btn" @click="imageFileInput?.click()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>Adjuntar imagen</span>
+              </button>
+              <span class="attach-hint">JPG, PNG o WebP</span>
+            </div>
+
+            <input
+              type="file"
+              ref="imageFileInput"
+              accept="image/*"
+              style="display: none"
+              @change="handleImageSelection"
+            />
+          </div>
         </div>
 
         <p v-if="errorMsg" class="error-banner">{{ errorMsg }}</p>
@@ -165,7 +197,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
-import { getProfilePic } from '../utils'
+import { getProfilePic, uploadImageFile } from '../utils'
 import api from '../api'
 
 const router = useRouter()
@@ -184,6 +216,33 @@ const form = ref({
   puntuacionInfraestructura: 5, 
   puntuacionAcademica: 5 
 })
+
+const imageFileInput = ref(null)
+const attachedImage = ref(null)
+
+const handleImageSelection = (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toastStore.error('Por favor selecciona un archivo de imagen válido.')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    attachedImage.value = {
+      file,
+      preview: e.target.result
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+const removeAttachment = () => {
+  attachedImage.value = null
+  if (imageFileInput.value) imageFileInput.value.value = ''
+}
 
 onMounted(async () => {
   try {
@@ -211,11 +270,27 @@ const submitPost = async () => {
   isLoading.value = true
   errorMsg.value = ''
   try {
+    let postText = form.value.texto.trim()
+
+    if (attachedImage.value) {
+      toastStore.info('Optimizando imagen...', 1500)
+      try {
+        const imgUrl = await uploadImageFile(attachedImage.value.file, {
+          maxWidth: 1200,
+          maxHeight: 1200,
+          quality: 0.85
+        })
+        postText += `\n\n[img:${imgUrl}]`
+      } catch (imgErr) {
+        console.warn('Error subiendo imagen adjunta:', imgErr)
+      }
+    }
+
     const formData = new FormData()
     formData.append('idUsuario', authStore.user?.idUsuario || 0)
     formData.append('tipoPublicacion', 'Experiencia')
     formData.append('titulo', form.value.titulo.trim())
-    formData.append('texto', form.value.texto.trim())
+    formData.append('texto', postText)
     formData.append('puntuacionClima', form.value.puntuacionClima)
     formData.append('puntuacionInfraestructura', form.value.puntuacionInfraestructura)
     formData.append('puntuacionAcademica', form.value.puntuacionAcademica)
@@ -554,5 +629,103 @@ const submitPost = async () => {
   padding: 10px 14px;
   font-size: 13px;
   margin: 0;
+}
+
+/* ─── Attachment Section ─── */
+.attachment-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.attachment-trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1.5px dashed var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.attach-btn:hover {
+  background: var(--primary-ghost);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.attach-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.attachment-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+}
+
+.preview-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--border-light);
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-size {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.remove-attachment-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast);
+}
+
+.remove-attachment-btn:hover {
+  background: var(--error-bg);
+  color: var(--error);
 }
 </style>

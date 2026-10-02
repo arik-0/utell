@@ -172,7 +172,10 @@
 
             <div class="post-body">
               <h3 v-if="post.titulo" class="post-title">{{ post.titulo }}</h3>
-              <p class="post-text">{{ post.texto }}</p>
+              <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+              <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+                <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+              </div>
             </div>
 
             <div class="post-footer">
@@ -229,7 +232,10 @@
 
             <div class="post-body">
               <h3 v-if="post.titulo" class="post-title">{{ post.titulo }}</h3>
-              <p class="post-text">{{ post.texto }}</p>
+              <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+              <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+                <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+              </div>
             </div>
 
             <div class="post-footer">
@@ -282,7 +288,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
-import { timeAgo, getProfilePic } from '../utils'
+import { timeAgo, getProfilePic, parsePostContent } from '../utils'
 import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
 

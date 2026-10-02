@@ -33,9 +33,26 @@
     <div v-else class="profile-content">
       <!-- User Hero Card -->
       <div class="user-hero-card animate-fadein-up">
-        <div class="user-avatar-wrap">
-          <img v-if="profileUser.fotoPerfil" :src="getProfilePic(profileUser.fotoPerfil)" alt="Avatar" class="avatar-img" />
-          <span v-else class="avatar-initial">{{ userInitial }}</span>
+        <div class="user-avatar-wrap" :class="{ 'avatar-editable': !isOtherUser }" @click="!isOtherUser && triggerAvatarUpload()">
+          <div class="avatar-inner">
+            <img v-if="profileUser.fotoPerfil" :src="getProfilePic(profileUser.fotoPerfil)" alt="Avatar" class="avatar-img" />
+            <span v-else class="avatar-initial">{{ userInitial }}</span>
+          </div>
+          <div v-if="!isOtherUser" class="avatar-edit-badge" title="Cambiar foto de perfil">
+            <svg v-if="isUploadingAvatar" class="spinner-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="30 60"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </div>
+          <input
+            v-if="!isOtherUser"
+            type="file"
+            ref="avatarFileInput"
+            accept="image/png, image/jpeg, image/webp"
+            style="display: none"
+            @change="handleAvatarFileChange"
+          />
         </div>
         <div class="user-details">
           <h2 class="user-name">{{ profileUser.nombre }} {{ profileUser.apellido }}</h2>
@@ -144,7 +161,10 @@
 
             <div class="post-body">
               <h4 v-if="post.titulo" class="post-title">{{ post.titulo }}</h4>
-              <p class="post-text">{{ post.texto }}</p>
+              <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+              <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+                <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+              </div>
             </div>
 
             <div class="post-footer">
@@ -226,7 +246,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useThemeStore } from '../store/theme'
-import { getProfilePic, timeAgo } from '../utils'
+import { getProfilePic, timeAgo, uploadImageFile, parsePostContent } from '../utils'
 import api from '../api'
 import { useToastStore } from '../store/toast'
 import SectionCard from '../components/SectionCard.vue'
@@ -246,6 +266,58 @@ const isLoading        = ref(true)
 const isActionLoading  = ref(false)
 const relacionEstado   = ref('ninguno')
 const idAmistadRel     = ref(null)
+const avatarFileInput  = ref(null)
+const isUploadingAvatar = ref(false)
+
+const triggerAvatarUpload = () => {
+  if (isUploadingAvatar.value) return
+  avatarFileInput.value?.click()
+}
+
+const handleAvatarFileChange = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  isUploadingAvatar.value = true
+  toastStore.info('Optimizando y subiendo imagen...', 2000)
+
+  try {
+    const uploadedUrl = await uploadImageFile(file, {
+      maxWidth: 400,
+      maxHeight: 400,
+      quality: 0.85,
+      idUsuario: authStore.user?.idUsuario,
+      tipo: 'avatar'
+    })
+
+    // Try updating profile in backend
+    try {
+      await api.put(`/editarPerfil/${authStore.user?.idUsuario}`, {
+        fotoPerfil: uploadedUrl
+      })
+    } catch (_) {
+      // Backend /upload may have already handled this
+    }
+
+    if (authStore.user) {
+      authStore.user.fotoPerfil = uploadedUrl
+      try {
+        localStorage.setItem('utell_user', JSON.stringify(authStore.user))
+      } catch (_) {}
+    }
+    if (profileUser.value) {
+      profileUser.value.fotoPerfil = uploadedUrl
+    }
+
+    toastStore.success('Foto de perfil actualizada correctamente.')
+  } catch (error) {
+    console.error('Error al subir avatar:', error)
+    toastStore.error('No se pudo actualizar la foto de perfil.')
+  } finally {
+    isUploadingAvatar.value = false
+    if (event.target) event.target.value = ''
+  }
+}
 
 const isOtherUser = computed(() => {
   if (!route.params.id) return false
@@ -481,8 +553,8 @@ onMounted(() => {
 }
 
 .user-avatar-wrap {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   padding: 2px;
   background: linear-gradient(135deg, var(--primary), var(--primary-hover));
@@ -490,8 +562,56 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  overflow: hidden;
+  position: relative;
   box-shadow: var(--shadow-primary);
+}
+
+.avatar-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+}
+
+.avatar-editable {
+  cursor: pointer;
+}
+
+.avatar-editable:hover .avatar-edit-badge {
+  transform: scale(1.1);
+  background-color: var(--primary-hover);
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) ease;
+}
+
+.spinner-svg {
+  width: 13px;
+  height: 13px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .avatar-img {

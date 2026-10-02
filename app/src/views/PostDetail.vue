@@ -57,7 +57,10 @@
 
         <div class="post-body">
           <h2 v-if="post.titulo" class="post-title">{{ post.titulo }}</h2>
-          <p class="post-text">{{ post.texto }}</p>
+          <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+          <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+            <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+          </div>
         </div>
 
         <div class="post-actions">
@@ -155,7 +158,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
-import { timeAgo, getProfilePic } from '../utils'
+import { timeAgo, getProfilePic, parsePostContent } from '../utils'
 import api from '../api'
 
 const route      = useRoute()

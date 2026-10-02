@@ -135,7 +135,10 @@
           </div>
 
           <h3 v-if="post.titulo" class="post-title">{{ post.titulo }}</h3>
-          <p class="post-text">{{ post.texto }}</p>
+          <p class="post-text">{{ parsePostContent(post.texto).text }}</p>
+          <div v-if="parsePostContent(post.texto).image" class="post-image-attachment">
+            <img :src="parsePostContent(post.texto).image" alt="Imagen adjunta" loading="lazy" />
+          </div>
 
           <div class="post-meta-row">
             <div class="meta-item">
@@ -157,7 +160,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
-import { timeAgo } from '../utils'
+import { timeAgo, parsePostContent } from '../utils'
 import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
 
