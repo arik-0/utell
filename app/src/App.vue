@@ -80,61 +80,63 @@
     </aside>
 
     <!-- ═════════════════════════════════════════════════════════════
-         MAIN CONTENT STAGE
+         STAGE CONTAINER (Main Content + Right Rail centered & balanced)
          ═════════════════════════════════════════════════════════════ -->
-    <main class="app-main-content">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
+    <div class="app-stage-container">
+      <main class="app-main-content">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
 
-    <!-- ═════════════════════════════════════════════════════════════
-         DESKTOP RIGHT RAIL (Visible on Wide Desktop >= 1024px)
-         ═════════════════════════════════════════════════════════════ -->
-    <aside class="desktop-right-rail" v-if="showDesktopRightRail">
-      <!-- Muros Populares Widget -->
-      <div class="rail-widget">
-        <h3 class="rail-widget-title">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-          <span>Muros Destacados</span>
-        </h3>
-        <div class="rail-uni-list">
-          <router-link
-            v-for="uni in topUniversidades"
-            :key="uni.idUniversidad"
-            :to="`/universidad/${uni.idUniversidad}`"
-            class="rail-uni-item"
-          >
-            <div class="rail-uni-info">
-              <span class="rail-uni-name">{{ uni.nombre }}</span>
-              <span class="rail-uni-sub">{{ uni.totalExperiencias || 0 }} experiencias</span>
-            </div>
-            <span class="rail-score">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              {{ uni.promedioGeneral || '5.0' }}
-            </span>
-          </router-link>
+      <!-- ═════════════════════════════════════════════════════════════
+           DESKTOP RIGHT RAIL (Visible on Wide Desktop >= 1024px)
+           ═════════════════════════════════════════════════════════════ -->
+      <aside class="desktop-right-rail" v-if="showDesktopRightRail">
+        <!-- Muros Populares Widget -->
+        <div class="rail-widget">
+          <h3 class="rail-widget-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span>Muros Destacados</span>
+          </h3>
+          <div class="rail-uni-list">
+            <router-link
+              v-for="uni in topUniversidades"
+              :key="uni.idUniversidad"
+              :to="`/universidad/${uni.idUniversidad}`"
+              class="rail-uni-item"
+            >
+              <div class="rail-uni-info">
+                <span class="rail-uni-name">{{ uni.nombre }}</span>
+                <span class="rail-uni-sub">{{ uni.totalExperiencias || 0 }} experiencias</span>
+              </div>
+              <span class="rail-score">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                {{ uni.promedioGeneral || '5.0' }}
+              </span>
+            </router-link>
+          </div>
         </div>
-      </div>
 
-      <!-- Quick Community Tips Widget -->
-      <div class="rail-widget">
-        <h3 class="rail-widget-title">
-          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>Comunidad U-Tell</span>
-        </h3>
-        <p class="rail-footer">
-          Comparte dudas sobre materias, docentes y sedes. Califica tu facultad para orientar a nuevos ingresantes universitarios.
-        </p>
-      </div>
+        <!-- Quick Community Tips Widget -->
+        <div class="rail-widget">
+          <h3 class="rail-widget-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Comunidad U-Tell</span>
+          </h3>
+          <p class="rail-footer">
+            Comparte dudas sobre materias, docentes y sedes. Califica tu facultad para orientar a nuevos ingresantes universitarios.
+          </p>
+        </div>
 
-      <!-- Footer & Copyright -->
-      <div class="rail-footer text-center">
-        © 2026 U-Tell — Red Social Universitaria.
-      </div>
-    </aside>
+        <!-- Footer & Copyright -->
+        <div class="rail-footer text-center">
+          © 2026 U-Tell — Red Social Universitaria.
+        </div>
+      </aside>
+    </div>
 
     <!-- ═════════════════════════════════════════════════════════════
          MOBILE ONLY CONTROLS (< 768px)
@@ -237,7 +239,7 @@ const isAuthRoute = computed(() => {
 })
 
 const isFullWidthRoute = computed(() => {
-  return route.path === '/dashboard' || route.path === '/mensajes' || route.path.startsWith('/perfil/') || route.path.startsWith('/usuario/') || route.path === '/profile'
+  return route.path === '/dashboard' || route.path === '/mensajes'
 })
 
 const showDesktopSidebar = computed(() => {
