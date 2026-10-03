@@ -5,5 +5,6 @@
 !utell_refactored.sql
 !mock_data_corregido.sql
 !fix_tablero_uai.sql
+!cargar_datos_dashboard.sql
 *.zip
 _legacy_utell/
