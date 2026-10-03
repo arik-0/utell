@@ -71,7 +71,7 @@ UPDATE `publicaciones` SET `idSede` = 4, `idCarrera` = 2 WHERE `idPublicacion` =
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ─── UAI (Universidad Abierta Interamericana - id 8) ─────────────────────────
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (18, 4, 'Experiencia', 'Cátedra de Bases de Datos Aplicada en UAI Rosario', '2026-09-15', '10:30:00', 8, 13, 2, 
 'Excelente nivel pedagógico en la cátedra de Bases de Datos. Los proyectos de desarrollo sobre arquitectura web moderna y motores relacionales te preparan directo para el mercado laboral.', 24, 0),
 
@@ -96,7 +96,7 @@ INSERT INTO `consultas` (`idConsulta`, `idUsuario`, `fecha`, `hora`, `idUniversi
 ON DUPLICATE KEY UPDATE `texto` = VALUES(`texto`);
 
 -- ─── UNC (Universidad Nacional de Córdoba - id 5) -> Puntuaciones Bajas -> ROJO (3.00) ───
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (22, 9, 'Experiencia', 'Dificultades de infraestructura en Talleres de Arquitectura UNC', '2026-09-08', '09:15:00', 5, 10, 5, 
 'Los profesores tienen buena voluntad pero las aulas de taller están superpobladas, falta ventilación y los tableros de dibujo están bastante deteriorados.', 14, 0),
 
@@ -116,7 +116,7 @@ INSERT INTO `consultas` (`idConsulta`, `idUsuario`, `fecha`, `hora`, `idUniversi
 ON DUPLICATE KEY UPDATE `texto` = VALUES(`texto`);
 
 -- ─── ITBA (id 7) -> Máximo Rigor e Infraestructura -> VERDE (4.83) ────────────
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (25, 7, 'Experiencia', 'Pasantías internacionales e innovación en ITBA Puerto Madero', '2026-09-14', '11:00:00', 7, 12, 2, 
 'Los laboratorios de robótica y computación en la nube son excepcionales. Empresas líderes vienen directamente al campus a reclutar antes de graduarte.', 31, 0);
 
@@ -125,7 +125,7 @@ INSERT INTO `experiencias` (`idExperiencia`, `idUsuario`, `fecha`, `hora`, `idUn
 ON DUPLICATE KEY UPDATE `puntuacionAcademica` = VALUES(`puntuacionAcademica`), `puntuacionClima` = VALUES(`puntuacionClima`), `puntuacionInfraestructura` = VALUES(`puntuacionInfraestructura`);
 
 -- ─── UBA (id 2) -> Rigor Muy Alto, Clima Bueno, Infra Regular -> VERDE (4.50) ─
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (26, 6, 'Experiencia', 'Exigencia y rigor en FIUBA Paseo Colón', '2026-09-16', '17:30:00', 2, 4, 2, 
 'La matemática y la física en FIUBA son de un nivel superior. El edificio histórico impone respeto, aunque algunas aulas necesitan actualización de proyectores.', 22, 0);
 
@@ -134,7 +134,7 @@ INSERT INTO `experiencias` (`idExperiencia`, `idUsuario`, `fecha`, `hora`, `idUn
 ON DUPLICATE KEY UPDATE `puntuacionAcademica` = VALUES(`puntuacionAcademica`), `puntuacionClima` = VALUES(`puntuacionClima`), `puntuacionInfraestructura` = VALUES(`puntuacionInfraestructura`);
 
 -- ─── UTN (id 3) -> AMARILLO (4.22) ───────────────────────────────────────────
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (27, 5, 'Experiencia', 'Vida universitaria y comunidad en UTN Buenos Aires (Medrano)', '2026-09-20', '19:15:00', 3, 8, 2, 
 'Excelente ambiente de compañerismo en las cursadas vespertinas. Los docentes trabajan en la industria y transmiten problemáticas reales de ingeniería.', 16, 0);
 
@@ -143,7 +143,7 @@ INSERT INTO `experiencias` (`idExperiencia`, `idUsuario`, `fecha`, `hora`, `idUn
 ON DUPLICATE KEY UPDATE `puntuacionAcademica` = VALUES(`puntuacionAcademica`), `puntuacionClima` = VALUES(`puntuacionClima`), `puntuacionInfraestructura` = VALUES(`puntuacionInfraestructura`);
 
 -- ─── UNLP (id 4) -> Clima Excelente, Infra Regular -> AMARILLO (4.00) ─────────
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (28, 8, 'Experiencia', 'Comunidad de Software Libre en Informática UNLP', '2026-09-21', '13:00:00', 4, 9, 3, 
 'El centro de estudiantes y los grupos de investigación en algoritmos son súper activos. Falta inversión en refrigeración de aulas pero la calidad humana es inmejorable.', 19, 0);
 
@@ -152,7 +152,7 @@ INSERT INTO `experiencias` (`idExperiencia`, `idUsuario`, `fecha`, `hora`, `idUn
 ON DUPLICATE KEY UPDATE `puntuacionAcademica` = VALUES(`puntuacionAcademica`), `puntuacionClima` = VALUES(`puntuacionClima`), `puntuacionInfraestructura` = VALUES(`puntuacionInfraestructura`);
 
 -- ─── UADE (id 6) -> Infraestructura Máxima, Rigor Medio -> AMARILLO (4.17) ───
-INSERT INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
+INSERT IGNORE INTO `publicaciones` (`idPublicacion`, `idUsuario`, `tipoPublicacion`, `titulo`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `resuelta`) VALUES
 (29, 10, 'Experiencia', 'Edificio y tecnología en Campus Monserrat UADE', '2026-09-23', '18:40:00', 6, 11, 7, 
 'Aulas híbridas impecables, estacionamiento, comedores y biblioteca digital de vanguardia. La exigencia académica es accesible si llevas la materia al día.', 21, 0);
 
