@@ -4,6 +4,35 @@ class InstitucionRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
+        $this->asegurarTablas();
+    }
+
+    private function asegurarTablas(): void {
+        try {
+            $this->db->exec("
+                CREATE TABLE IF NOT EXISTS `experiencias` (
+                    `idExperiencia` int(11) NOT NULL AUTO_INCREMENT,
+                    `idUsuario` int(11) NOT NULL,
+                    `fecha` date NOT NULL,
+                    `hora` time NOT NULL,
+                    `idUniversidad` int(11) NOT NULL,
+                    `idSede` int(11) NOT NULL,
+                    `idCarrera` int(11) NOT NULL,
+                    `texto` text NOT NULL,
+                    `likes` int(11) DEFAULT 0,
+                    `puntuacionClima` int(11) NOT NULL DEFAULT 5,
+                    `puntuacionInfraestructura` int(11) NOT NULL DEFAULT 5,
+                    `puntuacionAcademica` int(11) NOT NULL DEFAULT 5,
+                    PRIMARY KEY (`idExperiencia`),
+                    KEY `fk_exp_usuario` (`idUsuario`),
+                    KEY `fk_exp_uni` (`idUniversidad`),
+                    KEY `fk_exp_sede` (`idSede`),
+                    KEY `fk_exp_carrera` (`idCarrera`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+            ");
+        } catch (Exception $e) {
+            error_log('Error en asegurarTablas (InstitucionRepository): ' . $e->getMessage());
+        }
     }
 
     public function obtenerUniversidades() {
