@@ -32,14 +32,24 @@ const router = createRouter({
 router.beforeEach((to) => {
   const authStore = useAuthStore()
 
-  // 1. Require authentication for protected app routes
+  // 1. Si ya está autenticado e intenta ir al login ('/'), redirigir según su rol
+  if (to.path === '/' && authStore.user) {
+    const rol = Number(authStore.user.idRol || 0)
+    const perfil = authStore.user.tipoPerfil || ''
+    const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
+    return isStaffOrInstitution ? { path: '/dashboard' } : { path: '/feed' }
+  }
+
+  // 2. Rutas protegidas que requieren autenticación
   if (to.meta.requiresAuth && !authStore.user) {
     return { name: 'Login' }
   }
 
-  // 2. Strict Role Protection for /dashboard:
-  // If a student user is logged in and navigates to /dashboard, redirect to /feed
-  if (to.path === '/dashboard' && authStore.user) {
+  // 3. Protección estricta para /dashboard:
+  if (to.path === '/dashboard') {
+    if (!authStore.user) {
+      return { name: 'Login' }
+    }
     const rol = Number(authStore.user.idRol || 0)
     const perfil = authStore.user.tipoPerfil || ''
     const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)

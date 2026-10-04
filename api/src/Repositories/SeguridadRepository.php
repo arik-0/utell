@@ -127,8 +127,8 @@ class SeguridadRepository {
 
         if ($accion === 'eliminar') {
             // Registrar log de auditoría
-            $this->db->prepare("INSERT INTO log_auditoria (idUsuario, tablaAfectada, accion, valorOriginal, fechaHora) VALUES (:u, 'publicaciones', 'DELETE', :val, NOW())")
-                 ->execute([':u' => $idModerador, ':val' => "Moderada por ID $idModerador. Motivo: " . ($motivo ?: 'Contenido inapropiado') . ". Post: $idPublicacion"]);
+            $this->db->prepare("INSERT INTO log_auditoria (idUsuario, accion, detalle, fechaHora, ip) VALUES (:u, 'DELETE_PUBLICACION', :val, NOW(), :ip)")
+                 ->execute([':u' => $idModerador, ':val' => "Moderada por ID $idModerador. Motivo: " . ($motivo ?: 'Contenido inapropiado') . ". Post: $idPublicacion", ':ip' => $_SERVER['REMOTE_ADDR'] ?? null]);
 
             $stmtDel = $this->db->prepare("DELETE FROM publicaciones WHERE idPublicacion = :id");
             $stmtDel->execute([':id' => $idPublicacion]);

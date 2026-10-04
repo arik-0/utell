@@ -4,35 +4,6 @@ class InstitucionRepository {
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTablas();
-    }
-
-    private function asegurarTablas(): void {
-        try {
-            $this->db->exec("
-                CREATE TABLE IF NOT EXISTS `experiencias` (
-                    `idExperiencia` int(11) NOT NULL AUTO_INCREMENT,
-                    `idUsuario` int(11) NOT NULL,
-                    `fecha` date NOT NULL,
-                    `hora` time NOT NULL,
-                    `idUniversidad` int(11) NOT NULL,
-                    `idSede` int(11) NOT NULL,
-                    `idCarrera` int(11) NOT NULL,
-                    `texto` text NOT NULL,
-                    `likes` int(11) DEFAULT 0,
-                    `puntuacionClima` int(11) NOT NULL DEFAULT 5,
-                    `puntuacionInfraestructura` int(11) NOT NULL DEFAULT 5,
-                    `puntuacionAcademica` int(11) NOT NULL DEFAULT 5,
-                    PRIMARY KEY (`idExperiencia`),
-                    KEY `fk_exp_usuario` (`idUsuario`),
-                    KEY `fk_exp_uni` (`idUniversidad`),
-                    KEY `fk_exp_sede` (`idSede`),
-                    KEY `fk_exp_carrera` (`idCarrera`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-            ");
-        } catch (Exception $e) {
-            error_log('Error en asegurarTablas (InstitucionRepository): ' . $e->getMessage());
-        }
     }
 
     public function obtenerUniversidades() {
@@ -51,19 +22,18 @@ class InstitucionRepository {
                     COUNT(DISTINCT p.idPublicacion) as totalPublicaciones,
                     COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) as totalExperiencias,
                     COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) as totalConsultas,
-                    ROUND(COALESCE(AVG(e.puntuacionClima), 5.0), 1) as promedioClima,
-                    ROUND(COALESCE(AVG(e.puntuacionInfraestructura), 5.0), 1) as promedioInfraestructura,
-                    ROUND(COALESCE(AVG(e.puntuacionAcademica), 5.0), 1) as promedioAcademico,
+                    ROUND(COALESCE(AVG(p.puntuacionClima), 5.0), 1) as promedioClima,
+                    ROUND(COALESCE(AVG(p.puntuacionInfraestructura), 5.0), 1) as promedioInfraestructura,
+                    ROUND(COALESCE(AVG(p.puntuacionAcademica), 5.0), 1) as promedioAcademico,
                     ROUND(
                         (
-                            COALESCE(AVG(e.puntuacionClima), 5.0) + 
-                            COALESCE(AVG(e.puntuacionInfraestructura), 5.0) + 
-                            COALESCE(AVG(e.puntuacionAcademica), 5.0)
+                            COALESCE(AVG(p.puntuacionClima), 5.0) + 
+                            COALESCE(AVG(p.puntuacionInfraestructura), 5.0) + 
+                            COALESCE(AVG(p.puntuacionAcademica), 5.0)
                         ) / 3, 1
                     ) as promedioGeneral
                 FROM universidades u
                 LEFT JOIN publicaciones p ON p.idUniversidad = u.idUniversidad
-                LEFT JOIN experiencias e ON e.idUniversidad = u.idUniversidad
                 GROUP BY u.idUniversidad, u.nombre, u.email
                 ORDER BY totalExperiencias DESC, totalPublicaciones DESC, u.nombre ASC";
 
@@ -93,8 +63,8 @@ class InstitucionRepository {
                 ROUND(COALESCE(AVG(puntuacionInfraestructura), 5.0), 1) as promedioInfraestructura,
                 ROUND(COALESCE(AVG(puntuacionAcademica), 5.0), 1) as promedioAcademico,
                 ROUND((AVG(puntuacionClima) + AVG(puntuacionInfraestructura) + AVG(puntuacionAcademica)) / 3, 1) as promedioGeneral
-            FROM experiencias 
-            WHERE idUniversidad = :id
+            FROM publicaciones 
+            WHERE tipoPublicacion = 'Experiencia' AND idUniversidad = :id
         ");
         $stmtMetrics->execute([':id' => $idUniversidad]);
         $metrics = $stmtMetrics->fetch(PDO::FETCH_ASSOC);
@@ -109,14 +79,13 @@ class InstitucionRepository {
                    s.nombre as nombreSede,
                    (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                    (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                   COALESCE(e.puntuacionClima, 5) as puntuacionClima,
-                   COALESCE(e.puntuacionInfraestructura, 5) as puntuacionInfraestructura,
-                   COALESCE(e.puntuacionAcademica, 5) as puntuacionAcademica
+                   COALESCE(p.puntuacionClima, 5) as puntuacionClima,
+                   COALESCE(p.puntuacionInfraestructura, 5) as puntuacionInfraestructura,
+                   COALESCE(p.puntuacionAcademica, 5) as puntuacionAcademica
             FROM publicaciones p
             INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
             LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
             LEFT JOIN sedes s ON p.idSede = s.idSede
-            LEFT JOIN experiencias e ON e.idUsuario = p.idUsuario AND e.idUniversidad = p.idUniversidad AND e.fecha = p.fecha AND e.hora = p.hora
             WHERE p.idUniversidad = :idUni
             ORDER BY p.fecha DESC, p.hora DESC
         ");

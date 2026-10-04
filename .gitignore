@@ -6,5 +6,6 @@
 !mock_data_corregido.sql
 !fix_tablero_uai.sql
 !cargar_datos_dashboard.sql
+!migracion_*.sql
 *.zip
 _legacy_utell/

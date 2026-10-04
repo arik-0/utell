@@ -167,8 +167,8 @@ INSERT INTO `respuestas` (`idRespuesta`, `idPublicacion`, `idUsuario`, `fecha`, 
 (13, 18, 3, '2026-09-15', '12:00:00', '¡Totalmente de acuerdo! La práctica con casos de estudio empresariales en UAI marca la diferencia.'),
 (14, 18, 5, '2026-09-15', '14:30:00', 'Confirmo, el enfoque en normalización y optimización de consultas SQL te abre puertas rápido.'),
 (15, 21, 4, '2026-09-25', '14:20:00', 'El TP integrador se basa en clean architecture con controladores REST y capas de servicio desacopladas.'),
-(16, 22, 11, '2026-09-08', '11:10:00', 'Coincido plenamente, en invierno las aulas de taller de la UNC son heladas. Ojalá eleven el reclamo al decanato.'),
-(17, 24, 9, '2026-09-19', '19:00:00', 'En la librería técnica frente al Pabellón México hacen 15% de descuento con libreta universitaria.')
+(16, 22, 6, '2026-09-08', '11:10:00', 'Coincido plenamente, en invierno las aulas de taller de la UNC son heladas. Ojalá eleven el reclamo al decanato.'),
+(17, 24, 10, '2026-09-19', '19:00:00', 'En la librería técnica frente al Pabellón México hacen 15% de descuento con libreta universitaria.')
 ON DUPLICATE KEY UPDATE `texto` = VALUES(`texto`);
 
 SET FOREIGN_KEY_CHECKS = 1;

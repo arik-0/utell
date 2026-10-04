@@ -10,7 +10,7 @@ class RespuestaRepository {
         $sql = "SELECT r.*, u.nombre, u.apellido, u.fotoPerfil 
                 FROM respuestas r 
                 INNER JOIN usuarios u ON r.idUsuario = u.idUsuario
-                WHERE r.idPublicacion = :id OR r.idConsulta = :id
+                WHERE r.idPublicacion = :id
                 ORDER BY r.fecha ASC, r.hora ASC";
         
         $stmt = $this->db->prepare($sql);
@@ -21,12 +21,11 @@ class RespuestaRepository {
     public function crearRespuesta(array $datos): bool {
         $idPub = (int)$datos['idPublicacion'];
         
-        $sql = "INSERT INTO respuestas (idConsulta, idPublicacion, idUsuario, fecha, hora, texto) 
-                VALUES (:idConsulta, :idPublicacion, :idUsuario, :fecha, :hora, :texto)";
+        $sql = "INSERT INTO respuestas (idPublicacion, idUsuario, fecha, hora, texto) 
+                VALUES (:idPublicacion, :idUsuario, :fecha, :hora, :texto)";
         
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
-            ':idConsulta'    => $idPub,
             ':idPublicacion' => $idPub,
             ':idUsuario'     => $datos['idUsuario'],
             ':fecha'         => date('Y-m-d'),

@@ -382,6 +382,14 @@
           </div>
         </div>
 
+        <!-- ─── GRÁFICO: DISTRIBUCIÓN DE CARRERAS POR SEMÁFORO ─── -->
+        <div class="chart-card chart-card-sm">
+          <h3 class="table-title">Distribución de carreras por estado</h3>
+          <p class="table-subtitle">Cantidad de carreras de la universidad en cada estado del semáforo</p>
+          <div class="chart-wrap-sm"><canvas ref="level2ChartCanvas"></canvas></div>
+        </div>
+
+
         <!-- ─── LISTADO DE SEDES Y CARRERAS (OFERTA ACADÉMICA) ─── -->
         <div class="table-card">
           <div class="table-toolbar">
@@ -477,6 +485,13 @@
               </span>
             </div>
           </div>
+        </div>
+
+        <!-- ─── GRÁFICO: PUNTUACIONES DE LA CARRERA EN LA SEDE ─── -->
+        <div class="chart-card chart-card-sm">
+          <h3 class="table-title">Puntuaciones de la carrera</h3>
+          <p class="table-subtitle">Promedio por dimensión evaluada (escala 1 a 5)</p>
+          <div class="chart-wrap-sm"><canvas ref="level3ChartCanvas"></canvas></div>
         </div>
 
         <!-- ─── LISTADO GRANULAR DE PUBLICACIONES Y EXPERIENCIAS ─── -->
@@ -631,6 +646,10 @@ const level3Data = ref(null)
 
 const globalChartCanvas = ref(null)
 let chartInstance = null
+const level2ChartCanvas = ref(null)
+const level3ChartCanvas = ref(null)
+let chart2Instance = null
+let chart3Instance = null
 
 // Filtered Universities for Level 1 Table
 const filteredUniversities = computed(() => {
@@ -670,6 +689,7 @@ const handleDashboardLogin = async () => {
 const handleLogout = () => {
   authStore.logout()
   toastStore.info('Sesión finalizada.')
+  router.push('/')
 }
 
 // ─── DATA LOADERS (DRILL-DOWN & DRILL-UP) ─────────────────────────────────────
@@ -707,6 +727,7 @@ const goToLevel2 = async (idUniversidad) => {
       selectedUni.value = res.data.universidad
       level2Data.value = res.data
       currentLevel.value = 2
+      nextTick(() => renderLevel2Chart())
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   } catch (error) {
@@ -724,6 +745,7 @@ const goToLevel3 = async (idSede, idCarrera) => {
     if (res.data && !res.data.error) {
       level3Data.value = res.data
       currentLevel.value = 3
+      nextTick(() => renderLevel3Chart())
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   } catch (error) {
@@ -813,6 +835,48 @@ const renderGlobalChart = () => {
   })
 }
 
+const renderLevel2Chart = () => {
+  if (!level2ChartCanvas.value) return
+  if (chart2Instance) chart2Instance.destroy()
+  const items = level2Data.value?.sedes_carreras || []
+  const count = (estado) => items.filter(i => i.estado_semaforo === estado).length
+  chart2Instance = new Chart(level2ChartCanvas.value, {
+    type: 'doughnut',
+    data: {
+      labels: ['Verde (>= 4.50)', 'Amarillo (3.50 a 4.49)', 'Rojo (< 3.50)'],
+      datasets: [{
+        data: [count('VERDE'), count('AMARILLO'), count('ROJO')],
+        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+  })
+}
+
+const renderLevel3Chart = () => {
+  if (!level3ChartCanvas.value) return
+  if (chart3Instance) chart3Instance.destroy()
+  const ctx = level3Data.value?.contexto || {}
+  chart3Instance = new Chart(level3ChartCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: ['Rigor Académico', 'Clima Estudiantil', 'Infraestructura'],
+      datasets: [{
+        label: 'Promedio',
+        data: [Number(ctx.promedio_academico || 0), Number(ctx.promedio_clima || 0), Number(ctx.promedio_infraestructura || 0)],
+        backgroundColor: ['rgba(59, 130, 246, 0.85)', 'rgba(245, 158, 11, 0.85)', 'rgba(16, 185, 129, 0.85)'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { min: 0, max: 5, ticks: { stepSize: 1 } } },
+      plugins: { legend: { display: false } }
+    }
+  })
+}
+
 onMounted(async () => {
   if (isAuthorized.value) {
     await fetchLevel1Data()
@@ -821,6 +885,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.chart-card-sm { background: var(--bg-card, #fff); border-radius: 14px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.chart-wrap-sm { position: relative; height: 240px; margin-top: 12px; }
 .dashboard-page {
   padding: 24px 20px 80px;
   background: var(--bg-main);

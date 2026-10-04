@@ -153,26 +153,7 @@ class PublicacionRepository {
         $stmt->execute();
         
         $fila = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($fila) return $fila;
-
-        // Fallback a consultas
-        $sqlCon = "SELECT c.idConsulta as idPublicacion, c.*, 'Consulta' as tipoPublicacion, '' as titulo,
-                          (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = c.idConsulta AND f.estado = 'activo') as likes,
-                          (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = c.idConsulta) as cantidadRespuestas,
-                          (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = c.idConsulta AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                          u.nombre, u.apellido, u.fotoPerfil,
-                          uni.nombre as nombreUniversidad
-                   FROM consultas c 
-                   INNER JOIN usuarios u ON c.idUsuario = u.idUsuario
-                   LEFT JOIN universidades uni ON c.idUniversidad = uni.idUniversidad
-                   WHERE c.idConsulta = :id";
-        $stmtCon = $this->db->prepare($sqlCon);
-        $stmtCon->bindParam(':id', $idPublicacion);
-        $stmtCon->bindParam(':idUsuario', $idUsuario);
-        $stmtCon->execute();
-        $filaCon = $stmtCon->fetch(PDO::FETCH_ASSOC);
-        
-        return $filaCon ? $filaCon : null;
+        return $fila ?: null;
     }
 
     private function asegurarRelacionesPredeterminadas(?int &$idUni, ?int &$idSede, ?int &$idCarrera): void {
@@ -204,11 +185,16 @@ class PublicacionRepository {
 
         $this->asegurarRelacionesPredeterminadas($idUni, $idSede, $idCarrera);
 
-        // 1. Insertar en publicaciones
-        $sqlPub = "INSERT INTO publicaciones (idUsuario, tipoPublicacion, titulo, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes) 
-                   VALUES (:idUsuario, :tipoPublicacion, :titulo, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0)";
+        // Las puntuaciones solo aplican a Experiencias (NULL en Consultas)
+        $esExperiencia = ($tipo === 'Experiencia');
+        $pClima = $esExperiencia ? (isset($datos['puntuacionClima']) ? (int)$datos['puntuacionClima'] : 5) : null;
+        $pInfra = $esExperiencia ? (isset($datos['puntuacionInfraestructura']) ? (int)$datos['puntuacionInfraestructura'] : 5) : null;
+        $pAcad  = $esExperiencia ? (isset($datos['puntuacionAcademica']) ? (int)$datos['puntuacionAcademica'] : 5) : null;
+
+        $sqlPub = "INSERT INTO publicaciones (idUsuario, tipoPublicacion, titulo, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, puntuacionClima, puntuacionInfraestructura, puntuacionAcademica) 
+                   VALUES (:idUsuario, :tipoPublicacion, :titulo, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0, :pClima, :pInfra, :pAcad)";
         $stmtPub = $this->db->prepare($sqlPub);
-        $resPub = $stmtPub->execute([
+        return $stmtPub->execute([
             ':idUsuario' => $idUsuario,
             ':tipoPublicacion' => $tipo,
             ':titulo' => $titulo,
@@ -217,50 +203,11 @@ class PublicacionRepository {
             ':idUniversidad' => $idUni,
             ':idSede' => $idSede,
             ':idCarrera' => $idCarrera,
-            ':texto' => $texto
+            ':texto' => $texto,
+            ':pClima' => $pClima,
+            ':pInfra' => $pInfra,
+            ':pAcad' => $pAcad
         ]);
-
-        // 2. Insertar en la tabla específica (consultas o experiencias)
-        try {
-            if ($tipo === 'Experiencia') {
-                $puntuacionClima = isset($datos['puntuacionClima']) ? (int)$datos['puntuacionClima'] : 5;
-                $puntuacionInfraestructura = isset($datos['puntuacionInfraestructura']) ? (int)$datos['puntuacionInfraestructura'] : 5;
-                $puntuacionAcademica = isset($datos['puntuacionAcademica']) ? (int)$datos['puntuacionAcademica'] : 5;
-
-                $sqlExp = "INSERT INTO experiencias (idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, puntuacionClima, puntuacionInfraestructura, puntuacionAcademica) 
-                           VALUES (:idUsuario, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0, :pClima, :pInfra, :pAcademica)";
-                $stmtExp = $this->db->prepare($sqlExp);
-                $stmtExp->execute([
-                    ':idUsuario' => $idUsuario,
-                    ':fecha' => $fecha,
-                    ':hora' => $hora,
-                    ':idUniversidad' => $idUni,
-                    ':idSede' => $idSede,
-                    ':idCarrera' => $idCarrera,
-                    ':texto' => $texto,
-                    ':pClima' => $puntuacionClima,
-                    ':pInfra' => $puntuacionInfraestructura,
-                    ':pAcademica' => $puntuacionAcademica
-                ]);
-            } else {
-                $sqlCon = "INSERT INTO consultas (idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes) 
-                           VALUES (:idUsuario, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0)";
-                $stmtCon = $this->db->prepare($sqlCon);
-                $stmtCon->execute([
-                    ':idUsuario' => $idUsuario,
-                    ':fecha' => $fecha,
-                    ':hora' => $hora,
-                    ':idUniversidad' => $idUni,
-                    ':idSede' => $idSede,
-                    ':idCarrera' => $idCarrera,
-                    ':texto' => $texto
-                ]);
-            }
-        } catch (Exception $e) {
-            // Ignorar errores secundarios
-        }
-
-        return $resPub;
     }
 
     public function obtenerFavorito(int $idPublicacion, int $idUsuario) {

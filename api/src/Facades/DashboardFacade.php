@@ -10,93 +10,6 @@ class DashboardFacade {
 
     private function __construct() {
         $this->db = db::getInstance()->getConnection();
-        $this->asegurarTablas();
-    }
-
-    /**
-     * Garantiza la existencia de las tablas 'experiencias' y 'consultas'
-     * y las sincroniza con 'publicaciones' si están vacías.
-     */
-    private function asegurarTablas(): void {
-        try {
-            $this->db->exec("
-                CREATE TABLE IF NOT EXISTS `experiencias` (
-                    `idExperiencia` int(11) NOT NULL AUTO_INCREMENT,
-                    `idUsuario` int(11) NOT NULL,
-                    `fecha` date NOT NULL,
-                    `hora` time NOT NULL,
-                    `idUniversidad` int(11) NOT NULL,
-                    `idSede` int(11) NOT NULL,
-                    `idCarrera` int(11) NOT NULL,
-                    `texto` text NOT NULL,
-                    `likes` int(11) DEFAULT 0,
-                    `puntuacionClima` int(11) NOT NULL DEFAULT 5,
-                    `puntuacionInfraestructura` int(11) NOT NULL DEFAULT 5,
-                    `puntuacionAcademica` int(11) NOT NULL DEFAULT 5,
-                    PRIMARY KEY (`idExperiencia`),
-                    KEY `fk_exp_usuario` (`idUsuario`),
-                    KEY `fk_exp_uni` (`idUniversidad`),
-                    KEY `fk_exp_sede` (`idSede`),
-                    KEY `fk_exp_carrera` (`idCarrera`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-            ");
-
-            $this->db->exec("
-                CREATE TABLE IF NOT EXISTS `consultas` (
-                    `idConsulta` int(11) NOT NULL AUTO_INCREMENT,
-                    `idUsuario` int(11) NOT NULL,
-                    `fecha` date NOT NULL,
-                    `hora` time NOT NULL,
-                    `idUniversidad` int(11) NOT NULL,
-                    `idSede` int(11) NOT NULL,
-                    `idCarrera` int(11) NOT NULL,
-                    `texto` text NOT NULL,
-                    `likes` int(11) DEFAULT 0,
-                    PRIMARY KEY (`idConsulta`),
-                    KEY `fk_con_usuario` (`idUsuario`),
-                    KEY `fk_con_uni` (`idUniversidad`),
-                    KEY `fk_con_sede` (`idSede`),
-                    KEY `fk_con_carrera` (`idCarrera`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-            ");
-
-            $expCount = (int)$this->db->query("SELECT COUNT(*) FROM `experiencias`")->fetchColumn();
-            if ($expCount === 0) {
-                $this->db->exec("
-                    INSERT IGNORE INTO `experiencias`
-                        (`idExperiencia`, `idUsuario`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`, `puntuacionClima`, `puntuacionInfraestructura`, `puntuacionAcademica`)
-                    SELECT 
-                        p.idPublicacion, p.idUsuario, p.fecha, p.hora,
-                        COALESCE(p.idUniversidad, 1),
-                        COALESCE(p.idSede, 1),
-                        COALESCE(p.idCarrera, 1),
-                        p.texto,
-                        COALESCE(p.likes, 0),
-                        5, 4, 5
-                    FROM `publicaciones` p
-                    WHERE p.tipoPublicacion = 'Experiencia'
-                ");
-            }
-
-            $conCount = (int)$this->db->query("SELECT COUNT(*) FROM `consultas`")->fetchColumn();
-            if ($conCount === 0) {
-                $this->db->exec("
-                    INSERT IGNORE INTO `consultas`
-                        (`idConsulta`, `idUsuario`, `fecha`, `hora`, `idUniversidad`, `idSede`, `idCarrera`, `texto`, `likes`)
-                    SELECT 
-                        p.idPublicacion, p.idUsuario, p.fecha, p.hora,
-                        COALESCE(p.idUniversidad, 1),
-                        COALESCE(p.idSede, 1),
-                        COALESCE(p.idCarrera, 1),
-                        p.texto,
-                        COALESCE(p.likes, 0)
-                    FROM `publicaciones` p
-                    WHERE p.tipoPublicacion = 'Consulta'
-                ");
-            }
-        } catch (Exception $e) {
-            error_log('Error en asegurarTablas (DashboardFacade): ' . $e->getMessage());
-        }
     }
 
     private function __clone() {}
@@ -206,16 +119,15 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG(e.puntuacionAcademica), 2), 0) AS promedio_academico_global,
-                COALESCE(ROUND(AVG(e.puntuacionClima), 2), 0) AS promedio_clima_global,
-                COALESCE(ROUND(AVG(e.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura_global,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS score_satisfaccion_global
+                COALESCE(ROUND(AVG(p.puntuacionAcademica), 2), 0) AS promedio_academico_global,
+                COALESCE(ROUND(AVG(p.puntuacionClima), 2), 0) AS promedio_clima_global,
+                COALESCE(ROUND(AVG(p.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura_global,
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS score_satisfaccion_global
             FROM universidades u
             LEFT JOIN sedes s ON u.idUniversidad = s.idUniversidad AND s.estado = 'activo'
             LEFT JOIN oferta_academica oa ON s.idSede = oa.idSede
             LEFT JOIN carreras c ON oa.idCarrera = c.idCarrera
             LEFT JOIN publicaciones p ON u.idUniversidad = p.idUniversidad
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE u.estado = 'activo'
         ";
         $stmtKpis = $this->db->prepare($sqlKpis);
@@ -232,22 +144,21 @@ class DashboardFacade {
                 COUNT(DISTINCT s.idSede) AS total_sedes,
                 COUNT(DISTINCT oa.idCarrera) AS total_carreras,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COUNT(DISTINCT e.idExperiencia) AS total_experiencias,
+                COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG(e.puntuacionAcademica), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG(e.puntuacionClima), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG(e.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
+                COALESCE(ROUND(AVG(p.puntuacionAcademica), 2), 0) AS promedio_academico,
+                COALESCE(ROUND(AVG(p.puntuacionClima), 2), 0) AS promedio_clima,
+                COALESCE(ROUND(AVG(p.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM universidades u
             LEFT JOIN sedes s ON u.idUniversidad = s.idUniversidad AND s.estado = 'activo'
             LEFT JOIN oferta_academica oa ON s.idSede = oa.idSede
             LEFT JOIN publicaciones p ON u.idUniversidad = p.idUniversidad
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE u.estado = 'activo'
             GROUP BY u.idUniversidad, u.nombre, u.email, u.celular
             ORDER BY total_publicaciones DESC, promedio_general DESC, u.nombre ASC
@@ -295,22 +206,21 @@ class DashboardFacade {
                 COUNT(DISTINCT s.idSede) AS total_sedes,
                 COUNT(DISTINCT oa.idCarrera) AS total_carreras,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COUNT(DISTINCT e.idExperiencia) AS total_experiencias,
+                COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG(e.puntuacionAcademica), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG(e.puntuacionClima), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG(e.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
+                COALESCE(ROUND(AVG(p.puntuacionAcademica), 2), 0) AS promedio_academico,
+                COALESCE(ROUND(AVG(p.puntuacionClima), 2), 0) AS promedio_clima,
+                COALESCE(ROUND(AVG(p.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM universidades u
             LEFT JOIN sedes s ON u.idUniversidad = s.idUniversidad AND s.estado = 'activo'
             LEFT JOIN oferta_academica oa ON s.idSede = oa.idSede
             LEFT JOIN publicaciones p ON u.idUniversidad = p.idUniversidad
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE u.idUniversidad = :idUniversidad
             GROUP BY u.idUniversidad, u.nombre, u.email, u.celular
         ";
@@ -336,15 +246,15 @@ class DashboardFacade {
                 oa.web AS web_carrera,
                 oa.telefono AS telefono_carrera,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COUNT(DISTINCT e.idExperiencia) AS total_experiencias,
+                COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG(e.puntuacionAcademica), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG(e.puntuacionClima), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG(e.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_carrera,
+                COALESCE(ROUND(AVG(p.puntuacionAcademica), 2), 0) AS promedio_academico,
+                COALESCE(ROUND(AVG(p.puntuacionClima), 2), 0) AS promedio_clima,
+                COALESCE(ROUND(AVG(p.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_carrera,
                 CASE 
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM sedes s
@@ -353,7 +263,6 @@ class DashboardFacade {
             LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
             LEFT JOIN provincias pr ON ci.idProvincia = pr.idProvincia
             LEFT JOIN publicaciones p ON (p.idSede = s.idSede AND p.idCarrera = c.idCarrera)
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE s.idUniversidad = :idUniversidad
             GROUP BY s.idSede, s.nombre, ci.nombre, pr.nombre, c.idCarrera, c.nombre, oa.descripcion, oa.web, oa.telefono
             ORDER BY s.nombre ASC, promedio_carrera DESC, c.nombre ASC
@@ -375,13 +284,12 @@ class DashboardFacade {
                 s.web,
                 COUNT(DISTINCT oa.idCarrera) AS total_carreras,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_sede
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_sede
             FROM sedes s
             LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
             LEFT JOIN provincias pr ON ci.idProvincia = pr.idProvincia
             LEFT JOIN oferta_academica oa ON s.idSede = oa.idSede
             LEFT JOIN publicaciones p ON s.idSede = p.idSede
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE s.idUniversidad = :idUniversidad AND s.estado = 'activo'
             GROUP BY s.idSede, s.nombre, ci.nombre, pr.nombre, s.email, s.telefono, s.web
             ORDER BY s.nombre ASC
@@ -421,15 +329,15 @@ class DashboardFacade {
                 oa.web,
                 oa.telefono,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COUNT(DISTINCT e.idExperiencia) AS total_experiencias,
+                COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG(e.puntuacionAcademica), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG(e.puntuacionClima), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG(e.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
+                COALESCE(ROUND(AVG(p.puntuacionAcademica), 2), 0) AS promedio_academico,
+                COALESCE(ROUND(AVG(p.puntuacionClima), 2), 0) AS promedio_clima,
+                COALESCE(ROUND(AVG(p.puntuacionInfraestructura), 2), 0) AS promedio_infraestructura,
+                COALESCE(ROUND(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG((e.puntuacionAcademica + e.puntuacionClima + e.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 4.5 THEN 'VERDE'
+                    WHEN COALESCE(AVG((p.puntuacionAcademica + p.puntuacionClima + p.puntuacionInfraestructura) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM sedes s
@@ -439,7 +347,6 @@ class DashboardFacade {
             LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
             LEFT JOIN provincias pr ON ci.idProvincia = pr.idProvincia
             LEFT JOIN publicaciones p ON (p.idSede = s.idSede AND p.idCarrera = c.idCarrera)
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             WHERE s.idSede = :idSede AND c.idCarrera = :idCarrera
             GROUP BY u.idUniversidad, u.nombre, s.idSede, s.nombre, ci.nombre, pr.nombre, c.idCarrera, c.nombre, oa.descripcion, oa.web, oa.telefono
         ";
@@ -470,25 +377,24 @@ class DashboardFacade {
                 usr.email AS autor_email,
                 usr.tipoPerfil AS autor_perfil,
                 usr.fotoPerfil AS autor_foto,
-                e.puntuacionClima,
-                e.puntuacionInfraestructura,
-                e.puntuacionAcademica,
+                p.puntuacionClima,
+                p.puntuacionInfraestructura,
+                p.puntuacionAcademica,
                 CASE 
                     WHEN p.tipoPublicacion = 'Experiencia' THEN 
-                        ROUND((e.puntuacionClima + e.puntuacionInfraestructura + e.puntuacionAcademica) / 3.0, 2)
+                        ROUND((p.puntuacionClima + p.puntuacionInfraestructura + p.puntuacionAcademica) / 3.0, 2)
                     ELSE NULL
                 END AS promedio_experiencia,
                 COUNT(DISTINCT r.idRespuesta) AS total_respuestas,
                 COUNT(DISTINCT f.idFavorito) AS total_favoritos
             FROM publicaciones p
             JOIN usuarios usr ON p.idUsuario = usr.idUsuario
-            LEFT JOIN experiencias e ON p.idPublicacion = e.idExperiencia
             LEFT JOIN respuestas r ON p.idPublicacion = r.idPublicacion
             LEFT JOIN favoritos f ON p.idPublicacion = f.idPublicacion AND f.estado = 'activo'
             WHERE p.idSede = :idSede AND p.idCarrera = :idCarrera
             GROUP BY p.idPublicacion, p.tipoPublicacion, p.titulo, p.texto, p.fecha, p.hora, p.resuelta,
                      usr.idUsuario, usr.nombre, usr.apellido, usr.email, usr.tipoPerfil, usr.fotoPerfil,
-                     e.puntuacionClima, e.puntuacionInfraestructura, e.puntuacionAcademica
+                     p.puntuacionClima, p.puntuacionInfraestructura, p.puntuacionAcademica
             ORDER BY p.fecha DESC, p.hora DESC
         ";
         $stmtPubs = $this->db->prepare($sqlPublicaciones);
