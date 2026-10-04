@@ -1,0 +1,39 @@
+name: Despliegue Automático Backend a Alwaysdata
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch: # Permite disparar el despliegue manualmente desde la pestaña Actions en GitHub
+
+jobs:
+  web-deploy:
+    name: 🚀 Sincronizar API con Alwaysdata
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚚 Obtener código del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 📡 Sincronizar archivos por FTP/FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.ALWAYSDATA_FTP_SERVER }}
+          username: ${{ secrets.ALWAYSDATA_FTP_USERNAME }}
+          password: ${{ secrets.ALWAYSDATA_FTP_PASSWORD }}
+          server-dir: ${{ secrets.ALWAYSDATA_FTP_PATH || 'www/' }}
+          local-dir: ./api/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/*.sql
+            **/.env*
+            **/temp*
+            **/src/config/db-config.php
