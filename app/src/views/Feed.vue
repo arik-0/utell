@@ -138,6 +138,14 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                   <span>{{ post.nombreUniversidad }}</span>
                 </span>
+                <span v-if="post.nombreSede" class="uni-tag sede-tag" :title="`Sede: ${post.nombreSede}`">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>{{ post.nombreSede }}</span>
+                </span>
+                <span v-if="post.nombreCarrera" class="uni-tag carrera-tag" :title="`Carrera: ${post.nombreCarrera}`">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  <span>{{ post.nombreCarrera }}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -261,6 +269,7 @@ const filteredPosts = computed(() => {
     (p.nombre && p.nombre.toLowerCase().includes(q)) ||
     (p.apellido && p.apellido.toLowerCase().includes(q)) ||
     (p.nombreUniversidad && p.nombreUniversidad.toLowerCase().includes(q)) ||
+    (p.nombreSede && p.nombreSede.toLowerCase().includes(q)) ||
     (p.nombreCarrera && p.nombreCarrera.toLowerCase().includes(q))
   )
 })

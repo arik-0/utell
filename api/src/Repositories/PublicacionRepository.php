@@ -12,10 +12,12 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
                        u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
+                       s.nombre as nombreSede,
                        c.nombre as nombreCarrera
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 ORDER BY p.fecha DESC, p.hora DESC";
         $resultado = $this->db->query($sql);
@@ -35,6 +37,7 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
                        u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
+                       s.nombre as nombreSede,
                        c.nombre as nombreCarrera,
                        (
                          -- Afinidad por Carrera (+40)
@@ -56,6 +59,7 @@ class PublicacionRepository {
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 ORDER BY rankingScore DESC, p.fecha DESC, p.hora DESC";
                 
@@ -88,6 +92,7 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuarioFav AND f.estado = 'activo') as hasLiked,
                        u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
+                       s.nombre as nombreSede,
                        c.nombre as nombreCarrera,
                        (CASE WHEN p.idUsuario = :meIdSelf THEN 1
                              WHEN p.idUsuario IN (
@@ -100,6 +105,7 @@ class PublicacionRepository {
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 WHERE p.idUsuario = :meIdSelf2
                    OR p.idUsuario IN (
@@ -140,10 +146,12 @@ class PublicacionRepository {
                        (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
                        u.nombre, u.apellido, u.fotoPerfil,
                        uni.nombre as nombreUniversidad,
+                       s.nombre as nombreSede,
                        c.nombre as nombreCarrera
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
                 WHERE p.idPublicacion = :id";
                 
@@ -158,6 +166,34 @@ class PublicacionRepository {
 
     private function asegurarRelacionesPredeterminadas(?int &$idUni, ?int &$idSede, ?int &$idCarrera): void {
         try {
+            // 1. Si se especificó sede pero no universidad, obtener la universidad vinculada a la sede
+            if (!empty($idSede) && empty($idUni)) {
+                $stmt = $this->db->prepare("SELECT idUniversidad FROM sedes WHERE idSede = :idSede LIMIT 1");
+                $stmt->execute([':idSede' => $idSede]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $idUni = (int)$row['idUniversidad'];
+                }
+            }
+
+            // 2. Si se especificó universidad y carrera, pero no sede:
+            // Buscar la sede específica donde se dicta esa carrera en dicha universidad
+            if (!empty($idUni) && !empty($idCarrera) && empty($idSede)) {
+                $stmt = $this->db->prepare("
+                    SELECT oa.idSede 
+                    FROM oferta_academica oa 
+                    JOIN sedes s ON oa.idSede = s.idSede 
+                    WHERE s.idUniversidad = :idUni AND oa.idCarrera = :idCar 
+                    LIMIT 1
+                ");
+                $stmt->execute([':idUni' => $idUni, ':idCar' => $idCarrera]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $idSede = (int)$row['idSede'];
+                }
+            }
+
+            // 3. Si aún no hay sede pero hay universidad, asignar la sede principal
             if (!empty($idUni) && empty($idSede)) {
                 $stmt = $this->db->prepare("SELECT idSede FROM sedes WHERE idUniversidad = :idUni LIMIT 1");
                 $stmt->execute([':idUni' => $idUni]);
@@ -167,7 +203,7 @@ class PublicacionRepository {
                 }
             }
         } catch (Exception $e) {
-            // Silencioso
+            error_log("asegurarRelacionesPredeterminadas: " . $e->getMessage());
         }
     }
 
@@ -194,7 +230,7 @@ class PublicacionRepository {
         $sqlPub = "INSERT INTO publicaciones (idUsuario, tipoPublicacion, titulo, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, puntuacionClima, puntuacionInfraestructura, puntuacionAcademica) 
                    VALUES (:idUsuario, :tipoPublicacion, :titulo, :fecha, :hora, :idUniversidad, :idSede, :idCarrera, :texto, 0, :pClima, :pInfra, :pAcad)";
         $stmtPub = $this->db->prepare($sqlPub);
-        return $stmtPub->execute([
+        $ok = $stmtPub->execute([
             ':idUsuario' => $idUsuario,
             ':tipoPublicacion' => $tipo,
             ':titulo' => $titulo,
@@ -208,6 +244,55 @@ class PublicacionRepository {
             ':pInfra' => $pInfra,
             ':pAcad' => $pAcad
         ]);
+
+        if ($ok) {
+            $idPub = (int)$this->db->lastInsertId();
+            // Sincronizar en tablas experiencias/consultas legadas si existen
+            try {
+                if ($esExperiencia) {
+                    $stmtExp = $this->db->prepare("
+                        INSERT INTO experiencias 
+                        (idExperiencia, idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes, puntuacionClima, puntuacionInfraestructura, puntuacionAcademica) 
+                        VALUES (:id, :idUsuario, :fecha, :hora, :idUni, :idSede, :idCar, :texto, 0, :pClima, :pInfra, :pAcad)
+                        ON DUPLICATE KEY UPDATE idSede = VALUES(idSede), idCarrera = VALUES(idCarrera)
+                    ");
+                    $stmtExp->execute([
+                        ':id' => $idPub,
+                        ':idUsuario' => $idUsuario,
+                        ':fecha' => $fecha,
+                        ':hora' => $hora,
+                        ':idUni' => $idUni ?: 1,
+                        ':idSede' => $idSede ?: 1,
+                        ':idCar' => $idCarrera ?: 1,
+                        ':texto' => $texto,
+                        ':pClima' => $pClima ?: 5,
+                        ':pInfra' => $pInfra ?: 5,
+                        ':pAcad' => $pAcad ?: 5
+                    ]);
+                } else {
+                    $stmtCon = $this->db->prepare("
+                        INSERT INTO consultas 
+                        (idConsulta, idUsuario, fecha, hora, idUniversidad, idSede, idCarrera, texto, likes) 
+                        VALUES (:id, :idUsuario, :fecha, :hora, :idUni, :idSede, :idCar, :texto, 0)
+                        ON DUPLICATE KEY UPDATE idSede = VALUES(idSede), idCarrera = VALUES(idCarrera)
+                    ");
+                    $stmtCon->execute([
+                        ':id' => $idPub,
+                        ':idUsuario' => $idUsuario,
+                        ':fecha' => $fecha,
+                        ':hora' => $hora,
+                        ':idUni' => $idUni ?: 1,
+                        ':idSede' => $idSede ?: 1,
+                        ':idCar' => $idCarrera ?: 1,
+                        ':texto' => $texto
+                    ]);
+                }
+            } catch (Exception $e) {
+                // Silencioso si no existen
+            }
+        }
+
+        return $ok;
     }
 
     public function obtenerFavorito(int $idPublicacion, int $idUsuario) {

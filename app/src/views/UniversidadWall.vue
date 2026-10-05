@@ -43,14 +43,14 @@
         <!-- Metrics Consolidated Section -->
         <div class="metrics-grid">
           <div class="metric-score-card">
-            <div class="score-number">{{ metrics.promedioGeneral || '5.0' }}</div>
+            <div class="score-number">{{ metrics.totalExperiencias > 0 && metrics.promedioGeneral ? metrics.promedioGeneral : '—' }}</div>
             <div class="score-stars">
-              <span class="star-active">
+              <span class="star-active" v-if="metrics.totalExperiencias > 0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </span>
-              <span class="score-label">Promedio General</span>
+              <span class="score-label">{{ metrics.totalExperiencias > 0 ? 'Promedio General' : 'Sin evaluaciones' }}</span>
             </div>
-            <span class="reviews-count">{{ metrics.totalExperiencias || experiencias.length }} evaluaciones</span>
+            <span class="reviews-count">{{ metrics.totalExperiencias || experiencias.length || 0 }} evaluaciones</span>
           </div>
 
           <!-- Progress Bars Breakdown -->
@@ -58,30 +58,30 @@
             <div class="breakdown-item">
               <div class="breakdown-header">
                 <span>Clima Estudiantil</span>
-                <strong>{{ metrics.promedioClima || '5.0' }}</strong>
+                <strong>{{ metrics.totalExperiencias > 0 && metrics.promedioClima ? metrics.promedioClima : 'Sin datos' }}</strong>
               </div>
               <div class="meter-bar">
-                <div class="meter-fill" :style="{ width: `${(Number(metrics.promedioClima || 5) / 5) * 100}%` }"></div>
+                <div class="meter-fill" :style="{ width: `${metrics.totalExperiencias > 0 && metrics.promedioClima ? (Number(metrics.promedioClima) / 5) * 100 : 0}%` }"></div>
               </div>
             </div>
 
             <div class="breakdown-item">
               <div class="breakdown-header">
                 <span>Infraestructura</span>
-                <strong>{{ metrics.promedioInfraestructura || '5.0' }}</strong>
+                <strong>{{ metrics.totalExperiencias > 0 && metrics.promedioInfraestructura ? metrics.promedioInfraestructura : 'Sin datos' }}</strong>
               </div>
               <div class="meter-bar">
-                <div class="meter-fill" :style="{ width: `${(Number(metrics.promedioInfraestructura || 5) / 5) * 100}%` }"></div>
+                <div class="meter-fill" :style="{ width: `${metrics.totalExperiencias > 0 && metrics.promedioInfraestructura ? (Number(metrics.promedioInfraestructura) / 5) * 100 : 0}%` }"></div>
               </div>
             </div>
 
             <div class="breakdown-item">
               <div class="breakdown-header">
                 <span>Nivel Académico</span>
-                <strong>{{ metrics.promedioAcademico || '5.0' }}</strong>
+                <strong>{{ metrics.totalExperiencias > 0 && metrics.promedioAcademico ? metrics.promedioAcademico : 'Sin datos' }}</strong>
               </div>
               <div class="meter-bar">
-                <div class="meter-fill" :style="{ width: `${(Number(metrics.promedioAcademico || 5) / 5) * 100}%` }"></div>
+                <div class="meter-fill" :style="{ width: `${metrics.totalExperiencias > 0 && metrics.promedioAcademico ? (Number(metrics.promedioAcademico) / 5) * 100 : 0}%` }"></div>
               </div>
             </div>
           </div>

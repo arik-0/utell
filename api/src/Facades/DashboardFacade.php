@@ -154,10 +154,10 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG({$acad}), 2), 0) AS promedio_academico_global,
-                COALESCE(ROUND(AVG({$clima}), 2), 0) AS promedio_clima_global,
-                COALESCE(ROUND(AVG({$infra}), 2), 0) AS promedio_infraestructura_global,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS score_satisfaccion_global
+                COALESCE(ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$acad} END), 2), 0) AS promedio_academico_global,
+                COALESCE(ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$clima} END), 2), 0) AS promedio_clima_global,
+                COALESCE(ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$infra} END), 2), 0) AS promedio_infraestructura_global,
+                COALESCE(ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2), 0) AS score_satisfaccion_global
             FROM universidades u
             LEFT JOIN sedes s ON u.idUniversidad = s.idUniversidad AND s.estado = 'activo'
             LEFT JOIN oferta_academica oa ON s.idSede = oa.idSede
@@ -182,13 +182,30 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG({$acad}), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG({$clima}), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG({$infra}), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$acad} END), 2)
+                    ELSE NULL 
+                END AS promedio_academico,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$clima} END), 2)
+                    ELSE NULL 
+                END AS promedio_clima,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$infra} END), 2)
+                    ELSE NULL 
+                END AS promedio_infraestructura,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2)
+                    ELSE NULL 
+                END AS promedio_general,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) = 0 THEN 'SIN_DATOS'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 4.5 THEN 'VERDE'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM universidades u
@@ -208,10 +225,12 @@ class DashboardFacade {
         $conteoVerde = 0;
         $conteoAmarillo = 0;
         $conteoRojo = 0;
+        $conteoSinDatos = 0;
         foreach ($universidades as $uni) {
             if ($uni['estado_semaforo'] === 'VERDE') $conteoVerde++;
             elseif ($uni['estado_semaforo'] === 'AMARILLO') $conteoAmarillo++;
-            else $conteoRojo++;
+            elseif ($uni['estado_semaforo'] === 'ROJO') $conteoRojo++;
+            else $conteoSinDatos++;
         }
 
         return [
@@ -219,7 +238,8 @@ class DashboardFacade {
             "distribucion_semaforo" => [
                 "verde" => $conteoVerde,
                 "amarillo" => $conteoAmarillo,
-                "rojo" => $conteoRojo
+                "rojo" => $conteoRojo,
+                "sin_datos" => $conteoSinDatos
             ],
             "universidades" => $universidades
         ];
@@ -251,13 +271,30 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG({$acad}), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG({$clima}), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG({$infra}), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$acad} END), 2)
+                    ELSE NULL 
+                END AS promedio_academico,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$clima} END), 2)
+                    ELSE NULL 
+                END AS promedio_clima,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$infra} END), 2)
+                    ELSE NULL 
+                END AS promedio_infraestructura,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2)
+                    ELSE NULL 
+                END AS promedio_general,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) = 0 THEN 'SIN_DATOS'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 4.5 THEN 'VERDE'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM universidades u
@@ -292,13 +329,30 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG({$acad}), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG({$clima}), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG({$infra}), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS promedio_carrera,
                 CASE 
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$acad} END), 2)
+                    ELSE NULL 
+                END AS promedio_academico,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$clima} END), 2)
+                    ELSE NULL 
+                END AS promedio_clima,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$infra} END), 2)
+                    ELSE NULL 
+                END AS promedio_infraestructura,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2)
+                    ELSE NULL 
+                END AS promedio_carrera,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) = 0 THEN 'SIN_DATOS'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 4.5 THEN 'VERDE'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM sedes s
@@ -329,7 +383,11 @@ class DashboardFacade {
                 s.web,
                 COUNT(DISTINCT oa.idCarrera) AS total_carreras,
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS promedio_sede
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2)
+                    ELSE NULL 
+                END AS promedio_sede
             FROM sedes s
             LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
             LEFT JOIN provincias pr ON ci.idProvincia = pr.idProvincia
@@ -383,13 +441,30 @@ class DashboardFacade {
                 COUNT(DISTINCT p.idPublicacion) AS total_publicaciones,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) AS total_experiencias,
                 COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) AS total_consultas,
-                COALESCE(ROUND(AVG({$acad}), 2), 0) AS promedio_academico,
-                COALESCE(ROUND(AVG({$clima}), 2), 0) AS promedio_clima,
-                COALESCE(ROUND(AVG({$infra}), 2), 0) AS promedio_infraestructura,
-                COALESCE(ROUND(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 2), 0) AS promedio_general,
                 CASE 
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 4.5 THEN 'VERDE'
-                    WHEN COALESCE(AVG(({$acad} + {$clima} + {$infra}) / 3.0), 0) >= 3.5 THEN 'AMARILLO'
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$acad} END), 2)
+                    ELSE NULL 
+                END AS promedio_academico,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$clima} END), 2)
+                    ELSE NULL 
+                END AS promedio_clima,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN {$infra} END), 2)
+                    ELSE NULL 
+                END AS promedio_infraestructura,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                    THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END), 2)
+                    ELSE NULL 
+                END AS promedio_general,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) = 0 THEN 'SIN_DATOS'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 4.5 THEN 'VERDE'
+                    WHEN AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN ({$acad} + {$clima} + {$infra}) / 3.0 END) >= 3.5 THEN 'AMARILLO'
                     ELSE 'ROJO'
                 END AS estado_semaforo
             FROM sedes s

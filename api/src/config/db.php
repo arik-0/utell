@@ -102,6 +102,41 @@
             ");
           } catch (Exception $e) {}
         }
+
+        // Asegurar coherencia de sedes en publicaciones existentes
+        try {
+          // Si Medicina UNR está en sede 1 (Rectorado), asociar a sede 2 (FCM UNR)
+          $pdo->exec("UPDATE `publicaciones` SET `idSede` = 2, `idCarrera` = 1 WHERE `idPublicacion` IN (1, 2, 3, 13) AND `idUniversidad` = 1 AND `idSede` = 1");
+          // Si Sistemas UTN no tiene sede 7, asignar sede 7 (FRBA)
+          $pdo->exec("UPDATE `publicaciones` SET `idSede` = 7, `idCarrera` = 2 WHERE `idPublicacion` IN (4, 5) AND `idUniversidad` = 3 AND (`idSede` IS NULL OR `idSede` = 1)");
+          // Sincronizar sedes nulas desde oferta_academica
+          $pdo->exec("
+            UPDATE `publicaciones` p
+            JOIN `oferta_academica` oa ON p.idCarrera = oa.idCarrera
+            JOIN `sedes` s ON oa.idSede = s.idSede AND p.idUniversidad = s.idUniversidad
+            SET p.idSede = oa.idSede
+            WHERE p.idSede IS NULL AND p.idCarrera IS NOT NULL
+          ");
+        } catch (Exception $e) {}
+
+        // Asegurar sedes y oferta académica de UAI (idUniversidad = 8) si no existen
+        try {
+          $checkUai = (int)$pdo->query("SELECT COUNT(*) FROM `sedes` WHERE `idUniversidad` = 8")->fetchColumn();
+          if ($checkUai === 0) {
+            $pdo->exec("
+              INSERT IGNORE INTO `sedes` (`idSede`, `idUniversidad`, `idCiudad`, `nombre`, `descripcion`, `email`, `web`, `telefono`, `estado`) VALUES
+              (13, 8, 1, 'UAI - Sede Rosario (Campus Pellegrini)', 'Facultad de Tecnología Informática, Medicina y Ciencias Jurídicas', 'rosario@uai.edu.ar', 'https://uai.edu.ar', '+54 341 440-8010', 'activo'),
+              (14, 8, 5, 'UAI - Sede Central Buenos Aires (San Telmo)', 'Rectorado y Facultad de Tecnología Informática y Arquitectura', 'buenosaires@uai.edu.ar', 'https://uai.edu.ar', '+54 11 4342-7788', 'activo')
+            ");
+            $pdo->exec("
+              INSERT IGNORE INTO `oferta_academica` (`idCarrera`, `idSede`, `fechaImplementacion`, `descripcion`, `web`, `telefono`) VALUES
+              (2, 13, '1995-03-01', 'Ingeniería en Sistemas Informáticos - Cátedra de Bases de Datos Aplicada', 'https://uai.edu.ar', '+54 341 440-8010'),
+              (1, 13, '1998-03-01', 'Carrera de Medicina - Hospital Universitario UAI', 'https://uai.edu.ar', '+54 341 440-8011'),
+              (4, 13, '1996-03-01', 'Abogacía y Práctica Profesional Supervisada', 'https://uai.edu.ar', '+54 341 440-8012'),
+              (2, 14, '1994-03-01', 'Ingeniería en Sistemas Informáticos - Sede San Telmo', 'https://uai.edu.ar', '+54 11 4342-7788')
+            ");
+          }
+        } catch (Exception $e) {}
       } catch (Exception $e) {
         error_log("Error en db::asegurarEsquema: " . $e->getMessage());
       }

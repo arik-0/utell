@@ -22,16 +22,23 @@ class InstitucionRepository {
                     COUNT(DISTINCT p.idPublicacion) as totalPublicaciones,
                     COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) as totalExperiencias,
                     COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Consulta' THEN p.idPublicacion END) as totalConsultas,
-                    ROUND(COALESCE(AVG(p.puntuacionClima), 5.0), 1) as promedioClima,
-                    ROUND(COALESCE(AVG(p.puntuacionInfraestructura), 5.0), 1) as promedioInfraestructura,
-                    ROUND(COALESCE(AVG(p.puntuacionAcademica), 5.0), 1) as promedioAcademico,
-                    ROUND(
-                        (
-                            COALESCE(AVG(p.puntuacionClima), 5.0) + 
-                            COALESCE(AVG(p.puntuacionInfraestructura), 5.0) + 
-                            COALESCE(AVG(p.puntuacionAcademica), 5.0)
-                        ) / 3, 1
-                    ) as promedioGeneral
+                    CASE WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                         THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionClima END), 1) 
+                         ELSE NULL END as promedioClima,
+                    CASE WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                         THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionInfraestructura END), 1) 
+                         ELSE NULL END as promedioInfraestructura,
+                    CASE WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                         THEN ROUND(AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionAcademica END), 1) 
+                         ELSE NULL END as promedioAcademico,
+                    CASE WHEN COUNT(DISTINCT CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.idPublicacion END) > 0 
+                         THEN ROUND(
+                             (
+                                 AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionClima END) + 
+                                 AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionInfraestructura END) + 
+                                 AVG(CASE WHEN p.tipoPublicacion = 'Experiencia' THEN p.puntuacionAcademica END)
+                             ) / 3, 1
+                         ) ELSE NULL END as promedioGeneral
                 FROM universidades u
                 LEFT JOIN publicaciones p ON p.idUniversidad = u.idUniversidad
                 GROUP BY u.idUniversidad, u.nombre, u.email
@@ -59,10 +66,10 @@ class InstitucionRepository {
         $stmtMetrics = $this->db->prepare("
             SELECT 
                 COUNT(*) as totalExperiencias,
-                ROUND(COALESCE(AVG(puntuacionClima), 5.0), 1) as promedioClima,
-                ROUND(COALESCE(AVG(puntuacionInfraestructura), 5.0), 1) as promedioInfraestructura,
-                ROUND(COALESCE(AVG(puntuacionAcademica), 5.0), 1) as promedioAcademico,
-                ROUND((AVG(puntuacionClima) + AVG(puntuacionInfraestructura) + AVG(puntuacionAcademica)) / 3, 1) as promedioGeneral
+                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionClima), 1) ELSE NULL END as promedioClima,
+                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionInfraestructura), 1) ELSE NULL END as promedioInfraestructura,
+                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionAcademica), 1) ELSE NULL END as promedioAcademico,
+                CASE WHEN COUNT(*) > 0 THEN ROUND((AVG(puntuacionClima) + AVG(puntuacionInfraestructura) + AVG(puntuacionAcademica)) / 3, 1) ELSE NULL END as promedioGeneral
             FROM publicaciones 
             WHERE tipoPublicacion = 'Experiencia' AND idUniversidad = :id
         ");

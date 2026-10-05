@@ -167,6 +167,10 @@
             <span class="status-indicator indicator-red"></span>
             <strong>🔴 Crítico / Insatisfactorio:</strong> Promedio &lt; 3.50 / 5.00
           </div>
+          <div class="legend-pill pill-sin-datos">
+            <span class="status-indicator indicator-gray"></span>
+            <strong>⚪ Sin datos:</strong> Sin publicaciones o evaluaciones registradas
+          </div>
         </div>
       </div>
 
@@ -307,14 +311,26 @@
                   <td class="text-center font-mono">{{ uni.total_sedes }}</td>
                   <td class="text-center font-mono">{{ uni.total_carreras }}</td>
                   <td class="text-center font-mono">{{ uni.total_publicaciones }}</td>
-                  <td class="text-center font-mono">{{ uni.promedio_academico }}</td>
-                  <td class="text-center font-mono">{{ uni.promedio_clima }}</td>
-                  <td class="text-center font-mono">{{ uni.promedio_infraestructura }}</td>
-                  <td class="text-center font-bold font-mono">{{ uni.promedio_general }}</td>
+                  <td class="text-center font-mono">
+                    <span v-if="uni.promedio_academico">{{ uni.promedio_academico }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-mono">
+                    <span v-if="uni.promedio_clima">{{ uni.promedio_clima }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-mono">
+                    <span v-if="uni.promedio_infraestructura">{{ uni.promedio_infraestructura }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-bold font-mono">
+                    <span v-if="uni.promedio_general">{{ uni.promedio_general }}</span>
+                    <span v-else class="badge-no-data">Sin datos</span>
+                  </td>
                   <td class="text-center">
-                    <span class="semaphore-badge" :class="`badge-${uni.estado_semaforo.toLowerCase()}`">
+                    <span class="semaphore-badge" :class="getSemaphoreBadgeClass(uni.promedio_general, uni.estado_semaforo)">
                       <span class="status-dot"></span>
-                      {{ uni.estado_semaforo }}
+                      {{ getSemaphoreLabel(uni.estado_semaforo) }}
                     </span>
                   </td>
                   <td class="text-right">
@@ -353,11 +369,18 @@
           </div>
 
           <div class="context-hero-right">
-            <div class="score-box-big" :class="getSemaphoreCardClass(selectedUni?.promedio_general)">
+            <div class="score-box-big" :class="getSemaphoreCardClass(selectedUni?.promedio_general, selectedUni?.estado_semaforo)">
               <span class="score-label">Promedio Institucional</span>
-              <div class="score-val-big">{{ selectedUni?.promedio_general || '0.00' }} / 5.00</div>
-              <span class="semaphore-badge" :class="`badge-${selectedUni?.estado_semaforo?.toLowerCase() || 'verde'}`">
-                {{ selectedUni?.estado_semaforo || 'VERDE' }}
+              <div class="score-val-big">
+                <template v-if="selectedUni?.promedio_general">
+                  {{ selectedUni.promedio_general }} / 5.00
+                </template>
+                <template v-else>
+                  <span class="val-no-data">Sin datos</span>
+                </template>
+              </div>
+              <span class="semaphore-badge" :class="getSemaphoreBadgeClass(selectedUni?.promedio_general, selectedUni?.estado_semaforo)">
+                {{ getSemaphoreLabel(selectedUni?.estado_semaforo) }}
               </span>
             </div>
           </div>
@@ -367,18 +390,18 @@
         <div class="scores-triad-grid">
           <div class="triad-card">
             <span class="triad-title">Rigor Académico</span>
-            <div class="triad-val">{{ selectedUni?.promedio_academico || '0.00' }}</div>
-            <div class="triad-bar"><div class="triad-fill fill-blue" :style="{ width: `${(Number(selectedUni?.promedio_academico || 0) / 5) * 100}%` }"></div></div>
+            <div class="triad-val">{{ selectedUni?.promedio_academico || 'Sin datos' }}</div>
+            <div class="triad-bar"><div class="triad-fill fill-blue" :style="{ width: `${selectedUni?.promedio_academico ? (Number(selectedUni.promedio_academico) / 5) * 100 : 0}%` }"></div></div>
           </div>
           <div class="triad-card">
             <span class="triad-title">Clima Estudiantil</span>
-            <div class="triad-val">{{ selectedUni?.promedio_clima || '0.00' }}</div>
-            <div class="triad-bar"><div class="triad-fill fill-amber" :style="{ width: `${(Number(selectedUni?.promedio_clima || 0) / 5) * 100}%` }"></div></div>
+            <div class="triad-val">{{ selectedUni?.promedio_clima || 'Sin datos' }}</div>
+            <div class="triad-bar"><div class="triad-fill fill-amber" :style="{ width: `${selectedUni?.promedio_clima ? (Number(selectedUni.promedio_clima) / 5) * 100 : 0}%` }"></div></div>
           </div>
           <div class="triad-card">
             <span class="triad-title">Infraestructura</span>
-            <div class="triad-val">{{ selectedUni?.promedio_infraestructura || '0.00' }}</div>
-            <div class="triad-bar"><div class="triad-fill fill-emerald" :style="{ width: `${(Number(selectedUni?.promedio_infraestructura || 0) / 5) * 100}%` }"></div></div>
+            <div class="triad-val">{{ selectedUni?.promedio_infraestructura || 'Sin datos' }}</div>
+            <div class="triad-bar"><div class="triad-fill fill-emerald" :style="{ width: `${selectedUni?.promedio_infraestructura ? (Number(selectedUni.promedio_infraestructura) / 5) * 100 : 0}%` }"></div></div>
           </div>
         </div>
 
@@ -430,14 +453,26 @@
                     <span class="geo-badge">{{ sc.ciudad }}, {{ sc.provincia }}</span>
                   </td>
                   <td class="text-center font-mono">{{ sc.total_publicaciones }}</td>
-                  <td class="text-center font-mono">{{ sc.promedio_academico }}</td>
-                  <td class="text-center font-mono">{{ sc.promedio_clima }}</td>
-                  <td class="text-center font-mono">{{ sc.promedio_infraestructura }}</td>
-                  <td class="text-center font-bold font-mono">{{ sc.promedio_carrera }}</td>
+                  <td class="text-center font-mono">
+                    <span v-if="sc.promedio_academico">{{ sc.promedio_academico }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-mono">
+                    <span v-if="sc.promedio_clima">{{ sc.promedio_clima }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-mono">
+                    <span v-if="sc.promedio_infraestructura">{{ sc.promedio_infraestructura }}</span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td class="text-center font-bold font-mono">
+                    <span v-if="sc.promedio_carrera">{{ sc.promedio_carrera }}</span>
+                    <span v-else class="badge-no-data">Sin datos</span>
+                  </td>
                   <td class="text-center">
-                    <span class="semaphore-badge" :class="`badge-${sc.estado_semaforo.toLowerCase()}`">
+                    <span class="semaphore-badge" :class="getSemaphoreBadgeClass(sc.promedio_carrera, sc.estado_semaforo)">
                       <span class="status-dot"></span>
-                      {{ sc.estado_semaforo }}
+                      {{ getSemaphoreLabel(sc.estado_semaforo) }}
                     </span>
                   </td>
                   <td class="text-right">
@@ -477,11 +512,18 @@
           </div>
 
           <div class="context-hero-right">
-            <div class="score-box-big" :class="getSemaphoreCardClass(level3Data?.contexto?.promedio_general)">
+            <div class="score-box-big" :class="getSemaphoreCardClass(level3Data?.contexto?.promedio_general, level3Data?.contexto?.estado_semaforo)">
               <span class="score-label">Score Carrera en Sede</span>
-              <div class="score-val-big">{{ level3Data?.contexto?.promedio_general || '0.00' }} / 5.00</div>
-              <span class="semaphore-badge" :class="`badge-${level3Data?.contexto?.estado_semaforo?.toLowerCase() || 'verde'}`">
-                {{ level3Data?.contexto?.estado_semaforo || 'VERDE' }}
+              <div class="score-val-big">
+                <template v-if="level3Data?.contexto?.promedio_general">
+                  {{ level3Data.contexto.promedio_general }} / 5.00
+                </template>
+                <template v-else>
+                  <span class="val-no-data">Sin datos</span>
+                </template>
+              </div>
+              <span class="semaphore-badge" :class="getSemaphoreBadgeClass(level3Data?.contexto?.promedio_general, level3Data?.contexto?.estado_semaforo)">
+                {{ getSemaphoreLabel(level3Data?.contexto?.estado_semaforo) }}
               </span>
             </div>
           </div>
@@ -757,25 +799,33 @@ const goToLevel3 = async (idSede, idCarrera) => {
 }
 
 // ─── SEMAPHORE UTILITIES ─────────────────────────────────────────────────────
-const getSemaphoreBadgeClass = (score) => {
-  const s = Number(score || 0)
+const getSemaphoreBadgeClass = (score, estado) => {
+  if (estado === 'SIN_DATOS' || !score || Number(score) === 0) return 'badge-sin-datos'
+  const s = Number(score)
   if (s >= 4.5) return 'badge-verde'
   if (s >= 3.5) return 'badge-amarillo'
   return 'badge-rojo'
 }
 
-const getSemaphoreCardClass = (score) => {
-  const s = Number(score || 0)
+const getSemaphoreCardClass = (score, estado) => {
+  if (estado === 'SIN_DATOS' || !score || Number(score) === 0) return 'border-sin-datos'
+  const s = Number(score)
   if (s >= 4.5) return 'border-verde'
   if (s >= 3.5) return 'border-amarillo'
   return 'border-rojo'
 }
 
 const getSemaphoreText = (score) => {
-  const s = Number(score || 0)
+  if (!score || Number(score) === 0) return 'Sin datos'
+  const s = Number(score)
   if (s >= 4.5) return 'VERDE'
   if (s >= 3.5) return 'AMARILLO'
   return 'ROJO'
+}
+
+const getSemaphoreLabel = (estado) => {
+  if (!estado || estado === 'SIN_DATOS') return 'Sin datos'
+  return estado
 }
 
 // ─── CHART.JS RENDERING ──────────────────────────────────────────────────────
@@ -1336,6 +1386,7 @@ onMounted(async () => {
 .badge-verde { background: #D1FAE5; color: #065F46; border: 1px solid #10B981; }
 .badge-amarillo { background: #FEF3C7; color: #92400E; border: 1px solid #F59E0B; }
 .badge-rojo { background: #FEE2E2; color: #991B1B; border: 1px solid #EF4444; }
+.badge-sin-datos { background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1; }
 
 .status-dot {
   width: 6px;
@@ -1347,6 +1398,35 @@ onMounted(async () => {
 .border-verde { border-left: 5px solid #10B981 !important; }
 .border-amarillo { border-left: 5px solid #F59E0B !important; }
 .border-rojo { border-left: 5px solid #EF4444 !important; }
+.border-sin-datos { border-left: 5px solid #94A3B8 !important; }
+
+.badge-no-data {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748B;
+  background: #F1F5F9;
+  border-radius: 9999px;
+  font-style: italic;
+}
+
+.val-no-data {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #94A3B8;
+  letter-spacing: -0.5px;
+}
+
+.pill-sin-datos {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #64748B;
+}
+
+.indicator-gray {
+  background: #94A3B8;
+}
 
 /* ─── Chart Section ─── */
 .chart-section-card {

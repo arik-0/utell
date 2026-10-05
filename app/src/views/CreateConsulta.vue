@@ -47,6 +47,7 @@
                   type="text" 
                   list="universidades" 
                   v-model="form.universidad" 
+                  @change="onUniversidadChange"
                   placeholder="Selecciona o escribe..." 
                   class="form-input select-input" 
                 />
@@ -57,19 +58,36 @@
             </div>
 
             <div class="input-field">
-              <label class="field-label">Carrera (Opcional)</label>
+              <label class="field-label">Sede Territorial (Opcional)</label>
               <div class="select-wrap">
                 <input 
                   type="text" 
-                  list="carreras" 
-                  v-model="form.carrera" 
-                  placeholder="Selecciona o escribe..." 
+                  list="sedes" 
+                  v-model="form.sede" 
+                  @change="onSedeChange"
+                  placeholder="Selecciona sede..." 
                   class="form-input select-input" 
                 />
-                <datalist id="carreras">
-                  <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
+                <datalist id="sedes">
+                  <option v-for="s in sedesFiltradas" :key="s.idSede" :value="s.nombre"></option>
                 </datalist>
               </div>
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label class="field-label">Carrera (Opcional)</label>
+            <div class="select-wrap">
+              <input 
+                type="text" 
+                list="carreras" 
+                v-model="form.carrera" 
+                placeholder="Selecciona o escribe..." 
+                class="form-input select-input" 
+              />
+              <datalist id="carreras">
+                <option v-for="car in carreras" :key="car.idCarrera" :value="car.nombre"></option>
+              </datalist>
             </div>
           </div>
 
@@ -128,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
@@ -141,11 +159,51 @@ const toastStore = useToastStore()
 const isLoading = ref(false)
 const errorMsg = ref('')
 const universidades = ref([])
+const sedes = ref([])
 const carreras = ref([])
-const form = ref({ titulo: '', universidad: '', carrera: '', texto: '' })
+const form = ref({ titulo: '', universidad: '', sede: '', carrera: '', texto: '' })
 
 const imageFileInput = ref(null)
 const attachedImage = ref(null)
+
+const sedesFiltradas = computed(() => {
+  if (!form.value.universidad || !form.value.universidad.trim()) {
+    return sedes.value
+  }
+  const uni = universidades.value.find(
+    u => u.nombre.toLowerCase() === form.value.universidad.trim().toLowerCase()
+  )
+  if (!uni) return sedes.value
+  return sedes.value.filter(s => s.idUniversidad === uni.idUniversidad)
+})
+
+const onSedeChange = () => {
+  if (!form.value.sede) return
+  const matchedSede = sedes.value.find(
+    s => s.nombre.toLowerCase() === form.value.sede.trim().toLowerCase()
+  )
+  if (matchedSede && matchedSede.idUniversidad) {
+    const parentUni = universidades.value.find(u => u.idUniversidad === matchedSede.idUniversidad)
+    if (parentUni && (!form.value.universidad || !form.value.universidad.trim())) {
+      form.value.universidad = parentUni.nombre
+    }
+  }
+}
+
+const onUniversidadChange = () => {
+  if (!form.value.universidad) return
+  const uni = universidades.value.find(
+    u => u.nombre.toLowerCase() === form.value.universidad.trim().toLowerCase()
+  )
+  if (uni && form.value.sede) {
+    const sedeObj = sedes.value.find(
+      s => s.nombre.toLowerCase() === form.value.sede.trim().toLowerCase()
+    )
+    if (sedeObj && sedeObj.idUniversidad !== uni.idUniversidad) {
+      form.value.sede = ''
+    }
+  }
+}
 
 const handleImageSelection = (event) => {
   const file = event.target.files?.[0]
@@ -173,12 +231,16 @@ const removeAttachment = () => {
 
 onMounted(async () => {
   try {
-    const [resUni, resCar] = await Promise.allSettled([
+    const [resUni, resSed, resCar] = await Promise.allSettled([
       api.get(`/universidades`),
+      api.get(`/sedes`),
       api.get(`/carreras`)
     ])
     if (resUni.status === 'fulfilled' && Array.isArray(resUni.value.data)) {
       universidades.value = resUni.value.data
+    }
+    if (resSed.status === 'fulfilled' && Array.isArray(resSed.value.data)) {
+      sedes.value = resSed.value.data
     }
     if (resCar.status === 'fulfilled' && Array.isArray(resCar.value.data)) {
       carreras.value = resCar.value.data
@@ -224,6 +286,13 @@ const submitPost = async () => {
       const uniObj = universidades.value.find(u => u.nombre === form.value.universidad.trim())
       if (uniObj && uniObj.idUniversidad) {
         formData.append('idUniversidad', uniObj.idUniversidad)
+      }
+    }
+    if (form.value.sede && form.value.sede.trim()) {
+      formData.append('sede', form.value.sede.trim())
+      const sedeObj = sedes.value.find(s => s.nombre.toLowerCase() === form.value.sede.trim().toLowerCase())
+      if (sedeObj && sedeObj.idSede) {
+        formData.append('idSede', sedeObj.idSede)
       }
     }
     if (form.value.carrera && form.value.carrera.trim()) {

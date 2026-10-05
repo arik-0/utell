@@ -79,8 +79,10 @@ $app->post('/publicacion/nuevo', function(Request $request, Response $response) 
     $titulo          = $request->getParam('titulo') ?? '';
     $texto           = $request->getParam('texto') ?? '';
     $idUniversidad   = $request->getParam('idUniversidad');
+    $idSede          = $request->getParam('idSede');
     $idCarrera       = $request->getParam('idCarrera');
     $nombreUniversidad = $request->getParam('universidad');
+    $nombreSede        = $request->getParam('sede');
     $nombreCarrera     = $request->getParam('carrera');
 
     if (empty($idUsuario) || empty(trim($texto))) {
@@ -95,6 +97,20 @@ $app->post('/publicacion/nuevo', function(Request $request, Response $response) 
             $rowUni = $stmtUni->fetch(PDO::FETCH_ASSOC);
             if ($rowUni) {
                 $idUni = (int)$rowUni['idUniversidad'];
+            }
+        }
+
+        $idSed = !empty($idSede) ? (int)$idSede : null;
+        if (empty($idSed) && !empty($nombreSede)) {
+            $sqlSed = "SELECT idSede, idUniversidad FROM sedes WHERE nombre = :nombre " . (!empty($idUni) ? "AND idUniversidad = :idUni " : "") . "LIMIT 1";
+            $stmtSed = $db->prepare($sqlSed);
+            $paramsSed = [':nombre' => $nombreSede];
+            if (!empty($idUni)) $paramsSed[':idUni'] = $idUni;
+            $stmtSed->execute($paramsSed);
+            $rowSed = $stmtSed->fetch(PDO::FETCH_ASSOC);
+            if ($rowSed) {
+                $idSed = (int)$rowSed['idSede'];
+                if (empty($idUni)) $idUni = (int)$rowSed['idUniversidad'];
             }
         }
 
@@ -115,7 +131,7 @@ $app->post('/publicacion/nuevo', function(Request $request, Response $response) 
             'fecha'           => date('Y-m-d'),
             'hora'            => date('H:i:s'),
             'idUniversidad'   => $idUni,
-            'idSede'          => null,
+            'idSede'          => $idSed,
             'idCarrera'       => $idCar,
             'texto'           => $texto,
             'puntuacionClima'          => $request->getParam('puntuacionClima'),
