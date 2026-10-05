@@ -13,7 +13,7 @@ if (!function_exists('jsonResponse')) {
 }
 
 // GET Respuestas de una publicacion (publico)
-$app->get('/publicacion/{id:[0-9]+}/respuestas', function(Request $request, Response $response, array $args) {
+$obtenerRespuestasHandler = function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
     try {
         $respuestas = RespuestaService::getInstance()->obtenerRespuestasPorPublicacion($id);
@@ -21,10 +21,12 @@ $app->get('/publicacion/{id:[0-9]+}/respuestas', function(Request $request, Resp
     } catch(Exception $e) {
         return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+};
+$app->get('/publicacion/{id:[0-9]+}/respuestas', $obtenerRespuestasHandler);
+$app->get('/publicaciones/{id:[0-9]+}/respuestas', $obtenerRespuestasHandler);
 
 // POST Crear respuesta (requiere JWT)
-$app->post('/respuesta/nuevo', function(Request $request, Response $response) {
+$crearRespuestaHandler = function(Request $request, Response $response) {
     $datos = [
         'idPublicacion' => $request->getParam('idPublicacion'),
         'idUsuario'     => $request->getParam('idUsuario'),
@@ -40,4 +42,7 @@ $app->post('/respuesta/nuevo', function(Request $request, Response $response) {
     } catch(Exception $e) {
         return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-})->add(new AuthMiddleware());
+};
+$app->post('/respuesta/nuevo', $crearRespuestaHandler)->add(new AuthMiddleware());
+$app->post('/respuestas/nuevo', $crearRespuestaHandler)->add(new AuthMiddleware());
+

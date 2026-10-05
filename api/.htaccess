@@ -1,5 +1,6 @@
 # Deny access to sensitive files and directories
 <IfModule mod_rewrite.c>
+    Options -MultiViews
     RewriteEngine On
     
     # Pass Authorization header to PHP

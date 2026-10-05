@@ -37,6 +37,15 @@ require_once __DIR__ . '/../src/config/db.php';
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 ini_set('display_errors', '0');
 
+// Fix Slim 3 basePath stripping bug when root URL starts with script dir (e.g. /publicacion when script is /public/index.php)
+if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
+    $reqPath = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+    if ($scriptDir !== '/' && $scriptDir !== '' && strpos($reqPath, $scriptDir . '/') !== 0 && $reqPath !== $scriptDir) {
+        $_SERVER['SCRIPT_NAME'] = '/' . basename($_SERVER['SCRIPT_NAME']);
+    }
+}
+
 $config = [ 
     "settings" => [ 
         "displayErrorDetails" => false,

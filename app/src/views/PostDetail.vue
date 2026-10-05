@@ -182,10 +182,16 @@ const isLoadingRespuestas = ref(true)
 const isSubmitting        = ref(false)
 
 const fetchPost = async () => {
+  isLoadingPost.value = true
   try {
     const userId = authStore.user?.idUsuario || 0
-    const res    = await api.get(`/publicacion/${route.params.id}?idUsuario=${userId}`)
-    if (res.data && typeof res.data === 'object' && !res.data.error) {
+    let res
+    try {
+      res = await api.get(`/publicacion/${route.params.id}?idUsuario=${userId}`)
+    } catch (err) {
+      res = await api.get(`/publicaciones/${route.params.id}?idUsuario=${userId}`)
+    }
+    if (res?.data && typeof res.data === 'object' && !res.data.error) {
       post.value = res.data
     }
   } catch (error) {
@@ -196,9 +202,15 @@ const fetchPost = async () => {
 }
 
 const fetchRespuestas = async () => {
+  isLoadingRespuestas.value = true
   try {
-    const res = await api.get(`/publicacion/${route.params.id}/respuestas`)
-    if (Array.isArray(res.data)) {
+    let res
+    try {
+      res = await api.get(`/publicacion/${route.params.id}/respuestas`)
+    } catch (err) {
+      res = await api.get(`/publicaciones/${route.params.id}/respuestas`)
+    }
+    if (Array.isArray(res?.data)) {
       respuestas.value = res.data
     }
   } catch (error) {
@@ -218,8 +230,13 @@ const toggleLike = async (postItem) => {
   try {
     const fd = new FormData()
     fd.append('idUsuario', authStore.user.idUsuario)
-    const res = await api.post(`/publicacion/${postItem.idPublicacion}/like`, fd)
-    if (res.data && res.data.totalLikes !== undefined) {
+    let res
+    try {
+      res = await api.post(`/publicacion/${postItem.idPublicacion}/like`, fd)
+    } catch (err) {
+      res = await api.post(`/publicaciones/${postItem.idPublicacion}/like`, fd)
+    }
+    if (res?.data && res.data.totalLikes !== undefined) {
       postItem.likes    = res.data.totalLikes
       postItem.hasLiked = res.data.likedByUser ? 1 : 0
     }

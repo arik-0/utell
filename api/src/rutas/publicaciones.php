@@ -56,8 +56,8 @@ $app->get('/tured', function(Request $request, Response $response) {
     }
 })->add(new AuthMiddleware());
 
-// GET /publicacion/{id} — detalle de una publicacion (publico)
-$app->get('/publicacion/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+// GET /publicacion/{id} y /publicaciones/{id} — detalle de una publicacion (publico)
+$detallePublicacionHandler = function(Request $request, Response $response, array $args) {
     $id = (int)$args['id'];
     $idUsuario = (int)($request->getQueryParam('idUsuario') ?? 0);
     try {
@@ -67,10 +67,12 @@ $app->get('/publicacion/{id:[0-9]+}', function(Request $request, Response $respo
     } catch(Exception $e) {
         return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-});
+};
+$app->get('/publicacion/{id:[0-9]+}', $detallePublicacionHandler);
+$app->get('/publicaciones/{id:[0-9]+}', $detallePublicacionHandler);
 
-// POST /publicacion/nuevo — crear publicacion (requiere JWT)
-$app->post('/publicacion/nuevo', function(Request $request, Response $response) {
+// POST /publicacion/nuevo y /publicaciones/nuevo — crear publicacion (requiere JWT)
+$crearPublicacionHandler = function(Request $request, Response $response) {
     $db = db::getInstance()->getConnection();
 
     $jwtPayload = $request->getAttribute('jwtPayload');
@@ -145,10 +147,12 @@ $app->post('/publicacion/nuevo', function(Request $request, Response $response) 
     } catch(Exception $e) {
         return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-})->add(new AuthMiddleware());
+};
+$app->post('/publicacion/nuevo', $crearPublicacionHandler)->add(new AuthMiddleware());
+$app->post('/publicaciones/nuevo', $crearPublicacionHandler)->add(new AuthMiddleware());
 
-// POST /publicacion/{id}/like — toggle like (requiere JWT)
-$app->post('/publicacion/{id:[0-9]+}/like', function(Request $request, Response $response, array $args) {
+// POST /publicacion/{id}/like y /publicaciones/{id}/like — toggle like (requiere JWT)
+$toggleLikeHandler = function(Request $request, Response $response, array $args) {
     $idPublicacion = (int)$args['id'];
     $idUsuario = (int)$request->getParam('idUsuario');
     if ($idUsuario === 0) {
@@ -160,4 +164,7 @@ $app->post('/publicacion/{id:[0-9]+}/like', function(Request $request, Response 
     } catch(Exception $e) {
         return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
     }
-})->add(new AuthMiddleware());
+};
+$app->post('/publicacion/{id:[0-9]+}/like', $toggleLikeHandler)->add(new AuthMiddleware());
+$app->post('/publicaciones/{id:[0-9]+}/like', $toggleLikeHandler)->add(new AuthMiddleware());
+
