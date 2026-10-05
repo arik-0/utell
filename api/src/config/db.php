@@ -43,6 +43,7 @@
           $this->connection->exec("SET NAMES utf8mb4");
           $connected = true;
           $this->dbName = $dbname;
+          self::asegurarEsquema($this->connection);
           break;
         } catch (PDOException $e) {
           $lastException = $e;
@@ -51,6 +52,58 @@
 
       if (!$connected && $lastException) {
         throw $lastException;
+      }
+    }
+
+    private static $esquemaListo = false;
+
+    private static function asegurarEsquema(PDO $pdo): void {
+      if (self::$esquemaListo) {
+        return;
+      }
+      self::$esquemaListo = true;
+
+      try {
+        // Verificar si existe la tabla publicaciones
+        $checkPub = $pdo->query("SHOW TABLES LIKE 'publicaciones'")->fetch();
+        if (!$checkPub) {
+          return;
+        }
+
+        // Verificar si ya existen las columnas de puntuación
+        $checkCol = $pdo->query("SHOW COLUMNS FROM `publicaciones` LIKE 'puntuacionAcademica'")->fetch();
+        if (!$checkCol) {
+          // Agregar columnas a publicaciones
+          try { $pdo->exec("ALTER TABLE `publicaciones` ADD COLUMN `puntuacionClima` TINYINT NULL DEFAULT 5"); } catch (Exception $e) {}
+          try { $pdo->exec("ALTER TABLE `publicaciones` ADD COLUMN `puntuacionInfraestructura` TINYINT NULL DEFAULT 5"); } catch (Exception $e) {}
+          try { $pdo->exec("ALTER TABLE `publicaciones` ADD COLUMN `puntuacionAcademica` TINYINT NULL DEFAULT 5"); } catch (Exception $e) {}
+
+          // Si existe la tabla experiencias, sincronizar las puntuaciones históricas
+          $checkExp = $pdo->query("SHOW TABLES LIKE 'experiencias'")->fetch();
+          if ($checkExp) {
+            try {
+              $pdo->exec("
+                UPDATE `publicaciones` p
+                JOIN `experiencias` e ON e.idExperiencia = p.idPublicacion
+                SET p.puntuacionClima = e.puntuacionClima,
+                    p.puntuacionInfraestructura = e.puntuacionInfraestructura,
+                    p.puntuacionAcademica = e.puntuacionAcademica
+                WHERE p.tipoPublicacion = 'Experiencia'
+              ");
+            } catch (Exception $e) {}
+          }
+
+          // Asignar default a experiencias sin puntuación
+          try {
+            $pdo->exec("
+              UPDATE `publicaciones`
+              SET puntuacionClima = 5, puntuacionInfraestructura = 5, puntuacionAcademica = 5
+              WHERE tipoPublicacion = 'Experiencia' AND puntuacionClima IS NULL
+            ");
+          } catch (Exception $e) {}
+        }
+      } catch (Exception $e) {
+        error_log("Error en db::asegurarEsquema: " . $e->getMessage());
       }
     }
 
