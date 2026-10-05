@@ -57,7 +57,7 @@ class PublicacionRepository {
                        ) as rankingScore
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-                LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
+                LEFT JOIN usuarios meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
                 LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
@@ -103,7 +103,7 @@ class PublicacionRepository {
                              ) THEN 1 ELSE 0 END) as esAmigoDirecto
                 FROM publicaciones p 
                 INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-                LEFT JOIN inscripciones meIns ON meIns.idUsuario = :meId
+                LEFT JOIN usuarios meIns ON meIns.idUsuario = :meId
                 LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
                 LEFT JOIN sedes s ON p.idSede = s.idSede
                 LEFT JOIN carreras c ON p.idCarrera = c.idCarrera

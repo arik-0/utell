@@ -137,6 +137,31 @@
             ");
           }
         } catch (Exception $e) {}
+
+        // Asegurar tabla inscripciones y sincronizar con usuarios
+        try {
+          $pdo->exec("
+            CREATE TABLE IF NOT EXISTS `inscripciones` (
+              `idInscripcion` INT(11) NOT NULL AUTO_INCREMENT,
+              `idUsuario` INT(11) NOT NULL,
+              `idUniversidad` INT(11) DEFAULT NULL,
+              `idCarrera` INT(11) DEFAULT NULL,
+              `anioIngreso` INT(4) DEFAULT NULL,
+              `estado` VARCHAR(50) DEFAULT 'activo',
+              PRIMARY KEY (`idInscripcion`),
+              UNIQUE KEY `idx_usuario_inscripcion` (`idUsuario`),
+              KEY `idx_inscripcion_uni` (`idUniversidad`),
+              KEY `idx_inscripcion_car` (`idCarrera`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+          ");
+
+          $pdo->exec("
+            INSERT IGNORE INTO `inscripciones` (idUsuario, idUniversidad, idCarrera, anioIngreso, estado)
+            SELECT idUsuario, idUniversidad, idCarrera, 2026, 'activo'
+            FROM usuarios
+            WHERE idUniversidad IS NOT NULL OR idCarrera IS NOT NULL;
+          ");
+        } catch (Exception $e) {}
       } catch (Exception $e) {
         error_log("Error en db::asegurarEsquema: " . $e->getMessage());
       }

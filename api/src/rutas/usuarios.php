@@ -64,6 +64,8 @@ $app->put('/editarPerfil/{id:[0-9]+}', function(Request $request, Response $resp
         'descripcion' => $request->getParam('descripcion'),
         'trayectoria' => $request->getParam('trayectoria'),
         'idCiudad'    => $request->getParam('idCiudad'),
+        'idUniversidad' => $request->getParam('idUniversidad'),
+        'idCarrera'   => $request->getParam('idCarrera'),
     ];
     try {
         $modificado = UsuarioService::getInstance()->actualizarUsuario($id, $datos);

@@ -66,12 +66,10 @@ class AmistadRepository {
                     CASE WHEN a.idSolicitante = :uid3 THEN uR.apellido    ELSE uS.apellido    END AS apellido,
                     CASE WHEN a.idSolicitante = :uid4 THEN uR.fotoPerfil  ELSE uS.fotoPerfil  END AS fotoPerfil,
                     CASE WHEN a.idSolicitante = :uid5 THEN uR.tipoPerfil  ELSE uS.tipoPerfil  END AS tipoPerfil,
-                    CASE WHEN a.idSolicitante = :uid6 THEN insR.idUniversidad ELSE insS.idUniversidad END AS idUniversidad
+                    CASE WHEN a.idSolicitante = :uid6 THEN uR.idUniversidad ELSE uS.idUniversidad END AS idUniversidad
                  FROM amigos a
                  JOIN usuarios uS ON a.idSolicitante = uS.idUsuario
                  JOIN usuarios uR ON a.idReceptor    = uR.idUsuario
-                 LEFT JOIN inscripciones insS ON uS.idUsuario = insS.idUsuario
-                 LEFT JOIN inscripciones insR ON uR.idUsuario = insR.idUsuario
                  WHERE (a.idSolicitante = :uid7 OR a.idReceptor = :uid8)
                    AND a.estado = 'aceptada'";
         $stmt = $this->db->prepare($sql);

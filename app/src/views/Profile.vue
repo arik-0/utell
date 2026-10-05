@@ -392,6 +392,9 @@ const fetchProfileData = async () => {
     }
   } catch (error) {
     console.error('Error fetching profile data:', error)
+    if (!isOtherUser.value && authStore.user) {
+      profileUser.value = authStore.user
+    }
   } finally {
     isLoading.value = false
   }

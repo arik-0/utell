@@ -11,8 +11,8 @@ class UsuarioRepository {
     public function guardar(Usuario $usuario): int {
         $idCiudad = $usuario->getIdCiudad() ?: 1;
 
-        $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idRol) 
-                VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad, 2)";
+        $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol) 
+                VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad, :uni, :car, 2)";
         
         $stmt = $this->db->prepare($sql);
         
@@ -27,7 +27,9 @@ class UsuarioRepository {
             ':tipo'   => $usuario->getTipoPerfil() ?: 'Estudiante',
             ':desc'   => $usuario->getDescripcion() ?: '',
             ':trayec' => $usuario->getTrayectoria() ?: '',
-            ':ciudad' => $idCiudad
+            ':ciudad' => $idCiudad,
+            ':uni'    => $usuario->getIdUniversidad(),
+            ':car'    => $usuario->getIdCarrera()
         ]);
         
         $idUsuario = (int) $this->db->lastInsertId();
@@ -58,7 +60,9 @@ class UsuarioRepository {
                 tipoPerfil = :tipo,
                 descripcion = :desc,
                 trayectoria = :trayec,
-                idCiudad = :ciudad";
+                idCiudad = :ciudad,
+                idUniversidad = :uni,
+                idCarrera = :car";
 
         if (!empty($usuario->getPassword())) {
             $sql .= ", password = :pass";
@@ -79,7 +83,9 @@ class UsuarioRepository {
             ':tipo'   => $usuario->getTipoPerfil(),
             ':desc'   => $usuario->getDescripcion(),
             ':trayec' => $usuario->getTrayectoria(),
-            ':ciudad' => $usuario->getIdCiudad()
+            ':ciudad' => $usuario->getIdCiudad(),
+            ':uni'    => $usuario->getIdUniversidad(),
+            ':car'    => $usuario->getIdCarrera()
         ];
 
         if (!empty($usuario->getPassword())) {
@@ -148,16 +154,15 @@ class UsuarioRepository {
     public function obtenerPerfilCompleto(int $idUsuario): ?array {
         $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.fNac, u.email, u.fotoPerfil, u.celular,
                        u.tipoPerfil, u.descripcion, u.trayectoria, u.idCiudad, u.idRol,
-                       ins.idUniversidad, ins.idCarrera,
+                       u.idUniversidad, u.idCarrera,
                        uni.nombre as nombreUniversidad,
                        car.nombre as nombreCarrera,
                        ciu.nombre as nombreCiudad,
                        (SELECT COUNT(*) FROM amigos a WHERE (a.idSolicitante = u.idUsuario OR a.idReceptor = u.idUsuario) AND a.estado = 'aceptada') as totalAmigos,
                        (SELECT COUNT(*) FROM publicaciones p WHERE p.idUsuario = u.idUsuario) as totalPublicaciones
                 FROM usuarios u
-                LEFT JOIN inscripciones ins ON u.idUsuario = ins.idUsuario
-                LEFT JOIN universidades uni ON ins.idUniversidad = uni.idUniversidad
-                LEFT JOIN carreras car ON ins.idCarrera = car.idCarrera
+                LEFT JOIN universidades uni ON u.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras car ON u.idCarrera = car.idCarrera
                 LEFT JOIN ciudades ciu ON u.idCiudad = ciu.idCiudad
                 WHERE u.idUsuario = :id
                 LIMIT 1";

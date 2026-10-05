@@ -62,7 +62,9 @@ class UsuarioService {
             $datos['fotoPerfil'] ?? $usuarioActual->getFotoPerfil(),
             $datos['celular'] ?? $usuarioActual->getCelular(),
             $datos['descripcion'] ?? $usuarioActual->getDescripcion(),
-            $datos['trayectoria'] ?? $usuarioActual->getTrayectoria()
+            $datos['trayectoria'] ?? $usuarioActual->getTrayectoria(),
+            $datos['idUniversidad'] ?? $usuarioActual->getIdUniversidad(),
+            $datos['idCarrera'] ?? $usuarioActual->getIdCarrera()
         );
 
         return $this->usuarioRepository->actualizar($usuarioModificado);

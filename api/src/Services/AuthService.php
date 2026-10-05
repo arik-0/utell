@@ -184,10 +184,13 @@ class AuthService {
             $datos['ciudad']    ?? 'Rosario'
         );
 
+        $idUni = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
+        $idCar = !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null;
+
         $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular,
-                                      tipoPerfil, descripcion, trayectoria, idCiudad, idRol)
+                                      tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
                  VALUES (:nombre, :apellido, :fNac, :email, :password, :foto, :cel,
-                         :tipo, :desc, :trayec, :ciudad, 2)";
+                         :tipo, :desc, :trayec, :ciudad, :uni, :car, 2)";
         $stmt = $db->prepare($sql);
 
         $ok = $stmt->execute([
@@ -201,7 +204,9 @@ class AuthService {
             ':tipo'     => $datos['tipoPerfil']     ?? 'Estudiante',
             ':desc'     => $datos['descripcion']    ?? '',
             ':trayec'   => $datos['trayectoria']    ?? '',
-            ':ciudad'   => $idCiudad
+            ':ciudad'   => $idCiudad,
+            ':uni'      => $idUni,
+            ':car'      => $idCar
         ]);
 
         if (!$ok) {
@@ -211,8 +216,6 @@ class AuthService {
         $idUsuario = (int) $db->lastInsertId();
 
         // Guardar relación académica en tabla inscripciones (si aplica)
-        $idUni = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
-        $idCar = !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null;
         if ($idUni || $idCar) {
             try {
                 $stmtIns = $db->prepare("INSERT INTO inscripciones (idUsuario, idUniversidad, idCarrera, anioIngreso, estado) VALUES (:uid, :uni, :car, :anio, 'activo')");
