@@ -84,33 +84,6 @@
         ¿No tienes cuenta?
         <router-link to="/register" class="register-link">Crear cuenta</router-link>
       </p>
-
-      <!-- ─── ACCESOS RÁPIDOS DE EVALUACIÓN PARA CÁTEDRA ─── -->
-      <div class="demo-box">
-        <span class="demo-title">Cuentas para evaluación docente (clic para autocompletar):</span>
-        <div class="demo-grid">
-          <button type="button" class="demo-pill" @click="setCredentials('rectorado@uai.edu.ar', '123456')">
-            <span class="demo-badge badge-uni">🏛️ Rectorado UAI</span>
-            <span class="demo-mail">rectorado@uai.edu.ar</span>
-          </button>
-          <button type="button" class="demo-pill" @click="setCredentials('admin@uai.edu.ar', '123456')">
-            <span class="demo-badge badge-admin">🛡️ Administrador</span>
-            <span class="demo-mail">admin@uai.edu.ar</span>
-          </button>
-          <button type="button" class="demo-pill" @click="setCredentials('moderador@uai.edu.ar', '123456')">
-            <span class="demo-badge badge-mod">⚖️ Moderador</span>
-            <span class="demo-mail">moderador@uai.edu.ar</span>
-          </button>
-          <button type="button" class="demo-pill" @click="setCredentials('lucia.albarracin@uai.edu.ar', '123456')">
-            <span class="demo-badge badge-doc">🎓 Docente</span>
-            <span class="demo-mail">lucia.albarracin@uai.edu.ar</span>
-          </button>
-          <button type="button" class="demo-pill" @click="setCredentials('arikayelin@gmail.com', '123456')">
-            <span class="demo-badge badge-est">👤 Estudiante</span>
-            <span class="demo-mail">arikayelin@gmail.com</span>
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -134,12 +107,6 @@ const rememberMe      = ref(false)
 const isLoading       = ref(false)
 const isLoadingGoogle = ref(false)
 const errorMessage    = ref('')
-
-const setCredentials = (usrEmail, usrPass = '123456') => {
-  email.value = usrEmail
-  password.value = usrPass
-  errorMessage.value = ''
-}
 
 const handleForgotPassword = () => {
   toastStore.info('Para restablecer tu contraseña, contacta al soporte técnico o al administrador universitario.', 4500)
@@ -503,70 +470,6 @@ onMounted(() => {
   margin-left: 4px;
 }
 
-/* ─── Demo Accounts Box ─── */
-.demo-box {
-  margin-top: 24px;
-  padding: 14px 16px;
-  background: var(--bg-main, #f8fafc);
-  border: 1px dashed var(--border-medium, #cbd5e1);
-  border-radius: 14px;
-}
-
-.demo-title {
-  display: block;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-secondary, #64748b);
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.demo-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.demo-pill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border-light, #e2e8f0);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  text-align: left;
-  width: 100%;
-}
-
-.demo-pill:hover {
-  border-color: var(--primary, #2563eb);
-  background: rgba(37, 99, 235, 0.04);
-  transform: translateX(2px);
-}
-
-.demo-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 7px;
-  border-radius: 5px;
-}
-
-.badge-uni { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-.badge-admin { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.badge-mod { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-.badge-doc { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-.badge-est { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-
-.demo-mail {
-  font-size: 11.5px;
-  font-family: monospace;
-  color: var(--text-muted, #64748b);
-}
-
 /* ─── Desktop & Tablet Layout ─── */
 @media (min-width: 768px) {
   .login-page {
@@ -574,13 +477,13 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     background: transparent;
-    padding: 30px 20px;
+    padding: 40px 20px;
     width: 100%;
   }
 
   .top-section {
     flex: 0 0 380px;
-    height: 640px;
+    height: 560px;
     border-radius: 28px 0 0 28px;
     box-shadow: var(--shadow-lg);
   }
@@ -590,17 +493,15 @@ onMounted(() => {
   }
 
   .bottom-card {
-    flex: 0 0 490px;
-    min-height: 640px;
-    max-height: 90vh;
-    height: auto;
+    flex: 0 0 460px;
+    height: 560px;
     margin-top: 0;
     border-radius: 0 28px 28px 0;
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-light);
     border-left: none;
     overflow-y: auto;
-    padding: 36px 32px;
+    padding: 40px 36px;
     background: var(--bg-card);
   }
 }
