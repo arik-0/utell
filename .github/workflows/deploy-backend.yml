@@ -26,6 +26,9 @@ jobs:
           server: ${{ secrets.ALWAYSDATA_FTP_SERVER }}
           username: ${{ secrets.ALWAYSDATA_FTP_USERNAME }}
           password: ${{ secrets.ALWAYSDATA_FTP_PASSWORD }}
+          protocol: ftps
+          security: loose
+          port: 21
           server-dir: ${{ secrets.ALWAYSDATA_FTP_PATH || 'www/' }}
           local-dir: ./api/
           dangerous-clean-slate: false
