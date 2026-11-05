@@ -34,10 +34,7 @@ router.beforeEach((to) => {
 
   // 1. Si ya está autenticado e intenta ir al login ('/'), redirigir según su rol
   if (to.path === '/' && authStore.user) {
-    const rol = Number(authStore.user.idRol || 0)
-    const perfil = authStore.user.tipoPerfil || ''
-    const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-    return isStaffOrInstitution ? { path: '/dashboard' } : { path: '/feed' }
+    return authStore.isStaffOrInstitution ? { path: '/dashboard' } : { path: '/feed' }
   }
 
   // 2. Rutas protegidas que requieren autenticación
@@ -50,14 +47,10 @@ router.beforeEach((to) => {
     if (!authStore.user) {
       return { name: 'Login' }
     }
-    const rol = Number(authStore.user.idRol || 0)
-    const perfil = authStore.user.tipoPerfil || ''
-    const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-    if (!isStaffOrInstitution) {
+    if (!authStore.isStaffOrInstitution) {
       return { name: 'Feed' }
     }
   }
 })
 
 export default router
-

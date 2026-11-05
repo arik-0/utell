@@ -1,20 +1,22 @@
 # U-Tell - Plataforma Universitaria
 
-U-Tell es una plataforma interactiva para estudiantes universitarios, donde pueden compartir experiencias, realizar consultas sobre carreras y sedes, e interactuar con otros estudiantes.
+U-Tell es una plataforma interactiva para la comunidad universitaria donde postulantes, estudiantes, graduados, docentes e instituciones pueden compartir experiencias verificadas, resolver consultas académicas, conectar con pares y analizar indicadores de clima estudiantil.
 
 ## Arquitectura del Proyecto
 
-El proyecto está dividido en dos partes principales:
-- **`app/`**: Frontend desarrollado en **Vue 3** y **Vite**.
-- **`api/`**: Backend desarrollado en PHP utilizando el microframework **Slim 3**.
-- **Base de datos**: Relacional, utilizando MySQL/MariaDB (schema provisto en `u-tell.sql`).
+El proyecto sigue una arquitectura cliente-servidor desacoplada en capas:
+- **`app/`**: Frontend SPA desarrollado en **Vue 3** (Composition API), **Pinia**, **Vue Router** y **Vite**.
+- **`api/`**: Backend API RESTful en **PHP 8+ / Slim 3** estructurado en N-Capas (`rutas/`, `middleware/`, `Services/`, `Facades/`, `Factories/`, `Strategies/`, `Repositories/`, `Models/`).
+- **`database/`**: Scripts SQL unificados en MySQL/MariaDB (`utf8mb4`, motor InnoDB):
+  - `database/01_schema.sql`: Esquema relacional completo, claves foráneas, índices y restricciones de integridad.
+  - `database/02_seed.sql`: Datos semilla coherentes de prueba (roles, permisos, geografía, universidades, sedes, oferta académica, usuarios, publicaciones e interacciones).
 
 ---
 
 ## Requisitos Previos
 
-- **XAMPP** (o cualquier servidor con PHP >= 8.0 y MySQL).
-- **Node.js** (v16 o superior) y **npm** (para el frontend).
+- **XAMPP** (o servidor con PHP >= 8.0 y MySQL 8.0+ / MariaDB 10.4+).
+- **Node.js** (v18 o superior) y **npm** (para el frontend).
 - **Composer** (para las dependencias del backend PHP).
 
 ---
@@ -23,37 +25,28 @@ El proyecto está dividido en dos partes principales:
 
 ### 1. Base de Datos
 1. Abre phpMyAdmin o tu cliente MySQL preferido.
-2. Crea una base de datos llamada `u-tell`.
-3. Importa el archivo `u-tell.sql` ubicado en la raíz de este proyecto.
-4. (Opcional) Importa el archivo `mock_data.sql` si deseas tener datos de prueba (usuarios, universidades, carreras, publicaciones).
+2. Crea una base de datos llamada `u-tell` con cotejamiento `utf8mb4_unicode_ci`.
+3. Importa en orden:
+   - `database/01_schema.sql` (estructura completa de tablas).
+   - `database/02_seed.sql` (datos iniciales de prueba; contraseña de cuentas demo: `123456`).
+   - Alternativamente, desde consola puedes ejecutar `php api/src/config/seed.php`.
 
 ### 2. Backend (API - PHP Slim 3)
-El backend sirve los endpoints de los cuales el frontend consume la información.
 1. Abre una terminal y dirígete a la carpeta `api/`:
    ```bash
    cd api
-   ```
-2. Instala las dependencias de PHP usando Composer:
-   ```bash
    composer install
    ```
-3. Asegúrate de que el servidor Apache (en XAMPP) esté corriendo y apuntando correctamente a la carpeta `htdocs/utell`. La API estará disponible típicamente en `http://localhost/utell/api/public`.
+2. Asegúrate de que Apache (XAMPP) esté corriendo sobre `htdocs/utell`. La API responderá en `http://localhost/utell/api/public`.
 
 ### 3. Frontend (Vue 3 + Vite)
-El frontend contiene la interfaz de usuario de la aplicación.
-1. Abre una nueva terminal y dirígete a la carpeta `app/`:
+1. Abre una terminal y dirígete a la carpeta `app/`:
    ```bash
    cd app
-   ```
-2. Instala las dependencias de Node:
-   ```bash
    npm install
-   ```
-3. Inicia el servidor de desarrollo de Vite:
-   ```bash
    npm run dev
    ```
-4. Abre la URL que te proporciona Vite en tu navegador (usualmente `http://localhost:5173`).
+2. Abre la URL provista por Vite (usualmente `http://localhost:5173`).
 
 ---
 
@@ -61,22 +54,30 @@ El frontend contiene la interfaz de usuario de la aplicación.
 
 ```text
 utell/
-├── api/                  # Código fuente del Backend (PHP Slim 3)
-│   ├── public/           # Entrypoint (index.php) y archivos públicos
+├── api/                      # Backend REST API (PHP Slim 3)
+│   ├── public/               # Front Controller (index.php), .htaccess y uploads
 │   └── src/
-│       ├── Models/       # Modelos de base de datos
-│       ├── Repositories/ # Capa de acceso a datos
-│       ├── Services/     # Lógica de negocio
-│       ├── config/       # Configuración de BD y dependencias
-│       └── rutas/        # Definición de rutas/endpoints de la API
-├── app/                  # Código fuente del Frontend (Vue 3 + Vite)
+│       ├── config/           # Conexión PDO (db.php), helpers HTTP/JWT y seed CLI
+│       ├── middleware/       # Validación de tokens JWT (AuthMiddleware)
+│       ├── rutas/            # Controladores HTTP por dominio
+│       ├── Services/         # Lógica de negocio y reglas de dominio
+│       ├── Facades/          # Orquestación de KPIs ejecutivos (DashboardFacade)
+│       ├── Factories/        # Creación polimórfica (PublicacionFactory)
+│       ├── Strategies/       # Algoritmos de feed (ParaTi / TuRed)
+│       ├── Repositories/     # Persistencia PDO con sentencias preparadas
+│       └── Models/           # Entidades del dominio académico y social
+├── app/                      # Frontend SPA (Vue 3 + Pinia + Vite)
 │   ├── src/
-│   │   ├── components/   # Componentes reutilizables de Vue
-│   │   ├── views/        # Vistas de las páginas (Login, Feed, Profile, etc.)
-│   │   ├── store/        # Manejo de estado (Pinia/Vuex)
-│   │   └── router.js     # Configuración de rutas del frontend
-│   └── package.json      # Dependencias del frontend
-├── u-tell.sql            # Script de creación de la base de datos
-├── mock_data.sql         # Script con datos de prueba
-└── README.md             # Este archivo
+│   │   ├── components/       # Componentes reutilizables
+│   │   ├── views/            # Pantallas principales (Feed, Mensajes, Dashboard, etc.)
+│   │   ├── store/            # Estado global reactivo (Pinia)
+│   │   ├── api.js            # Cliente Axios e interceptores JWT
+│   │   └── router.js         # Definición de rutas y guardas de navegación
+│   └── package.json
+├── database/
+│   ├── 01_schema.sql         # Esquema relacional unificado
+│   └── 02_seed.sql           # Dataset inicial coherente
+├── docs/                     # Informes complementarios del proyecto
+├── DOCUMENTACION.md          # Resumen técnico de arquitectura y flujos
+└── README.md                 # Guía rápida de instalación
 ```

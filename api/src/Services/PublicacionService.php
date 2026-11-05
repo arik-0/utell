@@ -1,7 +1,6 @@
 <?php
-// api/src/Services/PublicacionService.php
-
 require_once __DIR__ . '/../Repositories/PublicacionRepository.php';
+require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
 require_once __DIR__ . '/../Strategies/IFeedStrategy.php';
 require_once __DIR__ . '/../Strategies/ParaTiFeedStrategy.php';
 require_once __DIR__ . '/../Strategies/TuRedFeedStrategy.php';
@@ -24,8 +23,8 @@ class PublicacionService {
         return self::$instance;
     }
 
-    public function obtenerConsultas(): array {
-        return $this->publicacionRepository->obtenerConsultas();
+    public function obtenerConsultas(int $idUsuario = 0): array {
+        return $this->publicacionRepository->obtenerConsultas($idUsuario);
     }
 
     /**
@@ -58,13 +57,24 @@ class PublicacionService {
      */
     public function crear(array $datos): bool {
         $datosValidados = PublicacionFactory::crear($datos);
-        return $this->publicacionRepository->crear($datosValidados);
+        $idPub = $this->publicacionRepository->crear($datosValidados);
+        if ($idPub > 0) {
+            $tipo = $datosValidados['tipoPublicacion'] ?? 'Consulta';
+            (new AuditoriaRepository())->registrar(
+                (int)$datosValidados['idUsuario'],
+                'CREAR_PUBLICACION',
+                "Alta de {$tipo} ID {$idPub}",
+                'publicaciones'
+            );
+            return true;
+        }
+        return false;
     }
 
     public function toggleLike(int $idPublicacion, int $idUsuario): array {
         $favorito = $this->publicacionRepository->obtenerFavorito($idPublicacion, $idUsuario);
         $isLiking = true;
-        
+
         if ($favorito) {
             if ($favorito['estado'] == 'activo') {
                 $this->publicacionRepository->actualizarFavorito((int)$favorito['idFavorito'], 'inactivo');
@@ -75,12 +85,12 @@ class PublicacionService {
         } else {
             $this->publicacionRepository->insertarFavorito($idPublicacion, $idUsuario);
         }
-        
+
         $totalLikes = $this->publicacionRepository->actualizarLikesPublicacion($idPublicacion);
-        
+
         return [
             "likedByUser" => $isLiking,
-            "totalLikes" => $totalLikes
+            "totalLikes"  => $totalLikes
         ];
     }
 }

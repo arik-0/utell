@@ -1,70 +1,62 @@
 # Documentación Técnica de U-Tell
 
 ## 1. Visión General
-U-Tell es una plataforma interactiva destinada a la comunidad universitaria. Su principal objetivo es conectar a estudiantes de diversas instituciones para que puedan realizar consultas, compartir experiencias sobre sus carreras y universidades, y crear una red de contactos académicos.
+U-Tell es una plataforma interactiva destinada a la comunidad universitaria. Conecta postulantes, estudiantes, graduados, docentes e instituciones educativas para realizar consultas académicas, compartir experiencias estructuradas sobre carreras y sedes, comunicarse mediante mensajería directa y analizar métricas institucionales mediante un Tablero de Comando Ejecutivo.
 
-El sistema se diseñó con una arquitectura cliente-servidor separando el Frontend y el Backend para permitir mayor escalabilidad y facilidad de mantenimiento.
+El sistema implementa una arquitectura cliente-servidor desacoplada con separación estricta de responsabilidades en N-Capas.
 
 ---
 
 ## 2. Arquitectura del Sistema
 
 ### 2.1 Frontend (Aplicación Cliente)
-El cliente fue desarrollado utilizando **Vue 3** (Composition API con `<script setup>`) y empaquetado mediante **Vite**, lo cual ofrece un entorno de desarrollo extremadamente rápido y compilaciones optimizadas.
+Desarrollado en **Vue 3** (`<script setup>`), **Pinia**, **Vue Router 4**, **Axios** y **Chart.js**, empaquetado con **Vite**.
 
 - **Ubicación:** Carpeta `/app`.
-- **Enrutamiento:** Se utiliza `vue-router` para manejar las vistas (SPA - Single Page Application). En el archivo `src/router.js` se definen rutas para vistas como Login, Registro, Feed Principal (Muro), Creación de Consultas/Experiencias, Detalles de Publicaciones y Perfil de Usuario.
-- **Gestión de Estado:** (Opcional/Según implementación) Normalmente se puede encontrar soporte para `Pinia` o `Vuex` dentro de `src/store` para manejar el estado global (ej. datos del usuario autenticado).
-- **Componentes:** La carpeta `src/components/` aloja los elementos visuales reutilizables (tarjetas de post, barras de navegación, botones, etc.), mientras que `src/views/` contiene las pantallas principales.
+- **Enrutamiento (`src/router.js`):** Gestiona vistas públicas y protegidas con guardas por sesión y rol (Login, Registro, Muro Principal, Detalle de Publicación, Creación de Consultas/Experiencias, Mensajería Directa, Red de Contactos, Perfil de Usuario, Muros Institucionales y Tablero Ejecutivo).
+- **Gestión de Estado (`src/store/`):** Stores reactivos en Pinia para sesión/JWT (`auth.js`), notificaciones visuales (`toast.js`) y tema claro/oscuro (`theme.js`).
+- **Cliente HTTP (`src/api.js`):** Instancia centralizada de Axios que adjunta automáticamente `Authorization: Bearer <token>` y gestiona expiraciones `401 Unauthorized`.
 
-### 2.2 Backend (API REST)
-El servidor expone una API REST construida con el microframework **Slim 3** en PHP. Su objetivo es procesar las peticiones del Frontend, validar datos y realizar operaciones contra la base de datos MySQL.
+### 2.2 Backend (API RESTful)
+Construido sobre **PHP 8+** y **Slim Framework 3** bajo arquitectura N-Capas y principios SOLID.
 
 - **Ubicación:** Carpeta `/api`.
-- **Estructura Interna:**
-  - `public/index.php`: Es el punto de entrada de todas las peticiones HTTP (Front Controller). Se encarga de instanciar la aplicación Slim y cargar las rutas.
-  - `src/rutas/`: Contiene archivos separados por dominio de negocio (ej. `usuarios.php`, `publicaciones.php`, `auth.php`, `instituciones.php`). Cada archivo define los endpoints (GET, POST, PUT, DELETE).
-  - `src/Models/` y `src/Repositories/`: Encargados de la lógica de negocio y del mapeo objeto-relacional o consultas directas mediante PDO para la interacción segura con la base de datos.
-  - `src/config/`: Contiene la configuración de conexión a la base de datos, habitualmente retornando una instancia de PDO.
+- **Capas Internas:**
+  - `public/index.php`: Front Controller, configuración CORS y registro modular de rutas.
+  - `src/middleware/AuthMiddleware.php`: Validación criptográfica HS256 de tokens JWT e inyección de identidad en el request.
+  - `src/rutas/`: Controladores livianos encargados de recibir peticiones HTTP, validar parámetros de entrada y delegar a Servicios/Fachadas.
+  - `src/Services/`, `src/Facades/`, `src/Factories/`, `src/Strategies/`: Reglas de negocio, polimorfismo de publicaciones (*Factory*), curación de feeds (*Strategy*) e indicadores ejecutivos (*Facade*).
+  - `src/Repositories/`: Acceso exclusivo a datos mediante PDO y *Prepared Statements*.
+  - `src/Models/`: Entidades del modelo de dominio.
 
-### 2.3 Base de Datos (Relacional)
-El motor de base de datos utilizado es **MySQL / MariaDB**. El diseño relacional incluye entidades complejas para manejar todo el ecosistema universitario.
-- **Entidades Principales:**
-  - `usuarios`, `roles`: Gestión de acceso y perfiles.
-  - `universidades`, `sedes`, `carreras`, `oferta_academica`: Representan el núcleo académico de la plataforma.
-  - `consultas`, `respuestas`, `experiencias`: Elementos principales de interacción social, donde los usuarios generan el contenido (Posts).
-  - `amigos`, `mensajedirecto`: Módulo de interacción social directa (Red Social).
-  - `ciudades`, `provincias`, `paises`: Normalización geográfica para las sedes y usuarios.
-- El archivo `u-tell.sql` contiene la estructura, y `mock_data.sql` inicializa la base de datos con registros de prueba.
+### 2.3 Base de Datos Relacional
+Motor **MySQL / MariaDB** con codificación `utf8mb4` e integridad referencial InnoDB.
+- **Scripts Unificados (`/database`):**
+  - `database/01_schema.sql`: Definición íntegra del esquema (seguridad RBAC compuesta `roles`/`permisos`/`grupos_permisos`, geografía `paises`/`provincias`/`ciudades`, núcleo académico `universidades`/`sedes`/`carreras`/`oferta_academica`/`inscripciones`, herencia de tabla única `publicaciones`, interacciones `respuestas`/`favoritos`, grafo social `amigos`/`mensajedirecto` y trazabilidad `log_auditoria`).
+  - `database/02_seed.sql`: Dataset coherente calibrado para pruebas funcionales y analítica institucional.
 
 ---
 
-## 3. Flujos Principales de la Aplicación
+## 3. Flujos Principales
 
-### 3.1 Autenticación
-1. El usuario ingresa credenciales en `Login.vue`.
-2. Se envía un `POST /api/auth` al backend.
-3. El archivo `auth.php` verifica el hash de la contraseña y, si es correcto, genera un token (JWT) o establece una sesión, devolviendo la información del perfil y el rol.
+### 3.1 Autenticación y Autorización
+1. El usuario envía credenciales desde `Login.vue` hacia `POST /auth/login` (o Google OAuth `POST /auth/google`).
+2. `AuthService` verifica el hash bcrypt (`password_verify`), comprueba el estado de la cuenta, registra el evento en `log_auditoria` y emite un JWT firmado.
+3. Las rutas protegidas verifican el token mediante `AuthMiddleware` y contrastan la identidad del token frente a los recursos solicitados.
 
-### 3.2 Visualización del Feed
-1. Al acceder a `Feed.vue`, el componente dispara una petición `GET /api/publicaciones` (o similar).
-2. Slim Framework recibe la petición y, desde `publicaciones.php`, consulta a la base de datos las últimas *consultas* y *experiencias*.
-3. El frontend recibe un arreglo en formato JSON y renderiza los componentes de tarjeta mostrando el autor, texto y "likes" de cada publicación.
+### 3.2 Visualización y Creación de Publicaciones
+1. `Feed.vue` consume los feeds personalizados (`ParaTiFeedStrategy` / `TuRedFeedStrategy`) desde `PublicacionService`.
+2. Al publicar desde `CreateConsulta.vue` o `CreateExperiencia.vue`, `PublicacionFactory` instancia la entidad correspondiente (incluyendo puntajes multidimensionales de Clima, Infraestructura y Calidad Académica en Experiencias) y `PublicacionRepository` la persiste en `publicaciones`.
 
-### 3.3 Creación de una Consulta
-1. El usuario va a `CreateConsulta.vue`.
-2. Selecciona la Universidad, Sede y Carrera (datos cargados vía endpoints `GET` de `instituciones.php`).
-3. Envía el formulario (`POST`). El backend registra la nueva consulta asociándola al ID del usuario activo.
+### 3.3 Tablero de Comando Ejecutivo
+1. Usuarios con rol institucional o administrativo acceden a `/dashboard` (`DashboardView.vue`).
+2. `DashboardFacade` calcula KPIs globales, semáforos estratégicos y desgloses jerárquicos (*Drill-Down* Universidad → Sede → Carrera → Publicaciones base).
 
 ---
 
 ## 4. Tecnologías Involucradas
 
-- **Lenguajes:** JavaScript, HTML5, CSS3, PHP, SQL.
-- **Frameworks:** Vue.js 3, Slim Framework 3.
-- **Herramientas de Build:** Vite, Composer, npm.
-- **Base de Datos:** MySQL / MariaDB (XAMPP).
-
----
-
-Este documento sirve como resumen técnico. Para ver el código en detalle, revisar los directorios `app/src` y `api/src`.
+- **Lenguajes:** JavaScript (ES2022+), HTML5, CSS3, PHP 8+, SQL.
+- **Frameworks y Librerías:** Vue 3, Pinia, Vue Router, Chart.js, Axios, Slim Framework 3, `firebase/php-jwt`.
+- **Herramientas:** Vite, Composer, npm, GitHub Actions (CI/CD).
+- **Base de Datos:** MySQL / MariaDB.

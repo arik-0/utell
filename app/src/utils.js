@@ -2,7 +2,6 @@
  * U-Tell Shared Utilities
  * Centralized helper functions used across multiple views.
  */
-import { ref, onMounted, onUnmounted } from 'vue'
 import api, { API_BASE_URL } from './api'
 
 /**
@@ -224,38 +223,3 @@ export function toggleTheme() {
   return next
 }
 
-/**
- * Screen Size & Responsive Composable
- */
-export function useScreenSize() {
-  const width = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
-  const isMobile = ref(width.value < 768)
-  const isTablet = ref(width.value >= 768 && width.value < 1024)
-  const isDesktop = ref(width.value >= 768)
-  const isWide = ref(width.value >= 1200)
-
-  const handleResize = () => {
-    width.value = window.innerWidth
-    isMobile.value = width.value < 768
-    isTablet.value = width.value >= 768 && width.value < 1024
-    isDesktop.value = width.value >= 768
-    isWide.value = width.value >= 1200
-  }
-
-  onMounted(() => {
-    window.addEventListener('resize', handleResize, { passive: true })
-    handleResize()
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('resize', handleResize)
-  })
-
-  return {
-    width,
-    isMobile,
-    isTablet,
-    isDesktop,
-    isWide
-  }
-}

@@ -10,18 +10,20 @@ class UsuarioRepository {
 
     public function guardar(Usuario $usuario): int {
         $idCiudad = $usuario->getIdCiudad() ?: 1;
+        $rawPass  = $usuario->getPassword();
+        $passInfo = password_get_info($rawPass);
+        $passHash = !empty($passInfo['algo']) ? $rawPass : password_hash($rawPass, PASSWORD_DEFAULT);
 
         $sql = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol) 
                 VALUES (:nom, :ape, :fnac, :email, :pass, :foto, :cel, :tipo, :desc, :trayec, :ciudad, :uni, :car, 2)";
-        
+
         $stmt = $this->db->prepare($sql);
-        
         $stmt->execute([
             ':nom'    => $usuario->getNombre(),
             ':ape'    => $usuario->getApellido(),
             ':fnac'   => $usuario->getFnac(),
             ':email'  => $usuario->getEmail(),
-            ':pass'   => password_hash($usuario->getPassword(), PASSWORD_DEFAULT),
+            ':pass'   => $passHash,
             ':foto'   => $usuario->getFotoPerfil() ?: '',
             ':cel'    => $usuario->getCelular() ?: '',
             ':tipo'   => $usuario->getTipoPerfil() ?: 'Estudiante',
@@ -31,7 +33,7 @@ class UsuarioRepository {
             ':uni'    => $usuario->getIdUniversidad(),
             ':car'    => $usuario->getIdCarrera()
         ]);
-        
+
         $idUsuario = (int) $this->db->lastInsertId();
 
         if ($usuario->getIdUniversidad() || $usuario->getIdCarrera()) {
@@ -50,6 +52,9 @@ class UsuarioRepository {
     }
 
     public function actualizar(Usuario $usuario): bool {
+        $rawPass = $usuario->getPassword();
+        $cambiarPassword = !empty($rawPass);
+
         $sql = "UPDATE usuarios SET
                 nombre = :nom,
                 apellido = :ape,
@@ -64,14 +69,13 @@ class UsuarioRepository {
                 idUniversidad = :uni,
                 idCarrera = :car";
 
-        if (!empty($usuario->getPassword())) {
+        if ($cambiarPassword) {
             $sql .= ", password = :pass";
         }
-        
+
         $sql .= " WHERE idUsuario = :id";
-        
+
         $stmt = $this->db->prepare($sql);
-        
         $params = [
             ':id'     => $usuario->getIdUsuario(),
             ':nom'    => $usuario->getNombre(),
@@ -88,10 +92,11 @@ class UsuarioRepository {
             ':car'    => $usuario->getIdCarrera()
         ];
 
-        if (!empty($usuario->getPassword())) {
-            $params[':pass'] = password_hash($usuario->getPassword(), PASSWORD_DEFAULT);
+        if ($cambiarPassword) {
+            $passInfo = password_get_info($rawPass);
+            $params[':pass'] = !empty($passInfo['algo']) ? $rawPass : password_hash($rawPass, PASSWORD_DEFAULT);
         }
-        
+
         $res = $stmt->execute($params);
 
         if ($usuario->getIdUniversidad() || $usuario->getIdCarrera()) {
@@ -111,13 +116,17 @@ class UsuarioRepository {
         return $res;
     }
 
+    public function actualizarFotoPerfil(int $idUsuario, string $fotoUrl): bool {
+        $stmt = $this->db->prepare("UPDATE usuarios SET fotoPerfil = :foto WHERE idUsuario = :id");
+        return $stmt->execute([':foto' => $fotoUrl, ':id' => $idUsuario]);
+    }
+
     public function buscarPorId(int $idUsuario): ?Usuario {
-        $sql = "SELECT * FROM usuarios WHERE idUsuario = :id";
+        $sql = "SELECT * FROM usuarios WHERE idUsuario = :id AND COALESCE(estadoCuenta, 'activo') <> 'inactivo'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $idUsuario]);
-        
-        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$fila) {
             return null;
         }
@@ -126,7 +135,7 @@ class UsuarioRepository {
     }
 
     public function obtenerTodos(): array {
-        $sql = "SELECT * FROM usuarios";
+        $sql = "SELECT * FROM usuarios WHERE COALESCE(estadoCuenta, 'activo') <> 'inactivo'";
         $resultado = $this->db->query($sql);
         $filas = $resultado->fetchAll(PDO::FETCH_ASSOC);
 
@@ -138,9 +147,11 @@ class UsuarioRepository {
         return $listaUsuarios;
     }
 
+    /**
+     * Baja lógica de la cuenta (CU2 / Sección 10 — preservación de integridad histórica).
+     */
     public function eliminar(int $idUsuario): bool {
-        $sql  = "DELETE FROM usuarios WHERE idUsuario = :id";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this->db->prepare("UPDATE usuarios SET estadoCuenta = 'inactivo' WHERE idUsuario = :id");
         $stmt->execute([':id' => $idUsuario]);
         return $stmt->rowCount() > 0;
     }
@@ -159,12 +170,12 @@ class UsuarioRepository {
                        car.nombre as nombreCarrera,
                        ciu.nombre as nombreCiudad,
                        (SELECT COUNT(*) FROM amigos a WHERE (a.idSolicitante = u.idUsuario OR a.idReceptor = u.idUsuario) AND a.estado = 'aceptada') as totalAmigos,
-                       (SELECT COUNT(*) FROM publicaciones p WHERE p.idUsuario = u.idUsuario) as totalPublicaciones
+                       (SELECT COUNT(*) FROM publicaciones p WHERE p.idUsuario = u.idUsuario AND COALESCE(p.estado, 'activo') = 'activo') as totalPublicaciones
                 FROM usuarios u
                 LEFT JOIN universidades uni ON u.idUniversidad = uni.idUniversidad
                 LEFT JOIN carreras car ON u.idCarrera = car.idCarrera
                 LEFT JOIN ciudades ciu ON u.idCiudad = ciu.idCiudad
-                WHERE u.idUsuario = :id
+                WHERE u.idUsuario = :id AND COALESCE(u.estadoCuenta, 'activo') <> 'inactivo'
                 LIMIT 1";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $idUsuario]);

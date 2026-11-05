@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
@@ -120,11 +120,7 @@ const handleLogin = async () => {
     await authStore.login(email.value, password.value)
 
     const user = authStore.user
-    const rol = Number(user?.idRol || 0)
-    const perfil = user?.tipoPerfil || ''
-    const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-
-    if (isStaffOrInstitution) {
+    if (authStore.isStaffOrInstitution) {
       toastStore.success(`¡Bienvenido al Tablero de Control, ${user?.nombre || 'Autoridad'}!`, 3000)
       router.push('/dashboard')
     } else {
@@ -141,6 +137,7 @@ const handleLogin = async () => {
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+let gsiScriptEl = null
 
 const handleGoogleCallback = async (response) => {
   isLoadingGoogle.value = true
@@ -148,12 +145,7 @@ const handleGoogleCallback = async (response) => {
   try {
     await authStore.loginWithGoogle(response.credential)
 
-    const user = authStore.user
-    const rol = Number(user?.idRol || 0)
-    const perfil = user?.tipoPerfil || ''
-    const isStaffOrInstitution = [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-
-    if (isStaffOrInstitution) {
+    if (authStore.isStaffOrInstitution) {
       toastStore.success('¡Sesión iniciada con Google!', 2500)
       router.push('/dashboard')
     } else {
@@ -168,28 +160,47 @@ const handleGoogleCallback = async (response) => {
   }
 }
 
-const handleGoogleLogin = () => {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
-    toastStore.warning('El inicio con Google requiere configurar VITE_GOOGLE_CLIENT_ID en el archivo .env', 5000)
-    return
-  }
-
-  if (typeof window.google === 'undefined' || !window.google.accounts || !window.google.accounts.id) {
-    toastStore.error('El script de Google Identity Services no está cargado.')
-    return
-  }
-
-  window.google.accounts.id.prompt()
-}
-
-onMounted(() => {
-  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID' && typeof window.google !== 'undefined' && window.google.accounts) {
+const initGoogleGsi = () => {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') return false
+  if (typeof window.google !== 'undefined' && window.google.accounts?.id) {
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleCallback,
       auto_select: false,
       cancel_on_tap_outside: true
     })
+    return true
+  }
+  return false
+}
+
+const handleGoogleLogin = () => {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    toastStore.warning('El inicio con Google requiere configurar VITE_GOOGLE_CLIENT_ID en el archivo .env', 5000)
+    return
+  }
+
+  if (typeof window.google === 'undefined' || !window.google.accounts?.id) {
+    toastStore.error('El script de Google Identity Services aún no está disponible. Intenta nuevamente en unos segundos.')
+    return
+  }
+
+  initGoogleGsi()
+  window.google.accounts.id.prompt()
+}
+
+onMounted(() => {
+  if (!initGoogleGsi() && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+    gsiScriptEl = document.querySelector('script[src*="accounts.google.com/gsi/client"]')
+    if (gsiScriptEl) {
+      gsiScriptEl.addEventListener('load', initGoogleGsi, { once: true })
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (gsiScriptEl) {
+    gsiScriptEl.removeEventListener('load', initGoogleGsi)
   }
 })
 

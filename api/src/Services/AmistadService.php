@@ -20,23 +20,32 @@ class AmistadService {
 
     public function enviarSolicitud(int $idSolicitante, int $idReceptor): array {
         if ($idSolicitante === $idReceptor) {
-            throw new Exception("No puedes enviarte una solicitud a ti mismo.");
+            throw new InvalidArgumentException("No puedes enviarte una solicitud a ti mismo.");
         }
 
         $relacion = $this->repo->existeRelacion($idSolicitante, $idReceptor);
-        if ($relacion !== null) {
-            throw new Exception("Ya existe una relacion entre estos usuarios.");
+        if ($relacion !== null && $relacion['estado'] !== 'rechazada') {
+            throw new DomainException("Ya existe una relación activa o pendiente entre estos usuarios.");
         }
 
         $ok = $this->repo->enviarSolicitud($idSolicitante, $idReceptor);
         if (!$ok) {
-            throw new Exception("No se pudo enviar la solicitud.");
+            throw new RuntimeException("No se pudo enviar la solicitud.");
         }
 
         return ['success' => true, 'mensaje' => 'Solicitud enviada.'];
     }
 
-    public function responderSolicitud(int $idAmistad, string $accion): array {
+    public function responderSolicitud(int $idAmistad, string $accion, int $idUsuarioActor = 0): array {
+        $amistad = $this->repo->obtenerPorId($idAmistad);
+        if (!$amistad) {
+            throw new RuntimeException("Solicitud de amistad no encontrada.");
+        }
+
+        if ($idUsuarioActor > 0 && (int)$amistad['idReceptor'] !== $idUsuarioActor) {
+            throw new DomainException("Solo el destinatario de la solicitud puede responderla.");
+        }
+
         if ($accion === 'aceptar') {
             $ok = $this->repo->aceptarSolicitud($idAmistad);
             $msg = 'Solicitud aceptada.';
@@ -44,15 +53,29 @@ class AmistadService {
             $ok = $this->repo->rechazarSolicitud($idAmistad);
             $msg = 'Solicitud rechazada.';
         } else {
-            throw new Exception("Accion invalida. Use 'aceptar' o 'rechazar'.");
+            throw new InvalidArgumentException("Acción inválida. Use 'aceptar' o 'rechazar'.");
         }
 
         return ['success' => $ok, 'mensaje' => $msg];
     }
 
-    public function eliminarAmistad(int $idAmistad): array {
+    public function eliminarAmistad(int $idAmistad, int $idUsuarioActor = 0, bool $esAdmin = false): array {
+        $amistad = $this->repo->obtenerPorId($idAmistad);
+        if (!$amistad) {
+            return ['success' => false, 'mensaje' => 'No se encontró la amistad.'];
+        }
+
+        if (
+            $idUsuarioActor > 0
+            && !$esAdmin
+            && (int)$amistad['idSolicitante'] !== $idUsuarioActor
+            && (int)$amistad['idReceptor'] !== $idUsuarioActor
+        ) {
+            throw new DomainException("No tienes permisos para eliminar un vínculo ajeno.");
+        }
+
         $ok = $this->repo->eliminarAmistad($idAmistad);
-        return ['success' => $ok, 'mensaje' => $ok ? 'Amistad eliminada.' : 'No se encontro la amistad.'];
+        return ['success' => $ok, 'mensaje' => $ok ? 'Amistad eliminada.' : 'No se encontró la amistad.'];
     }
 
     public function obtenerAmigos(int $idUsuario): array {
@@ -84,7 +107,6 @@ class AmistadService {
             return ['estado' => 'ninguno', 'idAmistad' => null];
         }
 
-        // Pendiente — determinar si fue enviada o recibida por idUsuario
         if ((int)$relacion['idSolicitante'] === $idUsuario) {
             return ['estado' => 'pendiente_enviada', 'idAmistad' => (int)$relacion['idAmistad']];
         }

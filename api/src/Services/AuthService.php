@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
+
 class AuthService {
     private static $instance = null;
 
@@ -12,43 +14,96 @@ class AuthService {
         return self::$instance;
     }
 
+    /**
+     * Verifica una contraseña contra el valor almacenado:
+     * - Soporta hashes bcrypt/argon2 vía password_verify().
+     * - Si el registro legado carecía de algoritmo de hash, valida en tiempo constante
+     *   e indica que debe migrarse a bcrypt.
+     */
+    private function verificarCredencial(string $passwordPlano, string $passwordGuardado, bool &$requiereRehash): bool {
+        $requiereRehash = false;
+        if ($passwordGuardado === '') {
+            return false;
+        }
+
+        $info = password_get_info($passwordGuardado);
+        if (!empty($info['algo'])) {
+            $ok = password_verify($passwordPlano, $passwordGuardado);
+            if ($ok && password_needs_rehash($passwordGuardado, PASSWORD_DEFAULT)) {
+                $requiereRehash = true;
+            }
+            return $ok;
+        }
+
+        // Migración transparente solo si la columna guardaba texto plano legado
+        if (hash_equals($passwordGuardado, $passwordPlano)) {
+            $requiereRehash = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private function asegurarRolesBase(PDO $db): void {
+        try {
+            $cnt = (int)$db->query("SELECT COUNT(*) FROM roles")->fetchColumn();
+            if ($cnt < 6) {
+                $db->exec("
+                    INSERT IGNORE INTO roles (idRol, nombreRol) VALUES
+                    (1, 'Administrador'),
+                    (2, 'Estudiante'),
+                    (3, 'Moderador'),
+                    (4, 'Graduado'),
+                    (5, 'Docente'),
+                    (6, 'Institución')
+                ");
+            }
+        } catch (Exception $e) {}
+    }
+
     // ─── Classic email/password login ─────────────────────────────────────────
-    // Supports only bcrypt hashes. Plain-text passwords are rejected.
     public function login(string $email, string $password) {
         $db = db::getInstance()->getConnection();
+        $auditoria = new AuditoriaRepository();
 
-        // Asegurar existencia de cuentas institucionales/evaluación si se solicitan
-        if (in_array(strtolower($email), ['admin@uai.edu.ar', 'rectorado@uai.edu.ar']) && ($password === '123456' || !empty($password))) {
+        // Asegurar cuentas institucionales de evaluación solo si aún no existen en la base
+        $emailNorm = strtolower(trim($email));
+        if (in_array($emailNorm, ['admin@uai.edu.ar', 'rectorado@uai.edu.ar'], true)) {
             try {
-                $hash = password_hash('123456', PASSWORD_DEFAULT);
-                $db->prepare("INSERT IGNORE INTO usuarios (idUsuario, nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
-                              VALUES (99, 'Administrador', 'UAI', '1990-01-01', 'admin@uai.edu.ar', :p, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200', '+54 11 4342-7788', 'Administrador', 'Administrador General U-Tell UAI', 'Gestión institucional', 5, 8, 2, 1)")
-                   ->execute([':p' => $hash]);
+                $stmtChk = $db->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :e");
+                $stmtChk->execute([':e' => $emailNorm]);
+                if ((int)$stmtChk->fetchColumn() === 0) {
+                    $this->asegurarRolesBase($db);
+                    $hash = password_hash('123456', PASSWORD_DEFAULT);
+                    $db->prepare("INSERT IGNORE INTO usuarios (idUsuario, nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
+                                  VALUES (99, 'Administrador', 'UAI', '1990-01-01', 'admin@uai.edu.ar', :p, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200', '+54 11 4342-7788', 'Administrador', 'Administrador General U-Tell UAI', 'Gestión institucional', 5, 8, 2, 1)")
+                       ->execute([':p' => $hash]);
 
-                $db->prepare("INSERT IGNORE INTO usuarios (idUsuario, nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
-                              VALUES (98, 'Rectorado', 'UAI', '1980-01-01', 'rectorado@uai.edu.ar', :p, 'https://images.unsplash.com/photo-1562774053-701939374585?w=200', '+54 11 4342-7788', 'Universidad', 'Autoridad Institucional UAI', 'Rectorado UAI', 5, 8, 2, 5)")
-                   ->execute([':p' => $hash]);
+                    $db->prepare("INSERT IGNORE INTO usuarios (idUsuario, nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
+                                  VALUES (98, 'Rectorado', 'UAI', '1980-01-01', 'rectorado@uai.edu.ar', :p, 'https://images.unsplash.com/photo-1562774053-701939374585?w=200', '+54 11 4342-7788', 'Universidad', 'Autoridad Institucional UAI', 'Rectorado UAI', 5, 8, 2, 6)")
+                       ->execute([':p' => $hash]);
+                }
             } catch (Exception $e) {}
         }
 
         $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
-        $stmt->bindParam(':email', $email);
-        $stmt->execute();
+        $stmt->execute([':email' => $email]);
 
         if ($stmt->rowCount() > 0) {
             $user = $stmt->fetch(PDO::FETCH_OBJ);
 
-            // Block locked accounts before checking credentials
-            if (isset($user->estadoCuenta) && $user->estadoCuenta === 'bloqueado') {
-                throw new Exception('Cuenta bloqueada. Contacta al administrador.');
+            if (isset($user->estadoCuenta)) {
+                if ($user->estadoCuenta === 'bloqueado') {
+                    throw new DomainException('Cuenta bloqueada. Contacta al administrador.');
+                }
+                if ($user->estadoCuenta === 'inactivo') {
+                    throw new DomainException('Esta cuenta se encuentra inactiva.');
+                }
             }
 
-            // Check password: valid bcrypt hash, or fallback to '123456' for seeded accounts
-            $isValid = password_verify($password, $user->password) || $password === $user->password || $password === '123456';
-
-            if ($isValid) {
-                // Auto-upgrade password to proper bcrypt hash if it was a fallback match
-                if (!password_verify($password, $user->password)) {
+            $requiereRehash = false;
+            if ($this->verificarCredencial($password, (string)$user->password, $requiereRehash)) {
+                if ($requiereRehash) {
                     $newHash = password_hash($password, PASSWORD_DEFAULT);
                     $db->prepare("UPDATE usuarios SET password = :p WHERE idUsuario = :id")
                        ->execute([':p' => $newHash, ':id' => $user->idUsuario]);
@@ -65,9 +120,9 @@ class AuthService {
                     'idRol'      => (int)($user->idRol ?? 2)
                 ]);
 
-                // Never expose password hash in frontend payload
-                unset($user->password);
+                $auditoria->registrar((int)$user->idUsuario, 'LOGIN', "Inicio de sesión exitoso ({$user->email})", 'usuarios');
 
+                unset($user->password);
                 return [$user];
             }
         }
@@ -77,8 +132,14 @@ class AuthService {
         $stmtUni->execute([':email' => $email]);
         if ($stmtUni->rowCount() > 0) {
             $uni = $stmtUni->fetch(PDO::FETCH_OBJ);
-            $isValid = password_verify($password, $uni->password) || $password === $uni->password || $password === '123456';
-            if ($isValid) {
+            $requiereRehash = false;
+            if ($this->verificarCredencial($password, (string)$uni->password, $requiereRehash)) {
+                if ($requiereRehash) {
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    $db->prepare("UPDATE universidades SET password = :p WHERE idUniversidad = :id")
+                       ->execute([':p' => $newHash, ':id' => $uni->idUniversidad]);
+                }
+
                 require_once __DIR__ . '/JWTService.php';
                 $uniUser = (object)[
                     'idUsuario'   => (int)$uni->idUniversidad,
@@ -97,6 +158,7 @@ class AuthService {
                     ]),
                     'permisos'    => ['POST_CREATE', 'POST_REPLY', 'SEND_DIRECT_MESSAGE', 'VIEW_INSTITUTION_METRICS', 'OFFICIAL_BADGE']
                 ];
+                $auditoria->registrar(null, 'LOGIN_INSTITUCION', "Inicio de sesión institucional ({$uni->email})", 'universidades');
                 return [$uniUser];
             }
         }
@@ -112,8 +174,9 @@ class AuthService {
         string $apellido,
         string $fotoPerfil
     ) {
-        $db   = db::getInstance()->getConnection();
-        $stmt = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
+        $db        = db::getInstance()->getConnection();
+        $auditoria = new AuditoriaRepository();
+        $stmt      = $db->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
         $stmt->execute([':email' => $email]);
 
         require_once __DIR__ . '/SeguridadService.php';
@@ -121,6 +184,9 @@ class AuthService {
 
         if ($stmt->rowCount() > 0) {
             $user = $stmt->fetch(PDO::FETCH_OBJ);
+            if (isset($user->estadoCuenta) && in_array($user->estadoCuenta, ['bloqueado', 'inactivo'], true)) {
+                throw new DomainException('Esta cuenta no se encuentra habilitada para iniciar sesión.');
+            }
             $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
             $user->token    = JWTService::generarToken([
                 'idUsuario'  => (int)$user->idUsuario,
@@ -128,18 +194,19 @@ class AuthService {
                 'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
                 'idRol'      => (int)($user->idRol ?? 2)
             ]);
+            $auditoria->registrar((int)$user->idUsuario, 'LOGIN_GOOGLE', "Inicio de sesión OAuth ({$user->email})", 'usuarios');
             unset($user->password);
             return [$user];
         }
 
-        // Auto-create the user with a random non-usable password
+        $this->asegurarRolesBase($db);
         $randomPass  = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
         $nombreFinal = $nombre ?: explode(' ', $fullName)[0];
         $apellFinal  = $apellido ?: (strpos($fullName, ' ') !== false ? substr($fullName, strpos($fullName, ' ') + 1) : '');
         $idCiudad    = $this->_resolveDefaultCity($db);
 
-        $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad)
-                 VALUES (:nombre, :apellido, '2000-01-01', :email, :password, :foto, '', 'Estudiante', '', '', :idCiudad)";
+        $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular, tipoPerfil, descripcion, trayectoria, idCiudad, idRol)
+                 VALUES (:nombre, :apellido, '2000-01-01', :email, :password, :foto, '', 'Estudiante', '', '', :idCiudad, 2)";
         $stmt = $db->prepare($sql);
         $stmt->execute([
             ':nombre'   => $nombreFinal,
@@ -161,6 +228,7 @@ class AuthService {
             'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
             'idRol'      => (int)($user->idRol ?? 2)
         ]);
+        $auditoria->registrar($newId, 'REGISTRO_GOOGLE', "Alta OAuth ({$email})", 'usuarios');
         unset($user->password);
         return [$user];
     }
@@ -168,14 +236,14 @@ class AuthService {
     // ─── Classic registration ──────────────────────────────────────────────────
     public function registro(array $datos): bool {
         $db = db::getInstance()->getConnection();
+        $this->asegurarRolesBase($db);
 
-        // Ensure default role exists to avoid FK failures
-        try {
-            $check = $db->query("SELECT COUNT(*) as cnt FROM roles WHERE idRol = 2");
-            if ($check && (int)$check->fetch(PDO::FETCH_ASSOC)['cnt'] === 0) {
-                $db->exec("INSERT INTO roles (idRol, nombreRol) VALUES (1,'Administrador'),(2,'Usuario') ON DUPLICATE KEY UPDATE nombreRol=VALUES(nombreRol)");
-            }
-        } catch (Exception $e) {}
+        $email = trim((string)($datos['email'] ?? ''));
+        $stmtDup = $db->prepare("SELECT COUNT(*) FROM usuarios WHERE email = :email");
+        $stmtDup->execute([':email' => $email]);
+        if ((int)$stmtDup->fetchColumn() > 0) {
+            throw new DomainException('Ya existe una cuenta registrada con ese correo electrónico.');
+        }
 
         $idCiudad = $this->_resolveCiudad(
             $db,
@@ -187,26 +255,37 @@ class AuthService {
         $idUni = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
         $idCar = !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null;
 
+        $tipoPerfil = $datos['tipoPerfil'] ?? 'Estudiante';
+        $mapaRol = [
+            'Estudiante'  => 2,
+            'Graduado'    => 4,
+            'Docente'     => 5,
+            'Universidad' => 6,
+            'Institución' => 6,
+        ];
+        $idRol = $mapaRol[$tipoPerfil] ?? 2;
+
         $sql  = "INSERT INTO usuarios (nombre, apellido, fNac, email, password, fotoPerfil, celular,
                                       tipoPerfil, descripcion, trayectoria, idCiudad, idUniversidad, idCarrera, idRol)
                  VALUES (:nombre, :apellido, :fNac, :email, :password, :foto, :cel,
-                         :tipo, :desc, :trayec, :ciudad, :uni, :car, 2)";
+                         :tipo, :desc, :trayec, :ciudad, :uni, :car, :rol)";
         $stmt = $db->prepare($sql);
 
         $ok = $stmt->execute([
-            ':nombre'   => $datos['nombre'],
-            ':apellido' => $datos['apellido'],
-            ':fNac'     => $datos['fNac'],
-            ':email'    => $datos['email'],
+            ':nombre'   => trim((string)$datos['nombre']),
+            ':apellido' => trim((string)($datos['apellido'] ?? '')),
+            ':fNac'     => !empty($datos['fNac']) ? $datos['fNac'] : '2000-01-01',
+            ':email'    => $email,
             ':password' => password_hash($datos['password'], PASSWORD_DEFAULT),
             ':foto'     => $datos['fotoPerfil']    ?? '',
-            ':cel'      => $datos['celular']        ?? '',
-            ':tipo'     => $datos['tipoPerfil']     ?? 'Estudiante',
-            ':desc'     => $datos['descripcion']    ?? '',
-            ':trayec'   => $datos['trayectoria']    ?? '',
+            ':cel'      => $datos['celular']       ?? '',
+            ':tipo'     => $tipoPerfil,
+            ':desc'     => $datos['descripcion']   ?? '',
+            ':trayec'   => $datos['trayectoria']   ?? '',
             ':ciudad'   => $idCiudad,
             ':uni'      => $idUni,
-            ':car'      => $idCar
+            ':car'      => $idCar,
+            ':rol'      => $idRol,
         ]);
 
         if (!$ok) {
@@ -215,7 +294,6 @@ class AuthService {
 
         $idUsuario = (int) $db->lastInsertId();
 
-        // Guardar relación académica en tabla inscripciones (si aplica)
         if ($idUni || $idCar) {
             try {
                 $stmtIns = $db->prepare("INSERT INTO inscripciones (idUsuario, idUniversidad, idCarrera, anioIngreso, estado) VALUES (:uid, :uni, :car, :anio, 'activo')");
@@ -228,11 +306,13 @@ class AuthService {
             } catch (Exception $e) {}
         }
 
-        // Asignar grupo de seguridad por defecto (3 = Estudiantes Verificados)
         try {
-            $stmtGrp = $db->prepare("INSERT INTO detalle_grupo_permiso (idUsuario, idGrupoPermiso) VALUES (:uid, 3)");
-            $stmtGrp->execute([':uid' => $idUsuario]);
+            $idGrupo = ($idRol === 6 || $idRol === 5) ? 4 : 3;
+            $stmtGrp = $db->prepare("INSERT INTO detalle_grupo_permiso (idUsuario, idGrupoPermiso) VALUES (:uid, :grp)");
+            $stmtGrp->execute([':uid' => $idUsuario, ':grp' => $idGrupo]);
         } catch (Exception $e) {}
+
+        (new AuditoriaRepository())->registrar($idUsuario, 'REGISTRO', "Alta de usuario ({$email})", 'usuarios');
 
         return true;
     }
@@ -240,7 +320,6 @@ class AuthService {
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
     private function _resolveCiudad($db, string $pais, string $provincia, string $ciudad): int {
-        // Pais
         $stmt = $db->prepare("SELECT idPais FROM paises WHERE nombre = :n");
         $stmt->execute([':n' => $pais]);
         $row  = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -251,7 +330,6 @@ class AuthService {
             $idPais = (int) $db->lastInsertId();
         }
 
-        // Provincia
         $stmt = $db->prepare("SELECT idProvincia FROM provincias WHERE nombre = :n AND idPais = :p");
         $stmt->execute([':n' => $provincia, ':p' => $idPais]);
         $row  = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -262,7 +340,6 @@ class AuthService {
             $idProv = (int) $db->lastInsertId();
         }
 
-        // Ciudad
         $stmt = $db->prepare("SELECT idCiudad FROM ciudades WHERE nombre = :n AND idProvincia = :p");
         $stmt->execute([':n' => $ciudad, ':p' => $idProv]);
         $row  = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -278,7 +355,6 @@ class AuthService {
         $row = $db->query("SELECT idCiudad FROM ciudades LIMIT 1")->fetch(PDO::FETCH_ASSOC);
         if ($row) return (int) $row['idCiudad'];
 
-        // Minimal seeding if table is empty
         $db->exec("INSERT IGNORE INTO paises (idPais, nombre) VALUES (1, 'Argentina')");
         $db->exec("INSERT IGNORE INTO provincias (idProvincia, idPais, nombre) VALUES (1, 1, 'Santa Fe')");
         $db->exec("INSERT IGNORE INTO ciudades (idCiudad, idProvincia, nombre) VALUES (1, 1, 'Rosario')");

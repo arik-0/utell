@@ -124,9 +124,9 @@
               <p class="msg-text">{{ msg.textoMensaje }}</p>
               <div class="msg-meta">
                 <span class="msg-time">{{ formatTime(msg.horaMensaje) }}</span>
-                <span v-if="isMe(msg)" class="read-status">
-                  <svg v-if="msg.leido > 0" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span v-if="isMe(msg)" class="read-status" :class="{ 'is-read': Number(msg.leido) > 0 }" :title="Number(msg.leido) > 0 ? 'Leído' : 'Enviado'">
+                  <svg v-if="Number(msg.leido) > 0" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>
               </div>
             </div>
@@ -206,13 +206,15 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useToastStore } from '../store/toast'
 import { timeAgo, getProfilePic } from '../utils'
 import api from '../api'
 import EmptyState from '../components/EmptyState.vue'
 
-const route     = useRoute()
-const router    = useRouter()
-const authStore = useAuthStore()
+const route      = useRoute()
+const router     = useRouter()
+const authStore  = useAuthStore()
+const toastStore = useToastStore()
 
 // State
 const conversaciones        = ref([])
@@ -278,8 +280,9 @@ const fetchChatMessages = async (contactId, silent = false) => {
     const res = await api.get(`/mensajes/chat/${contactId}?idUsuario=${authStore.user.idUsuario}`)
     if (Array.isArray(res.data)) {
       const prevLength = messages.value.length
-      messages.value = res.data
-      if (res.data.length > prevLength) {
+      const pendingOptimistic = messages.value.filter(m => m._optimistic)
+      messages.value = [...res.data, ...pendingOptimistic]
+      if (messages.value.length > prevLength) {
         await scrollToBottom()
       }
     }
@@ -303,6 +306,9 @@ const closeChat = () => {
   stopPolling()
   activeContact.value = null
   messages.value = []
+  if (route.query.contacto) {
+    router.replace({ path: '/mensajes' })
+  }
   fetchConversaciones()
 }
 
@@ -322,13 +328,14 @@ const sendMessage = async () => {
 
   // Optimistic message append
   const tempMsg = {
-    idMensajeDirecto: Date.now(),
+    idMensajeDirecto: `temp_${Date.now()}`,
     idEmisor: authStore.user.idUsuario,
     idReceptor: activeContact.value.idUsuario,
     fechaMensaje: new Date().toISOString().split('T')[0],
     horaMensaje: new Date().toTimeString().split(' ')[0],
     textoMensaje: texto,
-    leido: 0
+    leido: 0,
+    _optimistic: true
   }
   messages.value.push(tempMsg)
   await scrollToBottom()
@@ -345,12 +352,15 @@ const sendMessage = async () => {
       const idx = messages.value.findIndex(m => m.idMensajeDirecto === tempMsg.idMensajeDirecto)
       if (idx !== -1) {
         messages.value[idx] = res.data.data
+      } else {
+        messages.value.push(res.data.data)
       }
     }
   } catch (e) {
     console.error('Error sending message:', e)
-    // Remove failed optimistic msg
     messages.value = messages.value.filter(m => m.idMensajeDirecto !== tempMsg.idMensajeDirecto)
+    if (!newMessageText.value) newMessageText.value = texto
+    toastStore.error('No se pudo enviar el mensaje. Intenta nuevamente.')
   } finally {
     isSending.value = false
     await scrollToBottom()
@@ -878,7 +888,12 @@ onUnmounted(() => {
 .is-me .read-status {
   display: flex;
   align-items: center;
-  opacity: 0.85;
+  opacity: 0.78;
+}
+
+.is-me .read-status.is-read {
+  opacity: 1;
+  color: #BAE6FD;
 }
 
 /* ─── Chat Input Bar ─── */

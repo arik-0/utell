@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
@@ -309,6 +309,13 @@ const shareCurrentPost = async () => {
     toastStore.info(`Enlace: ${shareUrl}`, 4000)
   }
 }
+
+watch(() => route.params.id, (newId) => {
+  if (newId) {
+    fetchPost()
+    fetchRespuestas()
+  }
+})
 
 onMounted(() => {
   fetchPost()

@@ -33,9 +33,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      const reqUrl = String(error.config?.url || '')
+      const isLoginRequest = reqUrl.includes('/login')
       const currentPath = window.location.pathname
-      const isAuthPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register' || currentPath === '/dashboard'
-      if (!isAuthPage) {
+      const isAuthPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register'
+      if (!isLoginRequest && !isAuthPage) {
         localStorage.removeItem('utell_user')
         window.location.href = '/'
       }
@@ -45,4 +47,3 @@ api.interceptors.response.use(
 )
 
 export default api
-

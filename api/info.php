@@ -1,1 +1,0 @@
-<?php // Deleted info.php to prevent security risk ?>

@@ -8,6 +8,13 @@ class AmistadRepository {
         $this->db = db::getInstance()->getConnection();
     }
 
+    public function obtenerPorId(int $idAmistad): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM amigos WHERE idAmistad = :id LIMIT 1");
+        $stmt->execute([':id' => $idAmistad]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function existeRelacion(int $idA, int $idB): ?array {
         $sql  = "SELECT * FROM amigos
                  WHERE (idSolicitante = :a AND idReceptor = :b)
@@ -20,7 +27,20 @@ class AmistadRepository {
     }
 
     public function enviarSolicitud(int $idSolicitante, int $idReceptor): bool {
-        if ($this->existeRelacion($idSolicitante, $idReceptor) !== null) {
+        $existente = $this->existeRelacion($idSolicitante, $idReceptor);
+        if ($existente !== null) {
+            if ($existente['estado'] === 'rechazada') {
+                $stmtUpd = $this->db->prepare(
+                    "UPDATE amigos SET idSolicitante = :sol, idReceptor = :rec, fechaInicio = :fecha, estado = 'pendiente'
+                     WHERE idAmistad = :id"
+                );
+                return $stmtUpd->execute([
+                    ':sol'   => $idSolicitante,
+                    ':rec'   => $idReceptor,
+                    ':fecha' => date('Y-m-d'),
+                    ':id'    => $existente['idAmistad'],
+                ]);
+            }
             return false;
         }
         $stmt = $this->db->prepare(
@@ -28,8 +48,8 @@ class AmistadRepository {
              VALUES (:sol, :rec, :fecha, 'pendiente')"
         );
         return $stmt->execute([
-            ':sol'  => $idSolicitante,
-            ':rec'  => $idReceptor,
+            ':sol'   => $idSolicitante,
+            ':rec'   => $idReceptor,
             ':fecha' => date('Y-m-d'),
         ]);
     }
@@ -58,7 +78,6 @@ class AmistadRepository {
     }
 
     public function obtenerAmigos(int $idUsuario): array {
-        // Use a single parameter binding compatible with named params
         $sql  = "SELECT
                     a.idAmistad,
                     CASE WHEN a.idSolicitante = :uid  THEN uR.idUsuario   ELSE uS.idUsuario   END AS idUsuario,

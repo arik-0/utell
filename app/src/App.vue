@@ -246,12 +246,7 @@ const showDesktopSidebar = computed(() => {
   return !isAuthRoute.value && !!authStore.user
 })
 
-const isStaffOrInstitution = computed(() => {
-  if (!authStore.user) return false
-  const rol = Number(authStore.user.idRol || 0)
-  const perfil = authStore.user.tipoPerfil || ''
-  return [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-})
+const isStaffOrInstitution = computed(() => authStore.isStaffOrInstitution)
 
 const showDesktopRightRail = computed(() => {
 

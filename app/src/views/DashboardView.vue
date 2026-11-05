@@ -63,23 +63,23 @@
         </form>
 
         <div class="auth-demo-hint">
-          <strong>Cuentas autorizadas para evaluación de cátedra:</strong>
+          <strong>Cuentas autorizadas para evaluación de cátedra (clic para autocompletar):</strong>
           <div class="demo-accounts-grid">
             <div class="demo-account-item" @click="setDemoAccount('rectorado@uai.edu.ar')">
               <span class="demo-role-badge badge-uni">🏛️ Universidad UAI</span>
-              <code>rectorado@uai.edu.ar</code> (Pass: 123456)
+              <code>rectorado@uai.edu.ar</code>
             </div>
             <div class="demo-account-item" @click="setDemoAccount('admin@uai.edu.ar')">
               <span class="demo-role-badge badge-admin">🛡️ Administrador</span>
-              <code>admin@uai.edu.ar</code> (Pass: 123456)
+              <code>admin@uai.edu.ar</code>
             </div>
             <div class="demo-account-item" @click="setDemoAccount('moderador@uai.edu.ar')">
               <span class="demo-role-badge badge-mod">⚖️ Moderador</span>
-              <code>moderador@uai.edu.ar</code> (Pass: 123456)
+              <code>moderador@uai.edu.ar</code>
             </div>
             <div class="demo-account-item" @click="setDemoAccount('lucia.albarracin@uai.edu.ar')">
               <span class="demo-role-badge badge-doc">🎓 Docente Cátedra</span>
-              <code>lucia.albarracin@uai.edu.ar</code> (Pass: 123456)
+              <code>lucia.albarracin@uai.edu.ar</code>
             </div>
           </div>
         </div>
@@ -505,7 +505,7 @@
               <div class="context-meta-tags">
                 <span class="meta-tag">📍 {{ level3Data?.contexto?.sede }} ({{ level3Data?.contexto?.ciudad }}, {{ level3Data?.contexto?.provincia }})</span>
                 <span v-if="level3Data?.contexto?.telefono" class="meta-tag">📞 {{ level3Data?.contexto?.telefono }}</span>
-                <span v-if="level3Data?.contexto?.web" class="meta-tag">🌐 <a :href="level3Data?.contexto?.web" target="_blank" class="link-inline">{{ level3Data?.contexto?.web }}</a></span>
+                <span v-if="isSafeHttpUrl(level3Data?.contexto?.web)" class="meta-tag">🌐 <a :href="level3Data?.contexto?.web" target="_blank" rel="noopener noreferrer" class="link-inline">{{ level3Data?.contexto?.web }}</a></span>
               </div>
               <p v-if="level3Data?.contexto?.descripcion" class="context-desc">{{ level3Data?.contexto?.descripcion }}</p>
             </div>
@@ -577,7 +577,10 @@
               <!-- Título y Texto de Publicación -->
               <div class="pub-body">
                 <h4 v-if="pub.titulo" class="pub-title">{{ pub.titulo }}</h4>
-                <p class="pub-text">{{ pub.texto }}</p>
+                <p class="pub-text">{{ parsePostContent(pub.texto).text }}</p>
+                <div v-if="parsePostContent(pub.texto).image" class="post-image-attachment">
+                  <img :src="parsePostContent(pub.texto).image" alt="Imagen adjunta" loading="lazy" />
+                </div>
               </div>
 
               <!-- Matriz de Puntuaciones (Si es Experiencia) -->
@@ -642,11 +645,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
-import { getProfilePic, timeAgo } from '../utils'
+import { getProfilePic, parsePostContent } from '../utils'
 import api from '../api'
 import Chart from 'chart.js/auto'
 
@@ -661,12 +664,9 @@ const isLoggingIn = ref(false)
 const loginError = ref('')
 const searchQuery = ref('')
 
-const isAuthorized = computed(() => {
-  if (!authStore.user) return false
-  const rol = Number(authStore.user.idRol || 0)
-  const perfil = authStore.user.tipoPerfil || ''
-  return [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
-})
+const isSafeHttpUrl = (url) => typeof url === 'string' && /^https?:\/\//i.test(url.trim())
+
+const isAuthorized = computed(() => authStore.isStaffOrInstitution)
 
 const setDemoAccount = (email) => {
   loginForm.value.email = email
@@ -714,8 +714,7 @@ const handleDashboardLogin = async () => {
     })
 
     if (res.data && !res.data.error && res.data.usuario) {
-      authStore.user = res.data.usuario
-      localStorage.setItem('utell_user', JSON.stringify(res.data.usuario))
+      authStore._setUser(res.data.usuario)
       toastStore.success('¡Bienvenido al Tablero de Control!')
       await fetchLevel1Data()
     } else {
@@ -930,7 +929,15 @@ const renderLevel3Chart = () => {
 onMounted(async () => {
   if (isAuthorized.value) {
     await fetchLevel1Data()
+  } else {
+    isLoading.value = false
   }
+})
+
+onUnmounted(() => {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null }
+  if (chart2Instance) { chart2Instance.destroy(); chart2Instance = null }
+  if (chart3Instance) { chart3Instance.destroy(); chart3Instance = null }
 })
 </script>
 

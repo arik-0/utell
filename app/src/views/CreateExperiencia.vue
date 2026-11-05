@@ -212,12 +212,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { getProfilePic, uploadImageFile } from '../utils'
 import api from '../api'
 
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const toastStore = useToastStore()
@@ -228,7 +229,7 @@ const sedes = ref([])
 const carreras = ref([])
 const form = ref({ 
   titulo: '', 
-  universidad: '', 
+  universidad: typeof route.query.universidad === 'string' ? route.query.universidad : '', 
   sede: '',
   carrera: '', 
   texto: '', 

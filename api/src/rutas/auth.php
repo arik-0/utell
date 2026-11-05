@@ -1,61 +1,51 @@
 <?php
-use \Psr\Http\Message\ServerRequestInterface as Request;
-use \Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ResponseInterface as Response;
 use Firebase\JWT\JWT;
 use Firebase\JWT\JWK;
 
 require_once __DIR__ . '/../Services/AuthService.php';
 
-// ─── Helper: write JSON response ──────────────────────────────────────────────
-if (!function_exists('jsonResponse')) {
-    function jsonResponse(Response $response, $data, int $status = 200): Response {
-        $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
-    }
-}
+// ─── POST /login (y alias /auth/login) ────────────────────────────────────────
+$loginHandler = function(Request $request, Response $response) {
+    $email    = trim((string)($request->getParam('email') ?? ''));
+    $password = (string)($request->getParam('password') ?? '');
 
-// ─── POST /login ──────────────────────────────────────────────────────────────
-$app->post('/login', function(Request $request, Response $response) {
-    $email    = trim($request->getParam('email') ?? '');
-    $password = $request->getParam('password') ?? '';
-
-    if (empty($email) || empty($password)) {
-        return jsonResponse($response, ['error' => ['text' => 'Email y contraseña son requeridos.']], 400);
+    if ($email === '' || $password === '') {
+        return errorResponse($response, 'Email y contraseña son requeridos.', 400);
     }
 
     try {
-        $authService = AuthService::getInstance();
-        $usuario     = $authService->login($email, $password);
-
+        $usuario = AuthService::getInstance()->login($email, $password);
         if ($usuario) {
             return jsonResponse($response, $usuario);
-        } else {
-            return jsonResponse($response, ['error' => ['text' => 'Email o contraseña incorrectos.']], 401);
         }
+        return errorResponse($response, 'Email o contraseña incorrectos.', 401);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
-        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
+        return errorResponse($response, 'Error interno al procesar el inicio de sesión.', 500, $e);
     }
-});
+};
+$app->post('/login', $loginHandler);
+$app->post('/auth/login', $loginHandler);
 
-// ─── POST /login/google ───────────────────────────────────────────────────────
-// Verifica el Google Identity JWT usando las claves públicas de Google (JWKS).
-// Si GOOGLE_CLIENT_ID no está configurado, el login con Google queda deshabilitado.
-$app->post('/login/google', function(Request $request, Response $response) {
-    $credential = $request->getParam('credential') ?? '';
+// ─── POST /login/google (y alias /auth/google) ────────────────────────────────
+$googleLoginHandler = function(Request $request, Response $response) {
+    $credential = (string)($request->getParam('credential') ?? '');
 
-    if (empty($credential)) {
-        return jsonResponse($response, ['error' => ['text' => 'Token de Google no recibido.']], 400);
+    if ($credential === '') {
+        return errorResponse($response, 'Token de Google no recibido.', 400);
     }
 
     $clientId = getenv('GOOGLE_CLIENT_ID');
     if (empty($clientId)) {
-        return jsonResponse($response, ['error' => ['text' => 'Login con Google no está configurado en el servidor.']], 501);
+        return errorResponse($response, 'Login con Google no está configurado en el servidor.', 501);
     }
 
     try {
-        // Obtener JWKS de Google (con caché básico en archivo)
         $jwksCache = sys_get_temp_dir() . '/google_jwks_cache.json';
-        $cacheLife = 3600; // 1 hora
+        $cacheLife = 3600;
 
         if (file_exists($jwksCache) && (time() - filemtime($jwksCache)) < $cacheLife) {
             $jwksJson = file_get_contents($jwksCache);
@@ -64,35 +54,33 @@ $app->post('/login/google', function(Request $request, Response $response) {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             $jwksJson = curl_exec($ch);
-            if (curl_errno($ch) || !$jwksJson) {
-                throw new Exception('No se pudo obtener las claves públicas de Google.');
-            }
+            $curlErr  = curl_errno($ch);
             curl_close($ch);
+            if ($curlErr || !$jwksJson) {
+                throw new RuntimeException('No se pudo obtener las claves públicas de Google.');
+            }
             file_put_contents($jwksCache, $jwksJson);
         }
 
         $jwks = json_decode($jwksJson, true);
         if (empty($jwks['keys'])) {
-            throw new Exception('JWKS de Google inválido.');
+            throw new RuntimeException('JWKS de Google inválido.');
         }
 
-        // Verificar token con firebase/php-jwt
-        $keys = JWK::parseKeySet($jwks);
+        $keys    = JWK::parseKeySet($jwks);
         $decoded = (array) JWT::decode($credential, $keys);
 
-        // Validar audience y emisor
         if (($decoded['aud'] ?? '') !== $clientId) {
-            throw new Exception('Token de Google no es válido para esta aplicación.');
+            throw new DomainException('Token de Google no es válido para esta aplicación.');
         }
         if (!in_array($decoded['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true)) {
-            throw new Exception('Emisor del token de Google no reconocido.');
+            throw new DomainException('Emisor del token de Google no reconocido.');
         }
         if (empty($decoded['email'])) {
-            throw new Exception('El token de Google no contiene un email válido.');
+            throw new DomainException('El token de Google no contiene un email válido.');
         }
 
-        $authService = AuthService::getInstance();
-        $usuario     = $authService->loginOrCreateGoogle(
+        $usuario = AuthService::getInstance()->loginOrCreateGoogle(
             $decoded['email'],
             $decoded['name']        ?? '',
             $decoded['given_name']  ?? '',
@@ -101,47 +89,51 @@ $app->post('/login/google', function(Request $request, Response $response) {
         );
 
         return jsonResponse($response, $usuario);
-
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
-        return jsonResponse($response, ['error' => ['text' => 'Error al verificar token de Google: ' . $e->getMessage()]], 401);
+        return errorResponse($response, 'No fue posible verificar la credencial de Google.', 401, $e);
     }
-});
+};
+$app->post('/login/google', $googleLoginHandler);
+$app->post('/auth/google', $googleLoginHandler);
 
 // ─── POST /usuarios/nuevo ─────────────────────────────────────────────────────
 $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
     $datos = [
-        'nombre'         => $request->getParam('nombre'),
-        'apellido'       => $request->getParam('apellido'),
-        'fNac'           => $request->getParam('fNac'),
-        'email'          => $request->getParam('email'),
-        'password'       => $request->getParam('password'),
-        'fotoPerfil'     => $request->getParam('fotoPerfil')   ?? '',
-        'celular'        => $request->getParam('celular')      ?? '',
-        'tipoPerfil'     => $request->getParam('tipoPerfil'),
-        'descripcion'    => $request->getParam('descripcion')  ?? '',
-        'trayectoria'    => $request->getParam('trayectoria')  ?? '',
-        'pais'           => $request->getParam('pais'),
-        'provincia'      => $request->getParam('provincia'),
-        'ciudad'         => $request->getParam('ciudad'),
-        'idUniversidad'  => $request->getParam('idUniversidad') ?? null,
-        'idCarrera'      => $request->getParam('idCarrera')     ?? null,
+        'nombre'        => $request->getParam('nombre'),
+        'apellido'      => $request->getParam('apellido'),
+        'fNac'          => $request->getParam('fNac'),
+        'email'         => $request->getParam('email'),
+        'password'      => $request->getParam('password'),
+        'fotoPerfil'    => $request->getParam('fotoPerfil')    ?? '',
+        'celular'       => $request->getParam('celular')       ?? '',
+        'tipoPerfil'    => $request->getParam('tipoPerfil'),
+        'descripcion'   => $request->getParam('descripcion')   ?? '',
+        'trayectoria'   => $request->getParam('trayectoria')   ?? '',
+        'pais'          => $request->getParam('pais'),
+        'provincia'     => $request->getParam('provincia'),
+        'ciudad'        => $request->getParam('ciudad'),
+        'idUniversidad' => $request->getParam('idUniversidad') ?? null,
+        'idCarrera'     => $request->getParam('idCarrera')     ?? null,
     ];
 
-    // Validaciones mínimas
-    if (empty($datos['nombre']) || empty($datos['email']) || empty($datos['password'])) {
-        return jsonResponse($response, ['error' => ['text' => 'Nombre, email y contraseña son requeridos.']], 400);
+    if (empty(trim((string)$datos['nombre'])) || empty(trim((string)$datos['email'])) || empty($datos['password'])) {
+        return errorResponse($response, 'Nombre, email y contraseña son requeridos.', 400);
+    }
+    if (!filter_var($datos['email'], FILTER_VALIDATE_EMAIL)) {
+        return errorResponse($response, 'El formato del correo electrónico no es válido.', 400);
     }
 
     try {
-        $authService = AuthService::getInstance();
-        $exito       = $authService->registro($datos);
-
+        $exito = AuthService::getInstance()->registro($datos);
         if ($exito) {
             return jsonResponse($response, ['mensaje' => 'Nuevo usuario guardado.'], 201);
-        } else {
-            return jsonResponse($response, ['error' => ['text' => 'Error al guardar el usuario.']], 500);
         }
+        return errorResponse($response, 'No se pudo completar el registro del usuario.', 500);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 409);
     } catch (Exception $e) {
-        return jsonResponse($response, ['error' => ['text' => $e->getMessage()]], 500);
+        return errorResponse($response, 'Error interno al registrar el usuario.', 500, $e);
     }
 });

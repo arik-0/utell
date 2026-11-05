@@ -58,6 +58,24 @@ class InstitucionService {
         return $this->repo->eliminarOfertaAcademica($idOferta);
     }
 
+    public function resolverIdsAcademicos(
+        ?int $idUniversidad,
+        ?int $idSede,
+        ?int $idCarrera,
+        ?string $nombreUniversidad = null,
+        ?string $nombreSede = null,
+        ?string $nombreCarrera = null
+    ): array {
+        return $this->repo->resolverIdsAcademicos(
+            $idUniversidad,
+            $idSede,
+            $idCarrera,
+            $nombreUniversidad,
+            $nombreSede,
+            $nombreCarrera
+        );
+    }
+
     public function obtenerPaises(): array {
         return $this->repo->obtenerPaises();
     }

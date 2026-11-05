@@ -203,7 +203,28 @@ const eliminarAmistad = async (idAmistad) => {
   }
 }
 
-onMounted(loadAmigos)
+const loadInitialConnections = async () => {
+  if (!authStore.user) {
+    isLoading.value = false
+    return
+  }
+  isLoading.value = true
+  try {
+    const [resAmigos, resSol] = await Promise.allSettled([
+      api.get(`/usuarios/${authStore.user.idUsuario}/amigos`),
+      api.get(`/usuarios/${authStore.user.idUsuario}/solicitudes`)
+    ])
+    amigos.value = (resAmigos.status === 'fulfilled' && Array.isArray(resAmigos.value.data)) ? resAmigos.value.data : []
+    pendientes.value = (resSol.status === 'fulfilled' && Array.isArray(resSol.value.data)) ? resSol.value.data : []
+  } catch (_) {
+    amigos.value = []
+    pendientes.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadInitialConnections)
 </script>
 
 

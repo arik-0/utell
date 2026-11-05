@@ -10,7 +10,16 @@ export const useAuthStore = defineStore('auth', {
     } catch (e) {}
 
     return {
-      user:   storedUser,
+      user: storedUser,
+    }
+  },
+
+  getters: {
+    isStaffOrInstitution(state) {
+      if (!state.user) return false
+      const rol = Number(state.user.idRol || 0)
+      const perfil = state.user.tipoPerfil || ''
+      return [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
     }
   },
 
@@ -21,6 +30,17 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('utell_user', JSON.stringify(data))
     },
 
+    // ─── Extract readable message from Axios / API errors ─────────────────
+    _extractErrorMessage(err) {
+      const respData = err?.response?.data
+      if (respData) {
+        if (typeof respData.error === 'object' && respData.error?.text) return respData.error.text
+        if (typeof respData.mensaje === 'string' && respData.mensaje) return respData.mensaje
+        if (typeof respData.error === 'string' && respData.error) return respData.error
+      }
+      return err?.message || 'Credenciales incorrectas'
+    },
+
     // ─── Parse the API response and extract the user object ───────────────
     _parseUserResponse(raw) {
       let data = raw
@@ -29,8 +49,8 @@ export const useAuthStore = defineStore('auth', {
       }
 
       if (data && data.error) {
-        const msg = typeof data.error === 'object' ? data.error.text : data.error
-        throw new Error(msg)
+        const msg = typeof data.error === 'object' ? (data.error.text || data.mensaje) : (data.mensaje || data.error)
+        throw new Error(msg || 'Credenciales incorrectas')
       }
 
       if (typeof data === 'string') throw new Error(data)
@@ -47,10 +67,14 @@ export const useAuthStore = defineStore('auth', {
       fd.append('email', email)
       fd.append('password', password)
 
-      const response = await api.post('/login', fd)
-      const user     = this._parseUserResponse(response.data)
-      this._setUser(user)
-      return true
+      try {
+        const response = await api.post('/login', fd)
+        const user     = this._parseUserResponse(response.data)
+        this._setUser(user)
+        return true
+      } catch (err) {
+        throw new Error(this._extractErrorMessage(err))
+      }
     },
 
     // ─── Google OAuth login ───────────────────────────────────────────────
@@ -60,10 +84,14 @@ export const useAuthStore = defineStore('auth', {
       const fd = new FormData()
       fd.append('credential', credential)
 
-      const response = await api.post('/login/google', fd)
-      const user     = this._parseUserResponse(response.data)
-      this._setUser(user)
-      return true
+      try {
+        const response = await api.post('/login/google', fd)
+        const user     = this._parseUserResponse(response.data)
+        this._setUser(user)
+        return true
+      } catch (err) {
+        throw new Error(this._extractErrorMessage(err))
+      }
     },
 
     // ─── Update partial user data in state + storage ──────────────────────
@@ -81,4 +109,3 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
-

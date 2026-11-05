@@ -34,8 +34,8 @@ class SeguridadService {
         return $this->repo->obtenerGruposPermiso();
     }
 
-    public function asignarGrupo(int $idUsuario, int $idGrupoPermiso): bool {
-        return $this->repo->asignarGrupoAUsuario($idUsuario, $idGrupoPermiso);
+    public function asignarGrupo(int $idUsuario, int $idGrupoPermiso, ?int $idActor = null): bool {
+        return $this->repo->asignarGrupoAUsuario($idUsuario, $idGrupoPermiso, $idActor);
     }
 
     public function moderarPublicacion(int $idModerador, int $idPublicacion, string $accion, ?string $motivo = null): array {

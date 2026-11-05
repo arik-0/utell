@@ -1209,3 +1209,24 @@ h4 { font-size: 15px; }
   box-shadow: 0 2px 8px var(--primary-glow);
 }
 
+
+/* ═══════════════════════════════════
+   CHARACTER COUNTER & FORM LABELS
+   ═══════════════════════════════════ */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.char-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.char-count.char-limit {
+  color: var(--error);
+  font-weight: 700;
+}

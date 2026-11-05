@@ -257,6 +257,7 @@ const router     = useRouter()
 const authStore  = useAuthStore()
 const toastStore = useToastStore()
 const themeStore = useThemeStore()
+const isDark     = computed(() => themeStore.isDark)
 
 const profileUser      = ref(null)
 const amigoCount       = ref(0)
@@ -290,21 +291,18 @@ const handleAvatarFileChange = async (event) => {
       tipo: 'avatar'
     })
 
-    // Try updating profile in backend
-    try {
-      await api.put(`/editarPerfil/${authStore.user?.idUsuario}`, {
-        fotoPerfil: uploadedUrl
-      })
-    } catch (_) {
-      // Backend /upload may have already handled this
+    // Sync avatar URL in backend only if it's a compact URL (not an inline base64 fallback)
+    if (uploadedUrl && !uploadedUrl.startsWith('data:image/')) {
+      try {
+        await api.put(`/editarPerfil/${authStore.user?.idUsuario}`, {
+          fotoPerfil: uploadedUrl
+        })
+      } catch (_) {
+        // Backend /upload already persists avatar when tipo === 'avatar'
+      }
     }
 
-    if (authStore.user) {
-      authStore.user.fotoPerfil = uploadedUrl
-      try {
-        localStorage.setItem('utell_user', JSON.stringify(authStore.user))
-      } catch (_) {}
-    }
+    authStore.updateUser({ fotoPerfil: uploadedUrl })
     if (profileUser.value) {
       profileUser.value.fotoPerfil = uploadedUrl
     }

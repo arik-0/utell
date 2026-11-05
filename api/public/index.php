@@ -32,6 +32,7 @@ if ($method === "OPTIONS") {
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/config/db.php';
+require_once __DIR__ . '/../src/config/helpers.php';
 
 // Suppress deprecations for Slim 3 on PHP 8.x
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
@@ -46,8 +47,8 @@ if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
     }
 }
 
-$config = [ 
-    "settings" => [ 
+$config = [
+    "settings" => [
         "displayErrorDetails" => false,
         "determineRouteBeforeAppMiddleware" => true,
         "outputBuffering" => false
@@ -58,13 +59,12 @@ $app = new \Slim\App($config);
 
 // Healthcheck Route
 $app->get('/', function (Request $request, Response $response, array $args) {
-    $response->getBody()->write(json_encode([
+    return jsonResponse($response, [
         "status"  => "online",
         "service" => "U-Tell API Engine",
         "version" => "2.0.0",
         "env"     => getenv('APP_ENV') ?: 'development'
-    ]));
-    return $response;
+    ]);
 });
 
 // RUTAS
@@ -80,4 +80,3 @@ require __DIR__ . '/../src/rutas/dashboard.php';
 require __DIR__ . '/../src/rutas/upload.php';
 
 $app->run();
-

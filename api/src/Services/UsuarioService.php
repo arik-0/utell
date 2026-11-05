@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../Repositories/UsuarioRepository.php';
+require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
 
 class UsuarioService {
     private static $instance = null;
@@ -39,8 +40,16 @@ class UsuarioService {
         return $this->usuarioRepository->obtenerPerfilCompleto($id);
     }
 
-    public function eliminarUsuario(int $id): bool {
-        return $this->usuarioRepository->eliminar($id);
+    public function eliminarUsuario(int $id, ?int $idActor = null): bool {
+        $ok = $this->usuarioRepository->eliminar($id);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar($idActor ?? $id, 'BAJA_USUARIO', "Baja lógica de usuario ID {$id}", 'usuarios');
+        }
+        return $ok;
+    }
+
+    public function actualizarFotoPerfil(int $id, string $fotoUrl): bool {
+        return $this->usuarioRepository->actualizarFotoPerfil($id, $fotoUrl);
     }
 
     public function actualizarUsuario(int $id, array $datos): bool {
@@ -49,33 +58,48 @@ class UsuarioService {
             return false;
         }
 
-        // Crear objeto actualizado
+        // Solo transmitir nueva contraseña si el cliente explícitamente solicitó cambiarla
+        // (evita re-hashear el hash bcrypt existente al editar foto o datos básicos).
+        $nuevaPassword = !empty($datos['password']) ? (string)$datos['password'] : '';
+
         $usuarioModificado = new Usuario(
             $datos['nombre'] ?? $usuarioActual->getNombre(),
             $datos['apellido'] ?? $usuarioActual->getApellido(),
             $datos['email'] ?? $usuarioActual->getEmail(),
-            $datos['password'] ?? $usuarioActual->getPassword(),
+            $nuevaPassword,
             $datos['fNac'] ?? $usuarioActual->getFnac(),
             $datos['tipoPerfil'] ?? $usuarioActual->getTipoPerfil(),
-            $datos['idCiudad'] ?? $usuarioActual->getIdCiudad(),
+            isset($datos['idCiudad']) && $datos['idCiudad'] !== null && $datos['idCiudad'] !== ''
+                ? (int)$datos['idCiudad']
+                : $usuarioActual->getIdCiudad(),
             $id,
             $datos['fotoPerfil'] ?? $usuarioActual->getFotoPerfil(),
             $datos['celular'] ?? $usuarioActual->getCelular(),
             $datos['descripcion'] ?? $usuarioActual->getDescripcion(),
             $datos['trayectoria'] ?? $usuarioActual->getTrayectoria(),
-            $datos['idUniversidad'] ?? $usuarioActual->getIdUniversidad(),
-            $datos['idCarrera'] ?? $usuarioActual->getIdCarrera()
+            array_key_exists('idUniversidad', $datos) && $datos['idUniversidad'] !== null
+                ? ($datos['idUniversidad'] !== '' ? (int)$datos['idUniversidad'] : null)
+                : $usuarioActual->getIdUniversidad(),
+            array_key_exists('idCarrera', $datos) && $datos['idCarrera'] !== null
+                ? ($datos['idCarrera'] !== '' ? (int)$datos['idCarrera'] : null)
+                : $usuarioActual->getIdCarrera()
         );
 
         return $this->usuarioRepository->actualizar($usuarioModificado);
     }
 
-    public function cambiarEstadoCuenta(int $id, string $accion): bool {
+    public function cambiarEstadoCuenta(int $id, string $accion, ?int $idActor = null): bool {
         if ($accion === 'bloquear') {
-            return $this->usuarioRepository->bloquearCuenta($id);
+            $ok = $this->usuarioRepository->bloquearCuenta($id);
         } elseif ($accion === 'activar') {
-            return $this->usuarioRepository->activarCuenta($id);
+            $ok = $this->usuarioRepository->activarCuenta($id);
+        } else {
+            throw new InvalidArgumentException("Acción inválida. Use 'bloquear' o 'activar'.");
         }
-        throw new Exception("Accion invalida. Use 'bloquear' o 'activar'.");
+
+        if ($ok) {
+            (new AuditoriaRepository())->registrar($idActor, 'ESTADO_CUENTA', "Cuenta ID {$id} -> {$accion}", 'usuarios');
+        }
+        return $ok;
     }
 }

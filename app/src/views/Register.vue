@@ -101,13 +101,14 @@
               <select v-model="form.tipoPerfil" class="form-input select-control" required>
                 <option value="" disabled>Selecciona tu rol</option>
                 <option value="Estudiante">Estudiante</option>
+                <option value="Graduado">Graduado</option>
                 <option value="Docente">Docente</option>
                 <option value="Universidad">Universidad</option>
                 <option value="Empresa">Empresa</option>
               </select>
             </div>
 
-            <div v-if="form.tipoPerfil === 'Estudiante'" class="academic-cascade">
+            <div v-if="['Estudiante', 'Graduado', 'Docente', 'Universidad'].includes(form.tipoPerfil)" class="academic-cascade">
               <div class="input-field">
                 <label class="field-label">Universidad</label>
                 <select v-model="form.idUniversidad" class="form-input select-control" required>
@@ -116,10 +117,10 @@
                 </select>
               </div>
 
-              <div class="input-field">
-                <label class="field-label">Carrera</label>
-                <select v-model="form.idCarrera" class="form-input select-control" required>
-                  <option value="" disabled>Selecciona tu Carrera</option>
+              <div v-if="['Estudiante', 'Graduado', 'Docente'].includes(form.tipoPerfil)" class="input-field">
+                <label class="field-label">Carrera{{ form.tipoPerfil === 'Docente' ? ' (Opcional)' : '' }}</label>
+                <select v-model="form.idCarrera" class="form-input select-control" :required="['Estudiante', 'Graduado'].includes(form.tipoPerfil)">
+                  <option value="">{{ form.tipoPerfil === 'Docente' ? 'Sin carrera específica' : 'Selecciona tu Carrera' }}</option>
                   <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">{{ carrera.nombre }}</option>
                 </select>
               </div>
@@ -189,6 +190,9 @@ const showPassword = ref(false)
 const countries = ref([])
 const states = ref([])
 const cities = ref([])
+const rawCountries = ref([])
+const rawStates = ref([])
+const rawCities = ref([])
 const loadingCountries = ref(false)
 const loadingStates = ref(false)
 const loadingCities = ref(false)
@@ -264,7 +268,8 @@ const loadCountries = async () => {
   try {
     const res = await api.get(`/paises`)
     if (Array.isArray(res.data) && res.data.length > 0) {
-      countries.value = res.data.map(p => p.nombre || p).sort()
+      rawCountries.value = res.data
+      countries.value = [...new Set(res.data.map(p => p.nombre || p))].sort()
     } else {
       countries.value = Object.keys(defaultLocations)
     }
@@ -288,9 +293,26 @@ const loadStates = async () => {
   loadingStates.value = true
 
   try {
-    const res = await api.get(`/provincias`)
-    if (Array.isArray(res.data) && res.data.length > 0) {
-      states.value = res.data.map(p => p.nombre || p).sort()
+    if (rawStates.value.length === 0) {
+      const res = await api.get(`/provincias`)
+      if (Array.isArray(res.data)) rawStates.value = res.data
+    }
+
+    const selectedCountry = rawCountries.value.find(
+      p => typeof p === 'object' && (p.nombre || '').toLowerCase() === form.value.pais.toLowerCase()
+    )
+
+    let filtered = []
+    if (selectedCountry && selectedCountry.idPais && rawStates.value.length > 0) {
+      filtered = rawStates.value
+        .filter(s => typeof s === 'object' && Number(s.idPais) === Number(selectedCountry.idPais))
+        .map(s => s.nombre)
+    } else if (!selectedCountry && rawStates.value.length > 0 && typeof rawStates.value[0] === 'string') {
+      filtered = rawStates.value
+    }
+
+    if (filtered.length > 0) {
+      states.value = [...new Set(filtered)].sort()
     } else if (defaultLocations[form.value.pais]) {
       states.value = Object.keys(defaultLocations[form.value.pais])
     } else {
@@ -318,9 +340,31 @@ const loadCities = async () => {
   loadingCities.value = true
 
   try {
-    const res = await api.get(`/ciudades`)
-    if (Array.isArray(res.data) && res.data.length > 0) {
-      cities.value = res.data.map(c => c.nombre || c).sort()
+    if (rawCities.value.length === 0) {
+      const res = await api.get(`/ciudades`)
+      if (Array.isArray(res.data)) rawCities.value = res.data
+    }
+
+    const selectedCountry = rawCountries.value.find(
+      p => typeof p === 'object' && (p.nombre || '').toLowerCase() === form.value.pais.toLowerCase()
+    )
+    const selectedState = rawStates.value.find(
+      s => typeof s === 'object' &&
+        (s.nombre || '').toLowerCase() === form.value.provincia.toLowerCase() &&
+        (!selectedCountry || !selectedCountry.idPais || Number(s.idPais) === Number(selectedCountry.idPais))
+    )
+
+    let filtered = []
+    if (selectedState && selectedState.idProvincia && rawCities.value.length > 0) {
+      filtered = rawCities.value
+        .filter(c => typeof c === 'object' && Number(c.idProvincia) === Number(selectedState.idProvincia))
+        .map(c => c.nombre)
+    } else if (!selectedState && rawCities.value.length > 0 && typeof rawCities.value[0] === 'string') {
+      filtered = rawCities.value
+    }
+
+    if (filtered.length > 0) {
+      cities.value = [...new Set(filtered)].sort()
     } else if (defaultLocations[form.value.pais]?.[form.value.provincia]) {
       cities.value = defaultLocations[form.value.pais][form.value.provincia]
     } else {
@@ -417,7 +461,14 @@ const handleRegister = async () => {
     toastStore.success('¡Cuenta creada con éxito! Ya puedes iniciar sesión.', 4000)
     router.push('/')
   } catch (error) { 
-    errorMessage.value = error.message || 'Hubo un error al crear la cuenta.'
+    const apiMsg = error.response?.data?.error?.text
+      || error.response?.data?.mensaje
+      || (typeof error.response?.data?.error === 'string' ? error.response.data.error : null)
+      || error.message
+      || 'Hubo un error al crear la cuenta.'
+    errorMessage.value = apiMsg.includes('Duplicate entry') || apiMsg.includes('1062')
+      ? 'El correo electrónico ya se encuentra registrado.'
+      : apiMsg
     toastStore.error(errorMessage.value)
   } finally { 
     isLoading.value = false 
