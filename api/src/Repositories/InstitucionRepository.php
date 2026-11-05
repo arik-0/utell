@@ -56,59 +56,98 @@ class InstitucionRepository {
      * Obtiene la vista completa del Muro de una Universidad (Datos institucionales, métricas, sedes y publicaciones).
      */
     public function obtenerMuroUniversidad(int $idUniversidad, int $idUsuario = 0): ?array {
-        $stmtUni = $this->db->prepare("SELECT idUniversidad, nombre, email, celular, estado FROM universidades WHERE idUniversidad = :id LIMIT 1");
-        $stmtUni->execute([':id' => $idUniversidad]);
-        $uni = $stmtUni->fetch(PDO::FETCH_ASSOC);
-        if (!$uni) return null;
+        try {
+            $stmtUni = $this->db->prepare("SELECT idUniversidad, nombre, email, celular, estado FROM universidades WHERE idUniversidad = :id LIMIT 1");
+            $stmtUni->execute([':id' => $idUniversidad]);
+            $uni = $stmtUni->fetch(PDO::FETCH_ASSOC);
+            if (!$uni) return null;
 
-        $stmtMetrics = $this->db->prepare("
-            SELECT 
-                COUNT(*) as totalExperiencias,
-                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionClima), 1) ELSE NULL END as promedioClima,
-                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionInfraestructura), 1) ELSE NULL END as promedioInfraestructura,
-                CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionAcademica), 1) ELSE NULL END as promedioAcademico,
-                CASE WHEN COUNT(*) > 0 THEN ROUND((AVG(puntuacionClima) + AVG(puntuacionInfraestructura) + AVG(puntuacionAcademica)) / 3, 1) ELSE NULL END as promedioGeneral
-            FROM publicaciones 
-            WHERE tipoPublicacion = 'Experiencia'
-              AND idUniversidad = :id
-              AND COALESCE(estado, 'activo') = 'activo'
-        ");
-        $stmtMetrics->execute([':id' => $idUniversidad]);
-        $metrics = $stmtMetrics->fetch(PDO::FETCH_ASSOC);
+            // 1. Métricas consolidadas de la institución
+            $metrics = [
+                'totalExperiencias'        => 0,
+                'promedioClima'            => null,
+                'promedioInfraestructura'  => null,
+                'promedioAcademico'        => null,
+                'promedioGeneral'          => null,
+            ];
+            try {
+                $stmtMetrics = $this->db->prepare("
+                    SELECT 
+                        COUNT(*) as totalExperiencias,
+                        CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionClima), 1) ELSE NULL END as promedioClima,
+                        CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionInfraestructura), 1) ELSE NULL END as promedioInfraestructura,
+                        CASE WHEN COUNT(*) > 0 THEN ROUND(AVG(puntuacionAcademica), 1) ELSE NULL END as promedioAcademico,
+                        CASE WHEN COUNT(*) > 0 THEN ROUND((AVG(puntuacionClima) + AVG(puntuacionInfraestructura) + AVG(puntuacionAcademica)) / 3, 1) ELSE NULL END as promedioGeneral
+                    FROM publicaciones 
+                    WHERE tipoPublicacion = 'Experiencia'
+                      AND idUniversidad = :id
+                      AND COALESCE(estado, 'activo') = 'activo'
+                ");
+                $stmtMetrics->execute([':id' => $idUniversidad]);
+                $metricsRow = $stmtMetrics->fetch(PDO::FETCH_ASSOC);
+                if ($metricsRow) {
+                    $metrics = $metricsRow;
+                }
+            } catch (Exception $eMetrics) {
+                error_log("Error al calcular metricas del muro institucional ({$idUniversidad}): " . $eMetrics->getMessage());
+            }
 
-        $stmtPubs = $this->db->prepare("
-            SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
-                   p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.resuelta,
-                   (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
-                   u.nombre, u.apellido, u.fotoPerfil, u.tipoPerfil,
-                   c.nombre as nombreCarrera,
-                   s.nombre as nombreSede,
-                   (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
-                   (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
-                   p.puntuacionClima,
-                   p.puntuacionInfraestructura,
-                   p.puntuacionAcademica
-            FROM publicaciones p
-            INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
-            LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
-            LEFT JOIN sedes s ON p.idSede = s.idSede
-            WHERE p.idUniversidad = :idUni
-              AND COALESCE(p.estado, 'activo') = 'activo'
-            ORDER BY p.fecha DESC, p.hora DESC
-        ");
-        $stmtPubs->execute([':idUni' => $idUniversidad, ':idUsuario' => $idUsuario]);
-        $publicaciones = $stmtPubs->fetchAll(PDO::FETCH_ASSOC);
+            // 2. Publicaciones (Experiencias y Consultas) de la institución
+            $publicaciones = [];
+            try {
+                $stmtPubs = $this->db->prepare("
+                    SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora, 
+                           p.idUniversidad, p.idSede, p.idCarrera, p.texto, p.resuelta,
+                           (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes,
+                           u.nombre, u.apellido, u.fotoPerfil, u.tipoPerfil,
+                           c.nombre as nombreCarrera,
+                           s.nombre as nombreSede,
+                           (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
+                           (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.idUsuario = :idUsuario AND f.estado = 'activo') as hasLiked,
+                           p.puntuacionClima,
+                           p.puntuacionInfraestructura,
+                           p.puntuacionAcademica
+                    FROM publicaciones p
+                    INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
+                    LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
+                    LEFT JOIN sedes s ON p.idSede = s.idSede
+                    WHERE p.idUniversidad = :idUni
+                      AND COALESCE(p.estado, 'activo') = 'activo'
+                    ORDER BY p.fecha DESC, p.hora DESC
+                ");
+                $stmtPubs->execute([':idUni' => $idUniversidad, ':idUsuario' => $idUsuario]);
+                $publicaciones = $stmtPubs->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            } catch (Exception $ePubs) {
+                error_log("Error al obtener publicaciones del muro institucional ({$idUniversidad}): " . $ePubs->getMessage());
+            }
 
-        $stmtSedes = $this->db->prepare("SELECT idSede, nombre, descripcion, web, email, telefono FROM sedes WHERE idUniversidad = :id ORDER BY nombre ASC");
-        $stmtSedes->execute([':id' => $idUniversidad]);
-        $sedes = $stmtSedes->fetchAll(PDO::FETCH_ASSOC);
+            // 3. Sedes de la institución (con resolución de ciudad como descripción)
+            $sedes = [];
+            try {
+                $stmtSedes = $this->db->prepare("
+                    SELECT s.idSede, s.nombre, s.web, s.email, s.telefono, s.estado,
+                           ci.nombre AS descripcion, ci.nombre AS ciudad
+                    FROM sedes s
+                    LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
+                    WHERE s.idUniversidad = :id
+                    ORDER BY s.nombre ASC
+                ");
+                $stmtSedes->execute([':id' => $idUniversidad]);
+                $sedes = $stmtSedes->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            } catch (Exception $eSedes) {
+                error_log("Error al obtener sedes del muro institucional ({$idUniversidad}): " . $eSedes->getMessage());
+            }
 
-        return [
-            'universidad'   => $uni,
-            'metricas'      => $metrics,
-            'publicaciones' => $publicaciones,
-            'sedes'         => $sedes
-        ];
+            return [
+                'universidad'   => $uni,
+                'metricas'      => $metrics,
+                'publicaciones' => $publicaciones,
+                'sedes'         => $sedes,
+            ];
+        } catch (Exception $e) {
+            error_log("Error in obtenerMuroUniversidad ({$idUniversidad}): " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function obtenerCarreras() {
