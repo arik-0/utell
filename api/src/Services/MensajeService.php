@@ -1,14 +1,17 @@
 <?php
 require_once __DIR__ . '/../Repositories/MensajeRepository.php';
+require_once __DIR__ . '/../Repositories/AmistadRepository.php';
 require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
 require_once __DIR__ . '/../Models/Mensaje.php';
 
 class MensajeService {
     private static $instance = null;
     private MensajeRepository $repo;
+    private AmistadRepository $amistadRepo;
 
     private function __construct() {
         $this->repo = new MensajeRepository();
+        $this->amistadRepo = new AmistadRepository();
     }
 
     private function __clone() {}
@@ -31,6 +34,11 @@ class MensajeService {
         }
         if (mb_strlen($textoLimpio) > 2000) {
             throw new InvalidArgumentException("El mensaje supera el límite máximo de 2000 caracteres.");
+        }
+
+        // Regla de Vínculo Habilitante (CU12 / Sección 14.5)
+        if (!$this->amistadRepo->verificarVinculoHabilitante($idEmisor, $idReceptor)) {
+            throw new DomainException("Para intercambiar mensajes privados, ambos usuarios deben ser amigos en la red o debes tener perfil de Postulante.");
         }
 
         $entidad = new Mensaje($idEmisor, $idReceptor, $textoLimpio);
@@ -64,5 +72,9 @@ class MensajeService {
 
     public function obtenerTotalNoLeidos(int $idUsuario): int {
         return $this->repo->obtenerConteoNoLeidos($idUsuario);
+    }
+
+    public function ocultarMensaje(int $idMensaje, int $idUsuario): bool {
+        return $this->repo->ocultarMensaje($idMensaje, $idUsuario);
     }
 }

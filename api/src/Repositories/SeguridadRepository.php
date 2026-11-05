@@ -110,7 +110,7 @@ class SeguridadRepository {
     }
 
     /**
-     * Modera una publicación mediante baja lógica o cierre de respuestas (CU6 / Sección 10).
+     * Modera una publicación mediante baja lógica, cierre o reactivación (CU6 / Sección 10).
      */
     public function moderarPublicacion(int $idModerador, int $idPublicacion, string $accion, ?string $motivo = null): array {
         if (!$this->tienePermiso($idModerador, 'MODERATE_CONTENT')) {
@@ -143,8 +143,88 @@ class SeguridadRepository {
             );
 
             return ['success' => true, 'mensaje' => 'Publicación cerrada/resuelta con éxito.'];
+        } elseif ($accion === 'reactivar') {
+            $stmtReac = $this->db->prepare("UPDATE publicaciones SET estado = 'activo', resuelta = 0 WHERE idPublicacion = :id");
+            $stmtReac->execute([':id' => $idPublicacion]);
+
+            $auditoria->registrar(
+                $idModerador,
+                'REACTIVAR_PUBLICACION',
+                "Reactivada por ID {$idModerador}. Post: {$idPublicacion}",
+                'publicaciones'
+            );
+
+            return ['success' => true, 'mensaje' => 'Publicación reactivada como activa en el muro.'];
         }
 
         throw new InvalidArgumentException("Acción de moderación no reconocida.");
+    }
+
+    /**
+     * Listado completo de publicaciones para panel de moderación (CU6).
+     */
+    public function obtenerPublicacionesModerables(): array {
+        $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora,
+                       p.texto, COALESCE(p.estado, 'activo') as estado, COALESCE(p.resuelta, 0) as resuelta,
+                       u.nombre, u.apellido, u.email, u.fotoPerfil, u.tipoPerfil,
+                       uni.nombre as nombreUniversidad,
+                       c.nombre as nombreCarrera,
+                       (SELECT COUNT(*) FROM respuestas r WHERE r.idPublicacion = p.idPublicacion) as cantidadRespuestas,
+                       (SELECT COUNT(*) FROM favoritos f WHERE f.idPublicacion = p.idPublicacion AND f.estado = 'activo') as likes
+                FROM publicaciones p
+                INNER JOIN usuarios u ON p.idUsuario = u.idUsuario
+                LEFT JOIN universidades uni ON p.idUniversidad = uni.idUniversidad
+                LEFT JOIN carreras c ON p.idCarrera = c.idCarrera
+                ORDER BY p.idPublicacion DESC
+                LIMIT 150";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Listado de usuarios con roles y estados para el panel de administración (CU5 / CU8).
+     */
+    public function obtenerUsuariosAdmin(): array {
+        $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.tipoPerfil, u.idRol,
+                       COALESCE(u.estadoCuenta, 'activo') as estadoCuenta,
+                       COALESCE(r.nombreRol, u.tipoPerfil) as nombreRol,
+                       u.fotoPerfil,
+                       uni.nombre as nombreUniversidad,
+                       (SELECT COUNT(*) FROM publicaciones p WHERE p.idUsuario = u.idUsuario) as totalPublicaciones
+                FROM usuarios u
+                LEFT JOIN roles r ON u.idRol = r.idRol
+                LEFT JOIN universidades uni ON u.idUniversidad = uni.idUniversidad
+                ORDER BY u.idUsuario DESC
+                LIMIT 200";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Asignación de rol a un usuario por parte de un administrador (CU5 / CU8).
+     */
+    public function cambiarRolUsuario(int $idUsuario, int $idRol, ?int $idActor = null): bool {
+        $stmt = $this->db->prepare("UPDATE usuarios SET idRol = :rol WHERE idUsuario = :id");
+        $ok = $stmt->execute([':rol' => $idRol, ':id' => $idUsuario]);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'CAMBIAR_ROL',
+                "Rol de usuario ID {$idUsuario} modificado a ID {$idRol}",
+                'usuarios'
+            );
+        }
+        return $ok;
+    }
+
+    /**
+     * Consulta del historial de auditoría transversal (CU9 / RNF07).
+     */
+    public function obtenerLogsAuditoria(): array {
+        $sql = "SELECT a.idLog, a.idUsuario, a.accion, a.detalles, a.tablaAfectada, a.fechaHora,
+                       u.nombre, u.apellido, u.email, u.tipoPerfil
+                FROM log_auditoria a
+                LEFT JOIN usuarios u ON a.idUsuario = u.idUsuario
+                ORDER BY a.idLog DESC
+                LIMIT 150";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 }

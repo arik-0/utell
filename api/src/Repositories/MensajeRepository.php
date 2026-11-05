@@ -38,7 +38,7 @@ class MensajeRepository {
     }
 
     public function obtenerConversaciones(int $idUsuario): array {
-        // Obtenemos los usuarios con los que se ha tenido intercambio de mensajes
+        // Obtenemos los usuarios con los que se ha tenido intercambio de mensajes (respetando borrado unilateral)
         $sql = "SELECT 
                     u.idUsuario,
                     u.nombre,
@@ -53,13 +53,15 @@ class MensajeRepository {
                      FROM mensajedirecto unread 
                      WHERE unread.idEmisor = u.idUsuario 
                        AND unread.idReceptor = :idUsuarioUnread 
-                       AND unread.leido = 0) as noLeidos
+                       AND unread.leido = 0
+                       AND COALESCE(unread.ocultoReceptor, 0) = 0) as noLeidos
                 FROM (
                     SELECT 
                         CASE WHEN idEmisor = :idUsuario1 THEN idReceptor ELSE idEmisor END AS idContacto,
                         MAX(idMensajeDirecto) as maxId
                     FROM mensajedirecto
-                    WHERE idEmisor = :idUsuario2 OR idReceptor = :idUsuario3
+                    WHERE ((idEmisor = :idUsuario2 AND COALESCE(ocultoEmisor, 0) = 0) 
+                        OR (idReceptor = :idUsuario3 AND COALESCE(ocultoReceptor, 0) = 0))
                     GROUP BY idContacto
                 ) ultimos
                 INNER JOIN usuarios u ON u.idUsuario = ultimos.idContacto
@@ -90,11 +92,11 @@ class MensajeRepository {
         );
         $updateStmt->execute([':contacto' => $idContacto, ':usuario' => $idUsuario]);
 
-        // 2. Obtener el historial completo
+        // 2. Obtener el historial visible para este usuario (respetando borrado unilateral CU13)
         $sql = "SELECT idMensajeDirecto, idEmisor, idReceptor, fechaMensaje, horaMensaje, textoMensaje, leido
                 FROM mensajedirecto
-                WHERE (idEmisor = :id1 AND idReceptor = :id2)
-                   OR (idEmisor = :id3 AND idReceptor = :id4)
+                WHERE (idEmisor = :id1 AND idReceptor = :id2 AND COALESCE(ocultoEmisor, 0) = 0)
+                   OR (idEmisor = :id3 AND idReceptor = :id4 AND COALESCE(ocultoReceptor, 0) = 0)
                 ORDER BY fechaMensaje ASC, horaMensaje ASC, idMensajeDirecto ASC";
 
         $stmt = $this->db->prepare($sql);
@@ -108,9 +110,32 @@ class MensajeRepository {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Borrado unilateral de un mensaje ("Eliminar para mí" — CU13 / Sección 14.5).
+     */
+    public function ocultarMensaje(int $idMensaje, int $idUsuario): bool {
+        $stmt = $this->db->prepare("SELECT idEmisor, idReceptor FROM mensajedirecto WHERE idMensajeDirecto = :id LIMIT 1");
+        $stmt->execute([':id' => $idMensaje]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return false;
+
+        $idEmisor   = (int)$row['idEmisor'];
+        $idReceptor = (int)$row['idReceptor'];
+
+        if ($idUsuario === $idEmisor) {
+            $stmtUpd = $this->db->prepare("UPDATE mensajedirecto SET ocultoEmisor = 1 WHERE idMensajeDirecto = :id");
+            return $stmtUpd->execute([':id' => $idMensaje]);
+        } elseif ($idUsuario === $idReceptor) {
+            $stmtUpd = $this->db->prepare("UPDATE mensajedirecto SET ocultoReceptor = 1 WHERE idMensajeDirecto = :id");
+            return $stmtUpd->execute([':id' => $idMensaje]);
+        }
+
+        return false;
+    }
+
     public function obtenerConteoNoLeidos(int $idUsuario): int {
         $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM mensajedirecto WHERE idReceptor = :id AND leido = 0"
+            "SELECT COUNT(*) FROM mensajedirecto WHERE idReceptor = :id AND leido = 0 AND COALESCE(ocultoReceptor, 0) = 0"
         );
         $stmt->execute([':id' => $idUsuario]);
         return (int)$stmt->fetchColumn();

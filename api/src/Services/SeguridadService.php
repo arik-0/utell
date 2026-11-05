@@ -41,4 +41,20 @@ class SeguridadService {
     public function moderarPublicacion(int $idModerador, int $idPublicacion, string $accion, ?string $motivo = null): array {
         return $this->repo->moderarPublicacion($idModerador, $idPublicacion, $accion, $motivo);
     }
+
+    public function obtenerPublicacionesModerables(): array {
+        return $this->repo->obtenerPublicacionesModerables();
+    }
+
+    public function obtenerUsuariosAdmin(): array {
+        return $this->repo->obtenerUsuariosAdmin();
+    }
+
+    public function cambiarRolUsuario(int $idUsuario, int $idRol, ?int $idActor = null): bool {
+        return $this->repo->cambiarRolUsuario($idUsuario, $idRol, $idActor);
+    }
+
+    public function obtenerLogsAuditoria(): array {
+        return $this->repo->obtenerLogsAuditoria();
+    }
 }

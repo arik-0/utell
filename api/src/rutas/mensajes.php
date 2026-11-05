@@ -66,3 +66,23 @@ $app->post('/mensajes/enviar', function(Request $request, Response $response) {
         return errorResponse($response, 'Error interno al enviar el mensaje.', 500, $e);
     }
 })->add(new AuthMiddleware());
+
+// DELETE Ocultar mensaje para el usuario ("Eliminar para mí" — CU13 / Sección 14.5)
+$app->delete('/mensajes/{id:[0-9]+}/visibilidad', function(Request $request, Response $response, array $args) {
+    $idMensaje = (int)$args['id'];
+    $idUsuario = getAuthUserId($request);
+
+    if ($idUsuario <= 0 || $idMensaje <= 0) {
+        return errorResponse($response, 'Parámetro inválido.', 400);
+    }
+
+    try {
+        $ok = MensajeService::getInstance()->ocultarMensaje($idMensaje, $idUsuario);
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Mensaje eliminado para tu vista.']);
+        }
+        return errorResponse($response, 'No se pudo eliminar el mensaje o no tienes permisos.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al ocultar el mensaje.', 500, $e);
+    }
+})->add(new AuthMiddleware());

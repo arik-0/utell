@@ -17,6 +17,7 @@ const routes = [
   { path: '/create-consulta',    name: 'CreateConsulta',    component: () => import('./views/CreateConsulta.vue'),    meta: { requiresAuth: true } },
   { path: '/create-experiencia', name: 'CreateExperiencia', component: () => import('./views/CreateExperiencia.vue'), meta: { requiresAuth: true } },
   { path: '/post/:id',           name: 'PostDetail',        component: () => import('./views/PostDetail.vue'),        meta: { requiresAuth: true } },
+  { path: '/moderacion',         name: 'Moderacion',        component: () => import('./views/ModeracionView.vue'),    meta: { requiresAuth: true, requiresStaffOrMod: true } },
 ]
 
 
@@ -48,6 +49,16 @@ router.beforeEach((to) => {
       return { name: 'Login' }
     }
     if (!authStore.isStaffOrInstitution) {
+      return { name: 'Feed' }
+    }
+  }
+
+  // 4. Protección estricta para /moderacion (Solo Moderador o Administrador):
+  if (to.meta.requiresStaffOrMod) {
+    if (!authStore.user) {
+      return { name: 'Login' }
+    }
+    if (!authStore.isModeratorOrAdmin) {
       return { name: 'Feed' }
     }
   }

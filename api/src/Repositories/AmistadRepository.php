@@ -120,4 +120,58 @@ class AmistadRepository {
         $stmt->execute([':id' => $idUsuario]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Verifica si existe un vínculo habilitante para mensajería directa (CU12 / Sección 14.5).
+     * Retorna true si:
+     * 1. Son amigos aceptados en la red.
+     * 2. Ya existe historial previo de mensajes intercambiados entre ambos.
+     * 3. Uno de los participantes es Administrador o Moderador.
+     * 4. El emisor es Postulante y el receptor es Estudiante, Docente o Graduado.
+     */
+    public function verificarVinculoHabilitante(int $idEmisor, int $idReceptor): bool {
+        // 1. Amistad aceptada
+        $rel = $this->existeRelacion($idEmisor, $idReceptor);
+        if ($rel && ($rel['estado'] ?? '') === 'aceptada') {
+            return true;
+        }
+
+        // 2. Historial previo de mensajes (permite continuar conversaciones activas)
+        try {
+            $stmtHist = $this->db->prepare("
+                SELECT idMensajeDirecto FROM mensajedirecto 
+                WHERE (idEmisor = :e1 AND idReceptor = :r1) OR (idEmisor = :r2 AND idReceptor = :e2)
+                LIMIT 1
+            ");
+            $stmtHist->execute([':e1' => $idEmisor, ':r1' => $idReceptor, ':r2' => $idReceptor, ':e2' => $idEmisor]);
+            if ($stmtHist->fetchColumn()) {
+                return true;
+            }
+        } catch (Exception $e) {
+            // Continuar con verificación de roles
+        }
+
+        // 3. Roles y perfiles (Postulante -> Estudiante/Docente/Graduado o Admin/Mod)
+        $stmtUsers = $this->db->prepare("SELECT idUsuario, tipoPerfil, idRol FROM usuarios WHERE idUsuario IN (:e, :r)");
+        $stmtUsers->execute([':e' => $idEmisor, ':r' => $idReceptor]);
+        $rows = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int)$row['idUsuario']] = $row;
+        }
+
+        $emisor = $map[$idEmisor] ?? null;
+        $receptor = $map[$idReceptor] ?? null;
+
+        if ($emisor && $receptor) {
+            if (in_array((int)$emisor['idRol'], [1, 3], true) || in_array((int)$receptor['idRol'], [1, 3], true)) {
+                return true;
+            }
+            if ($emisor['tipoPerfil'] === 'Postulante' && in_array($receptor['tipoPerfil'], ['Estudiante', 'Docente', 'Graduado'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -20,6 +20,12 @@ export const useAuthStore = defineStore('auth', {
       const rol = Number(state.user.idRol || 0)
       const perfil = state.user.tipoPerfil || ''
       return [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
+    },
+    isModeratorOrAdmin(state) {
+      if (!state.user) return false
+      const rol = Number(state.user.idRol || 0)
+      const perfil = state.user.tipoPerfil || ''
+      return [1, 3].includes(rol) || ['Administrador', 'Moderador'].includes(perfil)
     }
   },
 

@@ -128,6 +128,13 @@
                   <svg v-if="Number(msg.leido) > 0" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
                   <svg v-else xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>
+                <button
+                  class="msg-delete-btn"
+                  @click.stop="deleteMessageForMe(msg)"
+                  title="Eliminar para mí (CU13)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
               </div>
             </div>
           </div>
@@ -199,6 +206,36 @@
         </div>
       </div>
     </div>
+
+    <!-- MODAL: VÍNCULO HABILITANTE REQUERIDO (CU12 / Sección 14.5) -->
+    <div v-if="showVinculoModal" class="modal-overlay" @click.self="showVinculoModal = false">
+      <div class="modal-card animate-fadein-up">
+        <div class="modal-header">
+          <h3 class="modal-title">Vínculo Habilitante Requerido</h3>
+          <button class="modal-close-btn" @click="showVinculoModal = false" aria-label="Cerrar modal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="text-sm text-body">
+            Conforme a la regla de interacción académica (<strong>CU12 / Sección 14.5</strong>), para intercambiar mensajes directos ambos usuarios deben ser <strong>amigos aceptados</strong> en la red, o debes tener perfil de <strong>Postulante</strong> para orientarte con estudiantes y docentes.
+          </p>
+          <p class="text-xs text-muted mt-2">
+            ¿Deseas enviar una solicitud de amistad a <strong>{{ activeContact?.nombre }} {{ activeContact?.apellido }}</strong> para habilitar el canal de conversación?
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="showVinculoModal = false">
+            Cerrar
+          </button>
+          <button class="btn btn-primary" @click="solicitarAmistadDesdeChat">
+            Enviar Solicitud de Amistad
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -233,6 +270,7 @@ const messageInput          = ref(null)
 
 // Modal State
 const showNewModal          = ref(false)
+const showVinculoModal      = ref(false)
 const amigosDisponibles     = ref([])
 const isLoadingAmigos       = ref(false)
 
@@ -360,10 +398,41 @@ const sendMessage = async () => {
     console.error('Error sending message:', e)
     messages.value = messages.value.filter(m => m.idMensajeDirecto !== tempMsg.idMensajeDirecto)
     if (!newMessageText.value) newMessageText.value = texto
-    toastStore.error('No se pudo enviar el mensaje. Intenta nuevamente.')
+    const errorMsg = e.response?.data?.mensaje || e.response?.data?.error?.text || ''
+    if (e.response?.status === 403 || errorMsg.includes('amigos') || errorMsg.includes('Postulante') || errorMsg.includes('vínculo')) {
+      showVinculoModal.value = true
+    } else {
+      toastStore.error(errorMsg || 'No se pudo enviar el mensaje. Intenta nuevamente.')
+    }
   } finally {
     isSending.value = false
     await scrollToBottom()
+  }
+}
+
+// ─── Friendship & Message Actions (CU12 / CU13) ──────────────────────────────
+const solicitarAmistadDesdeChat = async () => {
+  if (!activeContact.value || !authStore.user) return
+  try {
+    const fd = new FormData()
+    fd.append('idSolicitante', authStore.user.idUsuario)
+    fd.append('idReceptor', activeContact.value.idUsuario)
+    await api.post('/amistad/solicitar', fd)
+    toastStore.success(`Solicitud de amistad enviada a ${activeContact.value.nombre}.`)
+    showVinculoModal.value = false
+  } catch (e) {
+    toastStore.error('No se pudo enviar la solicitud de amistad.')
+  }
+}
+
+const deleteMessageForMe = async (msg) => {
+  if (!confirm('¿Deseas eliminar este mensaje para tu vista? (Esta acción no afectará al otro participante).')) return
+  try {
+    await api.delete(`/mensajes/${msg.idMensajeDirecto}/visibilidad`)
+    messages.value = messages.value.filter(m => m.idMensajeDirecto !== msg.idMensajeDirecto)
+    toastStore.success('Mensaje eliminado para tu vista.')
+  } catch (e) {
+    toastStore.error('No se pudo ocultar el mensaje.')
   }
 }
 
@@ -878,6 +947,25 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+}
+
+.msg-delete-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  margin-left: 4px;
+  transition: opacity var(--duration-fast);
+}
+
+.msg-delete-btn:hover {
+  opacity: 1;
 }
 
 .msg-time {

@@ -185,6 +185,29 @@
            CASE B: OWN PROFILE NAVIGATION CARDS & SETTINGS
            ═════════════════════════════════════════════════════════════ -->
       <div v-else class="sections-list animate-fadein-up" style="animation-delay: 0.1s;">
+        <!-- EDIT PROFILE CARD (CU2) -->
+        <SectionCard
+          title="Editar Información Personal"
+          subtitle="Actualiza tu biografía, trayectoria y datos académicos"
+          @click="openEditModal"
+        >
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </template>
+        </SectionCard>
+
+        <!-- MODERATION CARD (CU5 / CU6 / CU8) -->
+        <SectionCard
+          v-if="authStore.isModeratorOrAdmin"
+          title="Panel de Moderación y Auditoría"
+          subtitle="Gestión de contenidos, roles y trazabilidad (CU5 / CU6 / CU8 / CU9)"
+          to="/moderacion"
+        >
+          <template #icon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </template>
+        </SectionCard>
+
         <SectionCard
           title="Mis Amigos y Solicitudes"
           subtitle="Gestiona tus conexiones universitarias"
@@ -236,6 +259,146 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span>Cerrar sesión</span>
         </button>
+
+        <!-- BAJA LÓGICA (RF02) -->
+        <button class="deactivate-link-btn" @click="showDeleteModal = true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          <span>Desactivar / Dar de baja mi cuenta</span>
+        </button>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════
+           MODAL 1: EDITAR PERFIL (CU2)
+           ═════════════════════════════════════════════════════════════ -->
+      <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+        <div class="modal-card animate-fadein-up">
+          <div class="modal-header">
+            <h3 class="modal-title">Editar Información Personal</h3>
+            <button class="modal-close-btn" @click="showEditModal = false" aria-label="Cerrar modal">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <form @submit.prevent="saveEditProfile" class="modal-body">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label class="form-label">Nombre</label>
+                <input type="text" v-model="editForm.nombre" class="form-input" required />
+              </div>
+              <div class="form-group flex-1">
+                <label class="form-label">Apellido</label>
+                <input type="text" v-model="editForm.apellido" class="form-input" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Biografía / Presentación</label>
+              <textarea
+                v-model="editForm.descripcion"
+                class="form-input"
+                rows="2"
+                placeholder="Cuéntale a la comunidad tus intereses y estudios..."
+                maxlength="500"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Trayectoria</label>
+              <input
+                type="text"
+                v-model="editForm.trayectoria"
+                class="form-input"
+                placeholder="Ej. Alumno de 4to año, Pasante en TI, etc."
+                maxlength="150"
+              />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label class="form-label">Universidad</label>
+                <select v-model="editForm.idUniversidad" class="form-input">
+                  <option :value="null">Ninguna / Otra</option>
+                  <option v-for="uni in catalogos.universidades" :key="uni.idUniversidad" :value="uni.idUniversidad">
+                    {{ uni.nombre }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group flex-1">
+                <label class="form-label">Carrera</label>
+                <select v-model="editForm.idCarrera" class="form-input">
+                  <option :value="null">Ninguna / Otra</option>
+                  <option v-for="car in catalogos.carreras" :key="car.idCarrera" :value="car.idCarrera">
+                    {{ car.nombre }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Ciudad</label>
+              <select v-model="editForm.idCiudad" class="form-input">
+                <option :value="null">Seleccionar ciudad...</option>
+                <option v-for="ciu in catalogos.ciudades" :key="ciu.idCiudad" :value="ciu.idCiudad">
+                  {{ ciu.nombre }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group password-group">
+              <label class="form-label">Nueva Contraseña <span class="text-xs text-muted">(opcional)</span></label>
+              <input
+                type="password"
+                v-model="editForm.password"
+                class="form-input"
+                placeholder="Dejar en blanco para no modificarla"
+                minlength="6"
+              />
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" @click="showEditModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="isSavingEdit">
+                {{ isSavingEdit ? 'Guardando...' : 'Guardar Cambios' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════
+           MODAL 2: BAJA LÓGICA DE CUENTA (RF02)
+           ═════════════════════════════════════════════════════════════ -->
+      <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+        <div class="modal-card animate-fadein-up modal-danger">
+          <div class="modal-header">
+            <h3 class="modal-title text-danger">Desactivar Cuenta</h3>
+            <button class="modal-close-btn" @click="showDeleteModal = false" aria-label="Cerrar modal">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <p class="text-sm text-body">
+              Conforme al requerimiento <strong>RF02</strong>, tu cuenta pasará a estado <strong>inactivo</strong> mediante baja lógica.
+              Tus publicaciones y comentarios quedarán resguardados de forma anónima, pero tu sesión se cerrará de inmediato.
+            </p>
+            <p class="text-xs text-muted mt-2">
+              ¿Estás seguro de que deseas proceder con la desactivación de tu cuenta?
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="showDeleteModal = false">
+              Cancelar
+            </button>
+            <button class="btn btn-danger" @click="confirmDeactivateAccount" :disabled="isDeactivating">
+              {{ isDeactivating ? 'Desactivando...' : 'Sí, desactivar mi cuenta' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -462,6 +625,116 @@ const iniciarChat = () => {
 const handleLogout = () => {
   authStore.logout()
   router.push('/')
+}
+
+// ─── Edit Profile & Deactivate Account (CU2 / RF02) ───────────────────────────
+const showEditModal   = ref(false)
+const isSavingEdit    = ref(false)
+const showDeleteModal = ref(false)
+const isDeactivating  = ref(false)
+
+const editForm = ref({
+  nombre: '',
+  apellido: '',
+  descripcion: '',
+  trayectoria: '',
+  idCiudad: null,
+  idUniversidad: null,
+  idCarrera: null,
+  password: ''
+})
+
+const catalogos = ref({
+  ciudades: [],
+  universidades: [],
+  carreras: []
+})
+
+const openEditModal = async () => {
+  const u = profileUser.value || authStore.user || {}
+  editForm.value = {
+    nombre: u.nombre || '',
+    apellido: u.apellido || '',
+    descripcion: u.descripcion || '',
+    trayectoria: u.trayectoria || '',
+    idCiudad: u.idCiudad ? Number(u.idCiudad) : null,
+    idUniversidad: u.idUniversidad ? Number(u.idUniversidad) : null,
+    idCarrera: u.idCarrera ? Number(u.idCarrera) : null,
+    password: ''
+  }
+
+  showEditModal.value = true
+
+  if (catalogos.value.universidades.length === 0) {
+    try {
+      const [resCiu, resUni, resCar] = await Promise.all([
+        api.get('/ciudades'),
+        api.get('/universidades'),
+        api.get('/carreras')
+      ])
+      catalogos.value.ciudades      = Array.isArray(resCiu.data) ? resCiu.data : []
+      catalogos.value.universidades = Array.isArray(resUni.data) ? resUni.data : []
+      catalogos.value.carreras      = Array.isArray(resCar.data) ? resCar.data : []
+    } catch (e) {
+      console.error('Error fetching catalogos for edit profile:', e)
+    }
+  }
+}
+
+const saveEditProfile = async () => {
+  if (!authStore.user) return
+  isSavingEdit.value = true
+  try {
+    const payload = {
+      nombre: editForm.value.nombre.trim(),
+      apellido: editForm.value.apellido.trim(),
+      descripcion: editForm.value.descripcion ? editForm.value.descripcion.trim() : '',
+      trayectoria: editForm.value.trayectoria ? editForm.value.trayectoria.trim() : '',
+      idCiudad: editForm.value.idCiudad || null,
+      idUniversidad: editForm.value.idUniversidad || null,
+      idCarrera: editForm.value.idCarrera || null
+    }
+
+    if (editForm.value.password.trim()) {
+      payload.password = editForm.value.password.trim()
+    }
+
+    await api.put(`/editarPerfil/${authStore.user.idUsuario}`, payload)
+
+    authStore.updateUser(payload)
+    if (profileUser.value) {
+      Object.assign(profileUser.value, payload)
+      const foundUni = catalogos.value.universidades.find(u => Number(u.idUniversidad) === Number(payload.idUniversidad))
+      const foundCar = catalogos.value.carreras.find(c => Number(c.idCarrera) === Number(payload.idCarrera))
+      if (foundUni) profileUser.value.nombreUniversidad = foundUni.nombre
+      if (foundCar) profileUser.value.nombreCarrera = foundCar.nombre
+    }
+
+    toastStore.success('Perfil actualizado correctamente.')
+    showEditModal.value = false
+  } catch (e) {
+    console.error('Error updating profile:', e)
+    toastStore.error('No se pudo actualizar el perfil.')
+  } finally {
+    isSavingEdit.value = false
+  }
+}
+
+const confirmDeactivateAccount = async () => {
+  if (!authStore.user) return
+  isDeactivating.value = true
+  try {
+    await api.delete(`/usuarios/delete/${authStore.user.idUsuario}`)
+    toastStore.info('Tu cuenta ha sido dada de baja (baja lógica).')
+    showDeleteModal.value = false
+    authStore.logout()
+    router.push('/')
+  } catch (e) {
+    console.error('Error deactivating account:', e)
+    toastStore.error('No se pudo procesar la baja de la cuenta.')
+  } finally {
+    isDeactivating.value = false
+  }
 }
 
 watch(() => route.params.id, () => {
@@ -987,6 +1260,143 @@ onMounted(() => {
 }
 
 .logout-btn:active { transform: scale(0.98); background-color: var(--error-bg); }
+
+/* ─── Deactivate Account Button (RF02) ─── */
+.deactivate-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: color var(--duration-fast);
+}
+
+.deactivate-link-btn:hover {
+  color: var(--error);
+  text-decoration: underline;
+}
+
+/* ─── Modal Styles ─── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.modal-danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  color: var(--text-strong);
+  background: var(--bg-subtle);
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-strong);
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+}
 
 .state-container {
   display: flex;

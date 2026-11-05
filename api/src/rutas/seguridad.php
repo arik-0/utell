@@ -54,7 +54,30 @@ $app->post('/usuarios/{id:[0-9]+}/grupos', function(Request $request, Response $
     }
 })->add(new AuthMiddleware());
 
-// POST Moderación de publicaciones (requiere JWT; moderador se extrae del token)
+// PUT Asignar rol a usuario (requiere JWT administrativo — CU5 / CU8)
+$app->put('/usuarios/{id:[0-9]+}/rol', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para cambiar roles.', 403);
+    }
+
+    $idUsuario = (int)$args['id'];
+    $idRol     = (int)($request->getParam('idRol') ?? 0);
+    if ($idRol <= 0) {
+        return errorResponse($response, 'Parámetro requerido: idRol.', 400);
+    }
+
+    try {
+        $ok = SeguridadService::getInstance()->cambiarRolUsuario($idUsuario, $idRol, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol actualizado exitosamente.']);
+        }
+        return errorResponse($response, 'No se pudo actualizar el rol.', 400);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al actualizar el rol del usuario.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// POST Moderación de publicaciones (requiere JWT; moderador se extrae del token — CU6)
 $app->post('/moderacion/publicacion', function(Request $request, Response $response) {
     $idModerador   = getAuthUserId($request);
     $idPublicacion = (int)($request->getParam('idPublicacion') ?? 0);
@@ -74,5 +97,47 @@ $app->post('/moderacion/publicacion', function(Request $request, Response $respo
         return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
         return errorResponse($response, 'Error interno al moderar la publicación.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// GET Publicaciones para moderación (requiere rol Admin o Moderador — CU6)
+$app->get('/moderacion/publicaciones', function(Request $request, Response $response) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Acceso restringido al equipo de moderación.', 403);
+    }
+
+    try {
+        $posts = SeguridadService::getInstance()->obtenerPublicacionesModerables();
+        return jsonResponse($response, $posts);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al consultar publicaciones para moderación.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// GET Listado de usuarios para panel de administración (requiere rol Admin o Moderador — CU5 / CU8)
+$app->get('/moderacion/usuarios', function(Request $request, Response $response) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Acceso restringido a administradores y moderadores.', 403);
+    }
+
+    try {
+        $usuarios = SeguridadService::getInstance()->obtenerUsuariosAdmin();
+        return jsonResponse($response, $usuarios);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al consultar usuarios para administración.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// GET Registro de auditoría transversal (requiere rol Admin — CU9 / RNF07)
+$app->get('/moderacion/auditoria', function(Request $request, Response $response) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Acceso restringido al registro de auditoría.', 403);
+    }
+
+    try {
+        $logs = SeguridadService::getInstance()->obtenerLogsAuditoria();
+        return jsonResponse($response, $logs);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al consultar el registro de auditoría.', 500, $e);
     }
 })->add(new AuthMiddleware());
