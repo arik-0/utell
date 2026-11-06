@@ -108,10 +108,15 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // ─── Logout ───────────────────────────────────────────────────────────
+    // ─── Logout (con auditoría Punto T06) ─────────────────────────────────
     logout() {
+      const uid = this.user?.idUsuario || 0
+      const mail = this.user?.email || ''
       this.user = null
       localStorage.removeItem('utell_user')
+      if (uid > 0) {
+        api.post('/logout', { idUsuario: uid, email: mail }).catch(() => {})
+      }
     }
   }
 })

@@ -9,45 +9,68 @@ class AuditoriaRepository {
     }
 
     /**
-     * Registra un evento de trazabilidad en `log_auditoria` (RNF06).
-     * Tolera tanto el esquema extendido como el esquema previo sin `tablaAfectada`.
+     * Registra un evento de trazabilidad en `log_auditoria` (Punto T06 / RNF06).
+     * Incluye soporte para estado original (`valorOriginal`) y transformaciones (`valorNuevo`).
      */
     public function registrar(
         ?int $idUsuario,
         string $accion,
         string $detalle = '',
         string $tablaAfectada = 'general',
-        ?string $ip = null
+        ?string $ip = null,
+        ?string $valorOriginal = null,
+        ?string $valorNuevo = null
     ): void {
-        $ipAddr = $ip ?? ($_SERVER['REMOTE_ADDR'] ?? null);
+        $ipAddr = $ip ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
         $uid = ($idUsuario && $idUsuario > 0) ? $idUsuario : null;
 
         try {
             $stmt = $this->db->prepare("
-                INSERT INTO log_auditoria (idUsuario, tablaAfectada, accion, detalle, fechaHora, ip)
-                VALUES (:uid, :tabla, :accion, :detalle, NOW(), :ip)
+                INSERT INTO log_auditoria (idUsuario, tablaAfectada, accion, valorOriginal, valorNuevo, detalle, fechaHora, ip)
+                VALUES (:uid, :tabla, :accion, :valOrig, :valNuevo, :detalle, NOW(), :ip)
             ");
             $stmt->execute([
-                ':uid'     => $uid,
-                ':tabla'   => $tablaAfectada,
-                ':accion'  => $accion,
-                ':detalle' => $detalle,
-                ':ip'      => $ipAddr,
+                ':uid'      => $uid,
+                ':tabla'    => $tablaAfectada,
+                ':accion'   => $accion,
+                ':valOrig'  => $valorOriginal,
+                ':valNuevo' => $valorNuevo,
+                ':detalle'  => $detalle,
+                ':ip'       => $ipAddr,
             ]);
         } catch (Exception $e) {
+            // Fallback si la tabla en producción aún no tiene valorOriginal/valorNuevo
+            $detalleEnriquecido = $detalle;
+            if ($valorOriginal !== null || $valorNuevo !== null) {
+                $detalleEnriquecido .= " | Antes: " . ($valorOriginal ?? 'N/A') . " -> Después: " . ($valorNuevo ?? 'N/A');
+            }
             try {
                 $stmtFallback = $this->db->prepare("
-                    INSERT INTO log_auditoria (idUsuario, accion, detalle, fechaHora, ip)
-                    VALUES (:uid, :accion, :detalle, NOW(), :ip)
+                    INSERT INTO log_auditoria (idUsuario, tablaAfectada, accion, detalle, fechaHora, ip)
+                    VALUES (:uid, :tabla, :accion, :detalle, NOW(), :ip)
                 ");
                 $stmtFallback->execute([
                     ':uid'     => $uid,
+                    ':tabla'   => $tablaAfectada,
                     ':accion'  => $accion,
-                    ':detalle' => $detalle,
+                    ':detalle' => $detalleEnriquecido,
                     ':ip'      => $ipAddr,
                 ]);
             } catch (Exception $inner) {
-                error_log("AuditoriaRepository::registrar error: " . $inner->getMessage());
+                try {
+                    $stmtMin = $this->db->prepare("
+                        INSERT INTO log_auditoria (idUsuario, accion, detalle, fechaHora, ip)
+                        VALUES (:uid, :accion, :detalle, NOW(), :ip)
+                    ");
+                    $stmtMin->execute([
+                        ':uid'     => $uid,
+                        ':accion'  => $accion,
+                        ':detalle' => $detalleEnriquecido,
+                        ':ip'      => $ipAddr,
+                    ]);
+                } catch (Exception $final) {
+                    error_log("AuditoriaRepository::registrar error: " . $final->getMessage());
+                }
             }
         }
     }

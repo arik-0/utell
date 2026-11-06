@@ -85,6 +85,44 @@
         <router-link to="/register" class="register-link">Crear cuenta</router-link>
       </p>
     </div>
+
+    <!-- Modal Recuperar Contraseña (Puntos T02 y T03) -->
+    <div v-if="showRecoverModal" class="recover-modal-backdrop" @click.self="showRecoverModal = false">
+      <div class="recover-modal-card">
+        <h3 class="recover-title">Recuperar Contraseña</h3>
+        <p class="recover-sub">Ingresa tu correo registrado y tu fecha de nacimiento para restablecer tu clave de acceso.</p>
+
+        <form @submit.prevent="submitRecoverPassword" class="recover-form">
+          <div class="field-group">
+            <label class="field-label">Correo electrónico</label>
+            <div class="input-wrap">
+              <input type="email" v-model="recoverEmail" placeholder="tu@universidad.edu.ar" required style="padding-left:14px;" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Fecha de nacimiento (verificación)</label>
+            <div class="input-wrap">
+              <input type="date" v-model="recoverFNac" style="padding-left:14px;" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Nueva contraseña (mín. 6 caracteres)</label>
+            <div class="input-wrap">
+              <input type="password" v-model="recoverNewPass" placeholder="Nueva contraseña segura" minlength="6" required style="padding-left:14px;" />
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:12px;">
+            <button type="button" class="btn btn-google" style="margin-bottom:0;" @click="showRecoverModal = false">Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="margin-bottom:0;" :disabled="isRecovering">
+              {{ isRecovering ? 'Procesando...' : 'Restablecer Clave' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -94,6 +132,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import { useToastStore } from '../store/toast'
 import { useThemeStore } from '../store/theme'
+import api from '../api'
 
 const router     = useRouter()
 const authStore  = useAuthStore()
@@ -108,8 +147,40 @@ const isLoading       = ref(false)
 const isLoadingGoogle = ref(false)
 const errorMessage    = ref('')
 
+const showRecoverModal = ref(false)
+const recoverEmail     = ref('')
+const recoverFNac      = ref('')
+const recoverNewPass   = ref('')
+const isRecovering     = ref(false)
+
 const handleForgotPassword = () => {
-  toastStore.info('Para restablecer tu contraseña, contacta al soporte técnico o al administrador universitario.', 4500)
+  recoverEmail.value   = email.value || ''
+  recoverFNac.value    = ''
+  recoverNewPass.value = ''
+  showRecoverModal.value = true
+}
+
+const submitRecoverPassword = async () => {
+  if (!recoverEmail.value || recoverNewPass.value.length < 6) {
+    toastStore.warning('Ingresa tu correo y una nueva contraseña de al menos 6 caracteres.')
+    return
+  }
+  isRecovering.value = true
+  try {
+    const res = await api.post('/recuperar-clave', {
+      email: recoverEmail.value,
+      fNac: recoverFNac.value,
+      nuevaClave: recoverNewPass.value
+    })
+    toastStore.success(res.data?.mensaje || 'Contraseña restablecida con éxito.')
+    email.value = recoverEmail.value
+    showRecoverModal.value = false
+  } catch (err) {
+    const msg = err?.response?.data?.mensaje || err?.response?.data?.error || 'No fue posible recuperar la contraseña.'
+    toastStore.error(msg)
+  } finally {
+    isRecovering.value = false
+  }
 }
 
 // ─── Classic Login ───────────────────────────────────────────────────────────
@@ -479,6 +550,42 @@ onUnmounted(() => {
   color: var(--primary);
   font-weight: 600;
   margin-left: 4px;
+}
+
+.recover-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 200;
+}
+
+.recover-modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  padding: 26px 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+}
+
+.recover-title {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.recover-sub {
+  margin: 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 /* ─── Desktop & Tablet Layout ─── */

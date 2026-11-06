@@ -137,3 +137,53 @@ $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
         return errorResponse($response, 'Error interno al registrar el usuario.', 500, $e);
     }
 });
+
+// ─── POST /logout (y alias /auth/logout) — Auditoría Login-Logout (Punto T06) ──
+$logoutHandler = function(Request $request, Response $response) {
+    $idUsuario = (int)($request->getParam('idUsuario') ?? 0);
+    $email     = trim((string)($request->getParam('email') ?? ''));
+
+    try {
+        require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
+        (new AuditoriaRepository())->registrar(
+            $idUsuario > 0 ? $idUsuario : null,
+            'LOGOUT',
+            'Cierre de sesión voluntario' . ($email !== '' ? " ({$email})" : ''),
+            'usuarios',
+            null,
+            json_encode(['sesion' => 'ACTIVA']),
+            json_encode(['sesion' => 'CERRADA_LOGOUT'])
+        );
+        return jsonResponse($response, ['success' => true, 'mensaje' => 'Sesión cerrada y registrada en auditoría.']);
+    } catch (Exception $e) {
+        return jsonResponse($response, ['success' => true]);
+    }
+};
+$app->post('/logout', $logoutHandler);
+$app->post('/auth/logout', $logoutHandler);
+
+// ─── POST /recuperar-clave — Recuperación de contraseña (Puntos T02 y T03) ────
+$recuperarClaveHandler = function(Request $request, Response $response) {
+    $email      = trim((string)($request->getParam('email') ?? ''));
+    $fNac       = trim((string)($request->getParam('fNac') ?? ''));
+    $nuevaClave = trim((string)($request->getParam('nuevaClave') ?? ''));
+
+    if ($email === '' || strlen($nuevaClave) < 6) {
+        return errorResponse($response, 'Debes ingresar un email válido y una nueva contraseña de al menos 6 caracteres.', 400);
+    }
+
+    try {
+        require_once __DIR__ . '/../Services/SeguridadService.php';
+        $ok = SeguridadService::getInstance()->recuperarClavePorEmail($email, $fNac, $nuevaClave);
+        return jsonResponse($response, [
+            'success' => $ok,
+            'mensaje' => 'Contraseña restablecida con éxito. Ya puedes iniciar sesión.'
+        ]);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al procesar la recuperación de contraseña.', 500, $e);
+    }
+};
+$app->post('/recuperar-clave', $recuperarClaveHandler);
+$app->post('/auth/recuperar-clave', $recuperarClaveHandler);
