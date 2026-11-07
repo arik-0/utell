@@ -93,7 +93,43 @@ class SeguridadRepository {
         return $this->db->query("SELECT * FROM roles ORDER BY idRol ASC")->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    private function asegurarTablasRbac(): void {
+        try {
+            $this->db->exec("
+                CREATE TABLE IF NOT EXISTS `grupos_permiso_permisos` (
+                  `idGrupoPermiso` INT(11) NOT NULL,
+                  `idPermiso`      INT(11) NOT NULL,
+                  PRIMARY KEY (`idGrupoPermiso`, `idPermiso`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $this->db->exec("
+                INSERT IGNORE INTO `permisos` (`idPermiso`, `nombre`, `codigoAccion`) VALUES
+                (1,  'Crear Publicaciones',              'POST_CREATE'),
+                (2,  'Responder Consultas',              'POST_REPLY'),
+                (3,  'Calificar Instituciones',          'RATE_UNIVERSITY'),
+                (4,  'Moderar Contenido',                'MODERATE_CONTENT'),
+                (5,  'Gestionar Usuarios',               'MANAGE_USERS'),
+                (6,  'Enviar Mensajes Directos',         'SEND_DIRECT_MESSAGE'),
+                (7,  'Ver Métricas Institucionales',     'VIEW_INSTITUTION_METRICS'),
+                (8,  'Insignia Oficial Verificada',      'OFFICIAL_BADGE'),
+                (9,  'Eliminar Cualquier Publicación',   'DELETE_ANY_POST'),
+                (10, 'Administración Total del Sistema', 'ADMIN_FULL')
+            ");
+            $cnt = (int)$this->db->query("SELECT COUNT(*) FROM grupos_permiso_permisos")->fetchColumn();
+            if ($cnt === 0) {
+                $this->db->exec("
+                    INSERT IGNORE INTO `grupos_permiso_permisos` (`idGrupoPermiso`, `idPermiso`) VALUES
+                    (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),
+                    (2,1),(2,2),(2,4),(2,6),(2,9),
+                    (3,1),(3,2),(3,3),(3,6),
+                    (4,1),(4,2),(4,3),(4,6),(4,7),(4,8)
+                ");
+            }
+        } catch (Exception $e) {}
+    }
+
     public function obtenerPermisosCatalogo(): array {
+        $this->asegurarTablasRbac();
         try {
             return $this->db->query("SELECT * FROM permisos ORDER BY idPermiso ASC")->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
@@ -105,6 +141,7 @@ class SeguridadRepository {
      * Obtiene los grupos de permisos con sus permisos asignados y cantidad de usuarios (Puntos T02/T03).
      */
     public function obtenerGruposPermiso(): array {
+        $this->asegurarTablasRbac();
         $grupos = $this->db->query("SELECT * FROM grupos_permiso ORDER BY idGrupoPermiso ASC")->fetchAll(PDO::FETCH_ASSOC);
         foreach ($grupos as &$g) {
             $idGrupo = (int)$g['idGrupoPermiso'];

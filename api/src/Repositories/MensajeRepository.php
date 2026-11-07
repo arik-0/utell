@@ -37,6 +37,15 @@ class MensajeRepository {
         ];
     }
 
+    private function asegurarColumnasVisibilidad(): void {
+        try {
+            $this->db->exec("ALTER TABLE mensajedirecto ADD COLUMN ocultoEmisor TINYINT(1) NOT NULL DEFAULT 0");
+        } catch (Exception $e) {}
+        try {
+            $this->db->exec("ALTER TABLE mensajedirecto ADD COLUMN ocultoReceptor TINYINT(1) NOT NULL DEFAULT 0");
+        } catch (Exception $e) {}
+    }
+
     public function obtenerConversaciones(int $idUsuario): array {
         // Obtenemos los usuarios con los que se ha tenido intercambio de mensajes (respetando borrado unilateral)
         $sql = "SELECT 
@@ -68,18 +77,44 @@ class MensajeRepository {
                 INNER JOIN mensajedirecto m ON m.idMensajeDirecto = ultimos.maxId
                 ORDER BY m.fechaMensaje DESC, m.horaMensaje DESC";
 
+        $params = [
+            ':idUsuarioUnread' => $idUsuario,
+            ':idUsuario1'      => $idUsuario,
+            ':idUsuario2'      => $idUsuario,
+            ':idUsuario3'      => $idUsuario,
+        ];
+
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([
-                ':idUsuarioUnread' => $idUsuario,
-                ':idUsuario1'      => $idUsuario,
-                ':idUsuario2'      => $idUsuario,
-                ':idUsuario3'      => $idUsuario,
-            ]);
+            $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
-            error_log("Error in obtenerConversaciones: " . $e->getMessage());
-            return [];
+            $this->asegurarColumnasVisibilidad();
+            try {
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute($params);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $inner) {
+                $sqlFallback = "SELECT 
+                        u.idUsuario, u.nombre, u.apellido, u.fotoPerfil, u.tipoPerfil,
+                        m.textoMensaje as ultimoMensaje, m.fechaMensaje as ultimaFecha,
+                        m.horaMensaje as ultimaHora, m.idEmisor as ultimoEmisor,
+                        (SELECT COUNT(*) FROM mensajedirecto unread 
+                         WHERE unread.idEmisor = u.idUsuario AND unread.idReceptor = :idUsuarioUnread AND unread.leido = 0) as noLeidos
+                    FROM (
+                        SELECT CASE WHEN idEmisor = :idUsuario1 THEN idReceptor ELSE idEmisor END AS idContacto,
+                               MAX(idMensajeDirecto) as maxId
+                        FROM mensajedirecto
+                        WHERE idEmisor = :idUsuario2 OR idReceptor = :idUsuario3
+                        GROUP BY idContacto
+                    ) ultimos
+                    INNER JOIN usuarios u ON u.idUsuario = ultimos.idContacto
+                    INNER JOIN mensajedirecto m ON m.idMensajeDirecto = ultimos.maxId
+                    ORDER BY m.fechaMensaje DESC, m.horaMensaje DESC";
+                $stmtFb = $this->db->prepare($sqlFallback);
+                $stmtFb->execute($params);
+                return $stmtFb->fetchAll(PDO::FETCH_ASSOC);
+            }
         }
     }
 
@@ -99,21 +134,41 @@ class MensajeRepository {
                    OR (idEmisor = :id3 AND idReceptor = :id4 AND COALESCE(ocultoReceptor, 0) = 0)
                 ORDER BY fechaMensaje ASC, horaMensaje ASC, idMensajeDirecto ASC";
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
+        $params = [
             ':id1' => $idUsuario,
             ':id2' => $idContacto,
             ':id3' => $idContacto,
             ':id4' => $idUsuario,
-        ]);
+        ];
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $this->asegurarColumnasVisibilidad();
+            try {
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute($params);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $inner) {
+                $sqlFb = "SELECT idMensajeDirecto, idEmisor, idReceptor, fechaMensaje, horaMensaje, textoMensaje, leido
+                          FROM mensajedirecto
+                          WHERE (idEmisor = :id1 AND idReceptor = :id2)
+                             OR (idEmisor = :id3 AND idReceptor = :id4)
+                          ORDER BY fechaMensaje ASC, horaMensaje ASC, idMensajeDirecto ASC";
+                $stmtFb = $this->db->prepare($sqlFb);
+                $stmtFb->execute($params);
+                return $stmtFb->fetchAll(PDO::FETCH_ASSOC);
+            }
+        }
     }
 
     /**
      * Borrado unilateral de un mensaje ("Eliminar para mí" — CU13 / Sección 14.5).
      */
     public function ocultarMensaje(int $idMensaje, int $idUsuario): bool {
+        $this->asegurarColumnasVisibilidad();
         $stmt = $this->db->prepare("SELECT idEmisor, idReceptor FROM mensajedirecto WHERE idMensajeDirecto = :id LIMIT 1");
         $stmt->execute([':id' => $idMensaje]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -134,10 +189,22 @@ class MensajeRepository {
     }
 
     public function obtenerConteoNoLeidos(int $idUsuario): int {
-        $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM mensajedirecto WHERE idReceptor = :id AND leido = 0 AND COALESCE(ocultoReceptor, 0) = 0"
-        );
-        $stmt->execute([':id' => $idUsuario]);
-        return (int)$stmt->fetchColumn();
+        $sql = "SELECT COUNT(*) FROM mensajedirecto WHERE idReceptor = :id AND leido = 0 AND COALESCE(ocultoReceptor, 0) = 0";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':id' => $idUsuario]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            $this->asegurarColumnasVisibilidad();
+            try {
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([':id' => $idUsuario]);
+                return (int)$stmt->fetchColumn();
+            } catch (Exception $inner) {
+                $stmtFb = $this->db->prepare("SELECT COUNT(*) FROM mensajedirecto WHERE idReceptor = :id AND leido = 0");
+                $stmtFb->execute([':id' => $idUsuario]);
+                return (int)$stmtFb->fetchColumn();
+            }
+        }
     }
 }
