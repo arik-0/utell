@@ -33,20 +33,30 @@ class db {
         $connected = false;
         $lastException = null;
 
-        foreach ($databases as $dbname) {
-            try {
-                $mysqlConnect = "mysql:host={$this->dbHost};port={$this->dbPort};dbname={$dbname};charset=utf8mb4";
-                $this->connection = new PDO($mysqlConnect, $this->dbUser, $this->dbPass, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
-                ]);
-                $connected = true;
-                $this->dbName = $dbname;
-                self::asegurarEsquema($this->connection, $this->dbHost . '_' . $this->dbName);
-                break;
-            } catch (PDOException $e) {
-                $lastException = $e;
+        for ($attempt = 1; $attempt <= 3 && !$connected; $attempt++) {
+            foreach ($databases as $dbname) {
+                try {
+                    $mysqlConnect = "mysql:host={$this->dbHost};port={$this->dbPort};dbname={$dbname};charset=utf8mb4";
+                    $this->connection = new PDO($mysqlConnect, $this->dbUser, $this->dbPass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                    ]);
+                    $connected = true;
+                    $this->dbName = $dbname;
+                    self::asegurarEsquema($this->connection, $this->dbHost . '_' . $this->dbName);
+                    break 2;
+                } catch (PDOException $e) {
+                    $lastException = $e;
+                    // Si es error de límite de conexiones concurrentes (1040 / 1203), esperamos brevemente y reintentamos el mismo dbname
+                    $msg = $e->getMessage();
+                    if (strpos($msg, '1203') !== false || strpos($msg, '1040') !== false || stripos($msg, 'max_user_connections') !== false) {
+                        break;
+                    }
+                }
+            }
+            if (!$connected && $attempt < 3) {
+                usleep(180000);
             }
         }
 
