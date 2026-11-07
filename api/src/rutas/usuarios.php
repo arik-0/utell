@@ -99,27 +99,3 @@ $app->delete('/usuarios/delete/{id:[0-9]+}', function(Request $request, Response
     }
 })->add(new AuthMiddleware());
 
-// PUT Cambiar estado de cuenta — requiere JWT (solo administrador/moderador)
-$app->put('/usuarios/{id:[0-9]+}/estado', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para cambiar el estado de una cuenta.', 403);
-    }
-
-    $id     = (int)$args['id'];
-    $accion = (string)($request->getParam('accion') ?? '');
-    if ($accion === '') {
-        return errorResponse($response, 'El campo accion es requerido (bloquear o activar).', 400);
-    }
-
-    try {
-        $resultado = UsuarioService::getInstance()->cambiarEstadoCuenta($id, $accion, getAuthUserId($request));
-        if ($resultado) {
-            return jsonResponse($response, ['mensaje' => "Estado de cuenta actualizado a '{$accion}'."]);
-        }
-        return errorResponse($response, 'No se pudo actualizar el estado o el usuario no existe.', 404);
-    } catch (InvalidArgumentException $e) {
-        return errorResponse($response, $e->getMessage(), 400);
-    } catch (Exception $e) {
-        return errorResponse($response, 'Error interno al actualizar el estado de cuenta.', 500, $e);
-    }
-})->add(new AuthMiddleware());
