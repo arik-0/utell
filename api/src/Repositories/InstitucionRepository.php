@@ -280,6 +280,43 @@ class InstitucionRepository {
         return $ok;
     }
 
+    private bool $esquemaCatalogoVerificado = false;
+    private ?bool $ofertaTieneId = null;
+
+    private function ofertaTieneColumnaId(): bool {
+        if ($this->ofertaTieneId !== null) {
+            return $this->ofertaTieneId;
+        }
+        try {
+            $cols = $this->db->query("SHOW COLUMNS FROM oferta_academica LIKE 'idOfertaAcademica'")->fetchAll(PDO::FETCH_ASSOC);
+            $this->ofertaTieneId = !empty($cols);
+        } catch (Exception $e) {
+            $this->ofertaTieneId = false;
+        }
+        return $this->ofertaTieneId;
+    }
+
+    private function asegurarEsquemaOfertaYSedes(): void {
+        if ($this->esquemaCatalogoVerificado) {
+            return;
+        }
+        $this->esquemaCatalogoVerificado = true;
+        if (!$this->ofertaTieneColumnaId()) {
+            try {
+                $this->db->exec("ALTER TABLE oferta_academica ADD UNIQUE KEY uq_oa_carrera_sede (idCarrera, idSede)");
+            } catch (Exception $e) {}
+            try {
+                $this->db->exec("ALTER TABLE oferta_academica DROP PRIMARY KEY, ADD COLUMN idOfertaAcademica INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST");
+                $this->ofertaTieneId = true;
+            } catch (Exception $e) {
+                error_log("asegurarEsquemaOfertaYSedes oferta_academica: " . $e->getMessage());
+            }
+        }
+        try {
+            $this->db->exec("ALTER TABLE sedes MODIFY COLUMN password VARCHAR(255) DEFAULT NULL");
+        } catch (Exception $e) {}
+    }
+
     public function obtenerSedes() {
         $sql = "SELECT s.*, u.nombre AS nombreUniversidad, ci.nombre AS nombreCiudad
                 FROM sedes s
@@ -299,11 +336,9 @@ class InstitucionRepository {
         string $estado = 'activo',
         ?int $idActor = null
     ): int {
+        $this->asegurarEsquemaOfertaYSedes();
         $nombreLimpio = trim($nombre);
-        $sql = "INSERT INTO sedes (idUniversidad, idCiudad, nombre, telefono, email, web, estado)
-                VALUES (:idUni, :idCiu, :nombre, :tel, :email, :web, :estado)";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
+        $params = [
             ':idUni'  => $idUniversidad,
             ':idCiu'  => ($idCiudad && $idCiudad > 0) ? $idCiudad : null,
             ':nombre' => $nombreLimpio,
@@ -311,7 +346,19 @@ class InstitucionRepository {
             ':email'  => $email ?: null,
             ':web'    => $web ?: null,
             ':estado' => $estado ?: 'activo',
-        ]);
+        ];
+        try {
+            $sql = "INSERT INTO sedes (idUniversidad, idCiudad, nombre, telefono, email, web, estado)
+                    VALUES (:idUni, :idCiu, :nombre, :tel, :email, :web, :estado)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+        } catch (Exception $e) {
+            $sql = "INSERT INTO sedes (idUniversidad, idCiudad, nombre, password, telefono, email, web, estado)
+                    VALUES (:idUni, :idCiu, :nombre, :pass, :tel, :email, :web, :estado)";
+            $params[':pass'] = password_hash('UtellSede2026!', PASSWORD_BCRYPT);
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+        }
         $id = (int)$this->db->lastInsertId();
         $this->auditar($idActor, 'ALTA_SEDE', "Sede '{$nombreLimpio}' (#{$id}) creada en Universidad #{$idUniversidad}", 'sedes', null, [
             'idSede' => $id, 'idUniversidad' => $idUniversidad, 'nombre' => $nombreLimpio
@@ -409,7 +456,12 @@ class InstitucionRepository {
     }
 
     public function obtenerOfertaAcademica(): array {
-        $sql = "SELECT oa.idOfertaAcademica, oa.idCarrera, oa.idSede, oa.fechaImplementacion,
+        $this->asegurarEsquemaOfertaYSedes();
+        $selectId = $this->ofertaTieneColumnaId()
+            ? 'oa.idOfertaAcademica'
+            : '(oa.idCarrera * 10000 + oa.idSede) AS idOfertaAcademica';
+
+        $sql = "SELECT {$selectId}, oa.idCarrera, oa.idSede, oa.fechaImplementacion,
                        YEAR(oa.fechaImplementacion) AS anioImplementacion,
                        oa.descripcion, oa.web, oa.telefono,
                        c.nombre AS nombreCarrera,
@@ -421,7 +473,24 @@ class InstitucionRepository {
                 INNER JOIN sedes s ON oa.idSede = s.idSede
                 LEFT JOIN universidades u ON s.idUniversidad = u.idUniversidad
                 ORDER BY u.nombre ASC, s.nombre ASC, c.nombre ASC";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $sqlFallback = "SELECT (oa.idCarrera * 10000 + oa.idSede) AS idOfertaAcademica,
+                                   oa.idCarrera, oa.idSede, oa.fechaImplementacion,
+                                   YEAR(oa.fechaImplementacion) AS anioImplementacion,
+                                   oa.descripcion, oa.web, oa.telefono,
+                                   c.nombre AS nombreCarrera,
+                                   s.nombre AS nombreSede,
+                                   s.idUniversidad,
+                                   u.nombre AS nombreUniversidad
+                            FROM oferta_academica oa
+                            INNER JOIN carreras c ON oa.idCarrera = c.idCarrera
+                            INNER JOIN sedes s ON oa.idSede = s.idSede
+                            LEFT JOIN universidades u ON s.idUniversidad = u.idUniversidad
+                            ORDER BY u.nombre ASC, s.nombre ASC, c.nombre ASC";
+            return $this->db->query($sqlFallback)->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 
     public function crearOfertaAcademica(
@@ -433,6 +502,7 @@ class InstitucionRepository {
         ?string $telefono = null,
         ?int $idActor = null
     ): bool {
+        $this->asegurarEsquemaOfertaYSedes();
         $fecha = ($anio && $anio > 1800) ? sprintf('%04d-03-01', $anio) : null;
         $sql  = "INSERT INTO oferta_academica (idCarrera, idSede, fechaImplementacion, descripcion, web, telefono)
                  VALUES (:car, :sede, :fecha, :desc, :web, :tel)
@@ -458,6 +528,28 @@ class InstitucionRepository {
         return $ok;
     }
 
+    private function obtenerOfertaPorIdentificador(int $idOferta): array {
+        $this->asegurarEsquemaOfertaYSedes();
+        if ($this->ofertaTieneColumnaId()) {
+            $old = $this->obtenerRegistroPorPk('oferta_academica', 'idOfertaAcademica', $idOferta);
+            return [
+                'row'   => $old,
+                'where' => 'idOfertaAcademica = :id',
+                'bind'  => [':id' => $idOferta],
+            ];
+        }
+        $carOrig = intdiv($idOferta, 10000);
+        $sedeOrig = $idOferta % 10000;
+        $stmt = $this->db->prepare("SELECT * FROM oferta_academica WHERE idCarrera = :c AND idSede = :s LIMIT 1");
+        $stmt->execute([':c' => $carOrig, ':s' => $sedeOrig]);
+        $old = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        return [
+            'row'   => $old,
+            'where' => 'idCarrera = :cOrig AND idSede = :sOrig',
+            'bind'  => [':cOrig' => $carOrig, ':sOrig' => $sedeOrig],
+        ];
+    }
+
     public function actualizarOfertaAcademica(
         int $idOferta,
         int $idCarrera,
@@ -468,25 +560,25 @@ class InstitucionRepository {
         ?string $telefono = null,
         ?int $idActor = null
     ): bool {
-        $old = $this->obtenerRegistroPorPk('oferta_academica', 'idOfertaAcademica', $idOferta);
-        if (!$old) return false;
+        $target = $this->obtenerOfertaPorIdentificador($idOferta);
+        if (!$target['row']) return false;
         $fecha = ($anio && $anio > 1800) ? sprintf('%04d-03-01', $anio) : null;
         $sql = "UPDATE oferta_academica
                 SET idCarrera = :car, idSede = :sede, fechaImplementacion = :fecha,
                     descripcion = :desc, web = :web, telefono = :tel
-                WHERE idOfertaAcademica = :id";
+                WHERE {$target['where']}";
         $stmt = $this->db->prepare($sql);
-        $ok = $stmt->execute([
+        $params = array_merge([
             ':car'   => $idCarrera,
             ':sede'  => $idSede,
             ':fecha' => $fecha,
             ':desc'  => $descripcion ?: null,
             ':web'   => $web ?: null,
             ':tel'   => $telefono ?: null,
-            ':id'    => $idOferta,
-        ]);
+        ], $target['bind']);
+        $ok = $stmt->execute($params);
         if ($ok) {
-            $this->auditar($idActor, 'MODIFICAR_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} actualizada", 'oferta_academica', $old, [
+            $this->auditar($idActor, 'MODIFICAR_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} actualizada", 'oferta_academica', $target['row'], [
                 'idOfertaAcademica' => $idOferta, 'idCarrera' => $idCarrera, 'idSede' => $idSede, 'fechaImplementacion' => $fecha
             ]);
         }
@@ -494,13 +586,13 @@ class InstitucionRepository {
     }
 
     public function eliminarOfertaAcademica(int $idOferta, ?int $idActor = null): bool {
-        $old = $this->obtenerRegistroPorPk('oferta_academica', 'idOfertaAcademica', $idOferta);
-        if (!$old) return false;
-        $stmt = $this->db->prepare("DELETE FROM oferta_academica WHERE idOfertaAcademica = :id");
-        $stmt->execute([':id' => $idOferta]);
+        $target = $this->obtenerOfertaPorIdentificador($idOferta);
+        if (!$target['row']) return false;
+        $stmt = $this->db->prepare("DELETE FROM oferta_academica WHERE {$target['where']}");
+        $stmt->execute($target['bind']);
         $ok = $stmt->rowCount() > 0;
         if ($ok) {
-            $this->auditar($idActor, 'BAJA_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} eliminada", 'oferta_academica', $old, ['eliminado' => true]);
+            $this->auditar($idActor, 'BAJA_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} eliminada", 'oferta_academica', $target['row'], ['eliminado' => true]);
         }
         return $ok;
     }
