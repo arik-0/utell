@@ -5,6 +5,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\JWK;
 
 require_once __DIR__ . '/../Services/AuthService.php';
+require_once __DIR__ . '/../Services/JWTService.php';
 
 // ─── POST /login (y alias /auth/login) ────────────────────────────────────────
 $loginHandler = function(Request $request, Response $response) {
@@ -100,6 +101,19 @@ $app->post('/auth/google', $googleLoginHandler);
 
 // ─── POST /usuarios/nuevo ─────────────────────────────────────────────────────
 $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
+    $esAdminCreador = false;
+    $authHeader = $request->getHeaderLine('Authorization') ?: ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    if ($authHeader === '' && function_exists('apache_request_headers')) {
+        $hdrs = apache_request_headers();
+        $authHeader = $hdrs['Authorization'] ?? $hdrs['authorization'] ?? '';
+    }
+    if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
+        $payload = JWTService::validarToken($m[1]);
+        if (is_array($payload) && ((int)($payload['idRol'] ?? 0) === 1 || ($payload['tipoPerfil'] ?? '') === 'Administrador')) {
+            $esAdminCreador = true;
+        }
+    }
+
     $datos = [
         'nombre'        => $request->getParam('nombre'),
         'apellido'      => $request->getParam('apellido'),
@@ -116,6 +130,7 @@ $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
         'ciudad'        => $request->getParam('ciudad'),
         'idUniversidad' => $request->getParam('idUniversidad') ?? null,
         'idCarrera'     => $request->getParam('idCarrera')     ?? null,
+        'esAdminCreador' => $esAdminCreador,
     ];
 
     if (empty(trim((string)$datos['nombre'])) || empty(trim((string)$datos['email'])) || empty($datos['password'])) {

@@ -208,16 +208,33 @@ class AuthService {
         $idUni = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
         $idCar = !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null;
 
-        $tipoPerfil = $datos['tipoPerfil'] ?? 'Estudiante';
+        $tipoPerfil = trim((string)($datos['tipoPerfil'] ?? 'Estudiante'));
+        $perfilesPublicos = ['Aspirante', 'Estudiante', 'Graduado', 'Docente', 'Universidad', 'Institución'];
+        if (empty($datos['esAdminCreador']) && !in_array($tipoPerfil, $perfilesPublicos, true)) {
+            $tipoPerfil = 'Estudiante';
+        }
+
         $mapaRol = [
-            'Estudiante'  => 2,
-            'Graduado'    => 4,
-            'Docente'     => 5,
-            'Universidad' => 6,
-            'Institución' => 6,
+            'Aspirante'     => 2,
+            'Estudiante'    => 2,
+            'Moderador'     => 3,
+            'Graduado'      => 4,
+            'Docente'       => 5,
+            'Universidad'   => 6,
+            'Institución'   => 6,
+            'Administrador' => 1,
         ];
+        if (empty($datos['esAdminCreador'])) {
+            unset($mapaRol['Administrador'], $mapaRol['Moderador']);
+        }
         $idRol   = $mapaRol[$tipoPerfil] ?? 2;
-        $idGrupo = ($idRol === 6 || $idRol === 5) ? 4 : 3;
+        $mapaGrupo = [
+            1 => 1,
+            3 => 2,
+            5 => 4,
+            6 => 4,
+        ];
+        $idGrupo = $mapaGrupo[$idRol] ?? 3;
 
         $idUsuario = $this->usuarioRepo->registrarUsuarioConInscripcionYGrupo([
             'nombre'        => trim((string)$datos['nombre']),

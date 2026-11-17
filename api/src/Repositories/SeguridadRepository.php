@@ -231,6 +231,9 @@ class SeguridadRepository {
 
         $nombreLimpio = trim($nombre);
         $codigoLimpio = strtoupper(trim($codigoAccion));
+        if (($old['codigoAccion'] ?? '') === 'ADMIN_FULL' && $codigoLimpio !== 'ADMIN_FULL') {
+            throw new DomainException("No se puede modificar el código del permiso crítico ADMIN_FULL.");
+        }
         $stmt = $this->db->prepare("UPDATE permisos SET nombre = :nombre, codigoAccion = :codigo WHERE idPermiso = :id");
         $ok = $stmt->execute([':nombre' => $nombreLimpio, ':codigo' => $codigoLimpio, ':id' => $idPermiso]);
         if ($ok) {
@@ -642,11 +645,19 @@ class SeguridadRepository {
      * Bloquea o reactiva una cuenta de usuario con trazabilidad de estado original y nuevo (CU6 / Punto T02 / T06).
      */
     public function cambiarEstadoUsuario(int $idUsuario, string $accion, ?int $idActor = null): bool {
-        $stmtPrev = $this->db->prepare("SELECT idUsuario, email, COALESCE(estadoCuenta, 'activo') AS estadoCuenta FROM usuarios WHERE idUsuario = :id LIMIT 1");
+        $stmtPrev = $this->db->prepare("SELECT idUsuario, email, idRol, tipoPerfil, COALESCE(estadoCuenta, 'activo') AS estadoCuenta FROM usuarios WHERE idUsuario = :id LIMIT 1");
         $stmtPrev->execute([':id' => $idUsuario]);
         $prev = $stmtPrev->fetch(PDO::FETCH_ASSOC);
 
-        $nuevoEstado = ($accion === 'bloquear' || $accion === 'inactivo') ? 'inactivo' : 'activo';
+        $esBloquear = ($accion === 'bloquear' || $accion === 'inactivo');
+        if ($esBloquear && $idActor !== null && $idUsuario === $idActor) {
+            throw new DomainException("No puedes bloquear tu propia cuenta activa.");
+        }
+        if ($esBloquear && $prev && ((int)($prev['idRol'] ?? 0) === 1 || ($prev['tipoPerfil'] ?? '') === 'Administrador')) {
+            throw new DomainException("No está permitido bloquear una cuenta de Administrador.");
+        }
+
+        $nuevoEstado = $esBloquear ? 'inactivo' : 'activo';
         $stmt = $this->db->prepare("UPDATE usuarios SET estadoCuenta = :estado WHERE idUsuario = :id");
         $ok = $stmt->execute([':estado' => $nuevoEstado, ':id' => $idUsuario]);
 
@@ -671,7 +682,7 @@ class SeguridadRepository {
      * Reseteo administrativo de clave de un usuario (Puntos T02 y T03: Resetear Clave).
      */
     public function resetearClaveUsuario(int $idUsuario, string $nuevaClave, ?int $idActor = null): bool {
-        $stmtPrev = $this->db->prepare("SELECT idUsuario, email FROM usuarios WHERE idUsuario = :id LIMIT 1");
+        $stmtPrev = $this->db->prepare("SELECT idUsuario, email, idRol, tipoPerfil FROM usuarios WHERE idUsuario = :id LIMIT 1");
         $stmtPrev->execute([':id' => $idUsuario]);
         $prev = $stmtPrev->fetch(PDO::FETCH_ASSOC);
         if (!$prev) {

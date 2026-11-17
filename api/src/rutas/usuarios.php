@@ -43,13 +43,19 @@ $app->get('/perfil/{id:[0-9]+}', function(Request $request, Response $response, 
     }
 });
 
-// PUT Editar perfil — requiere JWT (solo titular o administrador/moderador)
+// PUT Editar perfil — requiere JWT (solo titular o administrador)
 $app->put('/editarPerfil/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    $id     = (int)$args['id'];
-    $authId = getAuthUserId($request);
+    $id      = (int)$args['id'];
+    $authId  = getAuthUserId($request);
+    $esAdmin = isAuthAdmin($request);
 
-    if ($authId !== $id && !isAuthAdminOrMod($request)) {
+    if ($authId !== $id && !$esAdmin) {
         return errorResponse($response, 'No tienes permisos para modificar otro perfil.', 403);
+    }
+
+    $reqTipoPerfil = $request->getParam('tipoPerfil');
+    if (!$esAdmin && in_array(trim((string)$reqTipoPerfil), ['Administrador', 'Moderador'], true)) {
+        $reqTipoPerfil = null;
     }
 
     $datos = [
@@ -60,7 +66,7 @@ $app->put('/editarPerfil/{id:[0-9]+}', function(Request $request, Response $resp
         'password'      => $request->getParam('password'),
         'fotoPerfil'    => $request->getParam('fotoPerfil'),
         'celular'       => $request->getParam('celular'),
-        'tipoPerfil'    => $request->getParam('tipoPerfil'),
+        'tipoPerfil'    => $reqTipoPerfil,
         'descripcion'   => $request->getParam('descripcion'),
         'trayectoria'   => $request->getParam('trayectoria'),
         'idCiudad'      => $request->getParam('idCiudad'),
@@ -79,12 +85,12 @@ $app->put('/editarPerfil/{id:[0-9]+}', function(Request $request, Response $resp
     }
 })->add(new AuthMiddleware());
 
-// DELETE Baja lógica de usuario — requiere JWT (solo titular o administrador/moderador)
+// DELETE Baja lógica de usuario — requiere JWT (solo titular o administrador)
 $app->delete('/usuarios/delete/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
     $id     = (int)$args['id'];
     $authId = getAuthUserId($request);
 
-    if ($authId !== $id && !isAuthAdminOrMod($request)) {
+    if ($authId !== $id && !isAuthAdmin($request)) {
         return errorResponse($response, 'No tienes permisos para dar de baja esta cuenta.', 403);
     }
 

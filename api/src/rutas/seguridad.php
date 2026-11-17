@@ -126,6 +126,8 @@ $app->put('/permisos/{id:[0-9]+}', function(Request $request, Response $response
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Permiso actualizado.']);
         }
         return errorResponse($response, 'Permiso no encontrado.', 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al actualizar el permiso.', 400, $e);
     }
@@ -268,6 +270,8 @@ $app->put('/usuarios/{id:[0-9]+}/estado', function(Request $request, Response $r
     try {
         $ok = SeguridadService::getInstance()->cambiarEstadoUsuario($idUsuario, $accion, getAuthUserId($request));
         return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Estado de cuenta actualizado.']);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al actualizar el estado de la cuenta.', 500, $e);
     }
@@ -275,8 +279,8 @@ $app->put('/usuarios/{id:[0-9]+}/estado', function(Request $request, Response $r
 
 // PUT Resetear clave de usuario administrativamente (Puntos T02 y T03)
 $app->put('/usuarios/{id:[0-9]+}/reset-clave', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para resetear contraseñas.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para resetear contraseñas.', 403);
     }
 
     $idUsuario  = (int)$args['id'];
@@ -380,7 +384,7 @@ $app->get('/moderacion/auditoria', function(Request $request, Response $response
 
 // GET Exportar Resguardo SQL (Backup en 1 clic — Punto T07 / CU9)
 $app->get('/moderacion/backup/exportar', function(Request $request, Response $response) {
-    if (!isAuthAdminOrMod($request)) {
+    if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para generar resguardos.', 403);
     }
 

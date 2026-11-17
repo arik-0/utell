@@ -186,7 +186,7 @@ class UsuarioRepository {
     public function asegurarRolesBase(): void {
         try {
             $cnt = (int)$this->db->query("SELECT COUNT(*) FROM roles")->fetchColumn();
-            if ($cnt < 6) {
+            if ($cnt === 0) {
                 $this->db->exec("
                     INSERT IGNORE INTO roles (idRol, nombreRol) VALUES
                     (1, 'Administrador'),
