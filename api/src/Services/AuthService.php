@@ -209,19 +209,21 @@ class AuthService {
         $idCar = !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null;
 
         $tipoPerfil = trim((string)($datos['tipoPerfil'] ?? 'Estudiante'));
-        $perfilesPublicos = ['Aspirante', 'Estudiante', 'Graduado', 'Docente', 'Universidad', 'Institución'];
+        $perfilesPublicos = ['Aspirante', 'Postulante', 'Estudiante', 'Graduado', 'Docente', 'Universidad', 'Institución', 'Empresa'];
         if (empty($datos['esAdminCreador']) && !in_array($tipoPerfil, $perfilesPublicos, true)) {
             $tipoPerfil = 'Estudiante';
         }
 
         $mapaRol = [
             'Aspirante'     => 2,
+            'Postulante'    => 2,
             'Estudiante'    => 2,
             'Moderador'     => 3,
             'Graduado'      => 4,
             'Docente'       => 5,
             'Universidad'   => 6,
             'Institución'   => 6,
+            'Empresa'       => 6,
             'Administrador' => 1,
         ];
         if (empty($datos['esAdminCreador'])) {

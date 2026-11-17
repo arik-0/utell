@@ -104,7 +104,7 @@ $app->post('/upload', function(Request $request, Response $response) {
     $tipo    = (string)($request->getParam('tipo') ?? '');
 
     if ($authId > 0 && ($tipo === 'avatar' || $tipo === 'perfil')) {
-        $targetUserId = ($idParam > 0 && isAuthAdminOrMod($request)) ? $idParam : $authId;
+        $targetUserId = ($idParam > 0 && isAuthAdmin($request)) ? $idParam : $authId;
         try {
             UsuarioService::getInstance()->actualizarFotoPerfil($targetUserId, $relativeUrl);
         } catch (Exception $e) {

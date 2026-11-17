@@ -167,7 +167,8 @@ class AmistadRepository {
             if (in_array((int)$emisor['idRol'], [1, 3], true) || in_array((int)$receptor['idRol'], [1, 3], true)) {
                 return true;
             }
-            if ($emisor['tipoPerfil'] === 'Postulante' && in_array($receptor['tipoPerfil'], ['Estudiante', 'Docente', 'Graduado'], true)) {
+            if (in_array($emisor['tipoPerfil'], ['Postulante', 'Aspirante', 'Universidad', 'Institución'], true)
+                && in_array($receptor['tipoPerfil'], ['Estudiante', 'Docente', 'Graduado', 'Universidad', 'Institución'], true)) {
                 return true;
             }
         }

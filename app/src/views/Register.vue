@@ -100,6 +100,7 @@
               <label class="field-label">Tipo de Perfil</label>
               <select v-model="form.tipoPerfil" class="form-input select-control" required>
                 <option value="" disabled>Selecciona tu rol</option>
+                <option value="Aspirante">Aspirante / Postulante</option>
                 <option value="Estudiante">Estudiante</option>
                 <option value="Graduado">Graduado</option>
                 <option value="Docente">Docente</option>

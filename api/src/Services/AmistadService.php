@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../Repositories/AmistadRepository.php';
+require_once __DIR__ . '/../Repositories/AuditoriaRepository.php';
 
 class AmistadService {
     private static $instance = null;
@@ -33,6 +34,16 @@ class AmistadService {
             throw new RuntimeException("No se pudo enviar la solicitud.");
         }
 
+        (new AuditoriaRepository())->registrar(
+            $idSolicitante,
+            'SOLICITAR_AMISTAD',
+            "Solicitud de amistad enviada de #{$idSolicitante} a #{$idReceptor}",
+            'amigos',
+            null,
+            null,
+            json_encode(['idSolicitante' => $idSolicitante, 'idReceptor' => $idReceptor, 'estado' => 'pendiente'])
+        );
+
         return ['success' => true, 'mensaje' => 'Solicitud enviada.'];
     }
 
@@ -56,6 +67,18 @@ class AmistadService {
             throw new InvalidArgumentException("Acción inválida. Use 'aceptar' o 'rechazar'.");
         }
 
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idUsuarioActor > 0 ? $idUsuarioActor : (int)$amistad['idReceptor'],
+                'RESPONDER_AMISTAD',
+                "Solicitud #{$idAmistad} marcada como '{$accion}'",
+                'amigos',
+                null,
+                json_encode(['estado' => $amistad['estado'] ?? 'pendiente']),
+                json_encode(['estado' => $accion === 'aceptar' ? 'aceptada' : 'rechazada'])
+            );
+        }
+
         return ['success' => $ok, 'mensaje' => $msg];
     }
 
@@ -75,6 +98,17 @@ class AmistadService {
         }
 
         $ok = $this->repo->eliminarAmistad($idAmistad);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idUsuarioActor > 0 ? $idUsuarioActor : (int)$amistad['idSolicitante'],
+                'ELIMINAR_AMISTAD',
+                "Vínculo de amistad #{$idAmistad} eliminado",
+                'amigos',
+                null,
+                json_encode($amistad, JSON_UNESCAPED_UNICODE),
+                json_encode(['eliminado' => true])
+            );
+        }
         return ['success' => $ok, 'mensaje' => $ok ? 'Amistad eliminada.' : 'No se encontró la amistad.'];
     }
 

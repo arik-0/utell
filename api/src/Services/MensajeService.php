@@ -75,6 +75,18 @@ class MensajeService {
     }
 
     public function ocultarMensaje(int $idMensaje, int $idUsuario): bool {
-        return $this->repo->ocultarMensaje($idMensaje, $idUsuario);
+        $ok = $this->repo->ocultarMensaje($idMensaje, $idUsuario);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idUsuario,
+                'OCULTAR_MENSAJE',
+                "Mensaje directo #{$idMensaje} ocultado unilateralmente por usuario #{$idUsuario}",
+                'mensajedirecto',
+                null,
+                json_encode(['oculto' => 0]),
+                json_encode(['oculto' => 1])
+            );
+        }
+        return $ok;
     }
 }

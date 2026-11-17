@@ -754,9 +754,22 @@
           </div>
           <div class="form-field">
             <label>Universidad (opcional)</label>
-            <select v-model="pubForm.idUniversidad" class="search-input" style="padding-left:12px;">
+            <select v-model="pubForm.idUniversidad" @change="pubForm.idSede = null" class="search-input" style="padding-left:12px;">
               <option :value="null">— Ninguna —</option>
               <option v-for="uni in universidades" :key="uni.idUniversidad" :value="uni.idUniversidad">{{ uni.nombre }}</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Sede (opcional)</label>
+            <select v-model="pubForm.idSede" class="search-input" style="padding-left:12px;">
+              <option :value="null">— Ninguna —</option>
+              <option
+                v-for="s in sedes.filter(item => !pubForm.idUniversidad || Number(item.idUniversidad) === Number(pubForm.idUniversidad))"
+                :key="s.idSede"
+                :value="s.idSede"
+              >
+                {{ s.nombre }}{{ !pubForm.idUniversidad && s.nombreUniversidad ? ` (${s.nombreUniversidad})` : '' }}
+              </option>
             </select>
           </div>
           <div class="form-field">
@@ -907,7 +920,7 @@ const showUserModal      = ref(false)
 const userForm           = ref({ idUsuario: null, nombre: '', apellido: '', email: '', password: '', celular: '', tipoPerfil: 'Estudiante', idRol: 2, idUniversidad: null, idCarrera: null, estadoCuenta: 'activo' })
 
 const showPubModal       = ref(false)
-const pubForm            = ref({ idPublicacion: null, tipoPublicacion: 'Consulta', titulo: '', texto: '', idUniversidad: null, idCarrera: null, puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
+const pubForm            = ref({ idPublicacion: null, tipoPublicacion: 'Consulta', titulo: '', texto: '', idUniversidad: null, idSede: null, idCarrera: null, puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
 
 const showRolModal       = ref(false)
 const rolForm            = ref({ idRol: null, nombreRol: '' })
@@ -1161,6 +1174,7 @@ const openPubModal = (pub = null) => {
       titulo: pub.titulo || '',
       texto: pub.texto || '',
       idUniversidad: pub.idUniversidad ? Number(pub.idUniversidad) : null,
+      idSede: pub.idSede ? Number(pub.idSede) : null,
       idCarrera: pub.idCarrera ? Number(pub.idCarrera) : null,
       puntuacionClima: pub.puntuacionClima ? Number(pub.puntuacionClima) : 5,
       puntuacionInfraestructura: pub.puntuacionInfraestructura ? Number(pub.puntuacionInfraestructura) : 5,
@@ -1173,6 +1187,7 @@ const openPubModal = (pub = null) => {
       titulo: '',
       texto: '',
       idUniversidad: null,
+      idSede: null,
       idCarrera: null,
       puntuacionClima: 5,
       puntuacionInfraestructura: 5,

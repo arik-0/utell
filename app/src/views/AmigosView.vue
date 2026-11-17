@@ -113,6 +113,16 @@
             <span class="friend-name">{{ sol.nombre }} {{ sol.apellido }}</span>
             <span class="friend-tipo friend-pending">Pendiente de confirmación</span>
           </router-link>
+          <div class="action-row">
+            <button
+              class="action-chip chip-danger"
+              @click="cancelarSolicitudEnviada(sol.idAmistad)"
+              aria-label="Cancelar solicitud enviada"
+              title="Cancelar solicitud enviada"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -200,6 +210,18 @@ const eliminarAmistad = async (idAmistad) => {
   } catch (e) {
     console.error('Error eliminando amistad:', e)
     toastStore.error('Error al eliminar contacto.')
+  }
+}
+
+const cancelarSolicitudEnviada = async (idAmistad) => {
+  if (!confirm('¿Deseas cancelar esta solicitud de amistad enviada?')) return
+  try {
+    await api.delete(`/amistad/${idAmistad}`)
+    toastStore.info('Solicitud cancelada.', 2000)
+    await loadSolicitudes()
+  } catch (e) {
+    console.error('Error cancelando solicitud:', e)
+    toastStore.error('No se pudo cancelar la solicitud.')
   }
 }
 
