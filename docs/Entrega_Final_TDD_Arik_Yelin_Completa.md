@@ -175,7 +175,7 @@ La medición abarca la totalidad del alcance funcional de **U-Tell**: los 13 Cas
 
 #### **2\. Proceso de Conteo Paso a Paso**
 
-**A) Factor de Peso de los Actores sin Ajustar ($\text{UAW}$ — *Unadjusted Actor Weight*):**
+**A) Factor de Peso de los Actores sin Ajustar (UAW — *Unadjusted Actor Weight*):**
 
 * *Simple (Peso 1):* Sistema externo por API.  
 * *Medio (Peso 2):* Sistema externo por protocolo o actor automatizado por demonio/cron.  
@@ -187,9 +187,9 @@ La medición abarca la totalidad del alcance funcional de **U-Tell**: los 13 Cas
 | **Estudiante / Docente Validado** | Persona a través de interfaz gráfica reactiva (SPA Vue.js) | Complejo | 3 |
 | **Administrador / Moderador** | Persona a través de interfaz gráfica \+ Panel de Control y BI | Complejo | 3 |
 | **Sistema Automatizado (Cron Backup / Google OAuth)** | Proceso programado de resguardo / API de identidad externa | Medio | 2 |
-| **Total $\text{UAW}$** |  |  | **11** |
+| **Total UAW** |  |  | **11** |
 
-**B) Peso de los Casos de Uso sin Ajustar ($\text{UUCW}$ — *Unadjusted Use Case Weight*):**
+**B) Peso de los Casos de Uso sin Ajustar (UUCW — *Unadjusted Use Case Weight*):**
 
 * *Simple (Peso 5):* 1 a 3 transacciones.  
 * *Medio (Peso 10):* 4 a 7 transacciones.  
@@ -210,16 +210,16 @@ La medición abarca la totalidad del alcance funcional de **U-Tell**: los 13 Cas
 | **CU11** | Gestionar Amistades y Red de Contactos | 6 | Medio | 10 |
 | **CU12** | Enviar Mensaje Privado (Validación de Vínculo Habilitante) | 9 | Complejo | 15 |
 | **CU13** | Gestionar Conversaciones (Lectura en tiempo real y Borrado Unilateral) | 6 | Medio | 10 |
-| **Total $\text{UUCW}$** | **13 Casos de Uso Troncales** |  |  | **150** |
+| **Total UUCW** | **13 Casos de Uso Troncales** |  |  | **150** |
 
-$$\text{UUCP (Puntos sin Ajustar)} = \text{UAW} + \text{UUCW} = 11 + 150 = \mathbf{161}$$
+**UUCP (Puntos sin Ajustar) = UAW + UUCW = 11 + 150 = 161**
 
-**C) Factor de Complejidad Técnica ($\text{TCF}$ — *Technical Complexity Factor*):**
+**C) Factor de Complejidad Técnica (TCF — *Technical Complexity Factor*):**
 
-| Factor | Descripción Técnica | Peso (${W}_{i}$) | Influencia (${F}_{i}\in [0..5]$) | Producto (${W}_{i}\times {F}_{i}$) |
+| Factor | Descripción Técnica | Peso (Wᵢ) | Influencia (Fᵢ ∈ [0..5]) | Producto (Wᵢ × Fᵢ) |
 | :---: | :---- | :---: | :---: | :---: |
 | T1 | Sistema distribuido (Desacoplamiento Cliente SPA Vue 3 / API REST Slim) | 2.0 | 4 | 8.0 |
-| T2 | Objetivos de tiempo de respuesta y latencia ($< 2\text{ segundos}$) | 1.0 | 4 | 4.0 |
+| T2 | Objetivos de tiempo de respuesta y latencia (< 2 segundos) | 1.0 | 4 | 4.0 |
 | T3 | Eficiencia para el usuario final (UX reactiva y Optimistic UI) | 1.0 | 5 | 5.0 |
 | T4 | Procesamiento interno complejo (Agregaciones BI y algoritmos de Feed) | 1.0 | 3 | 3.0 |
 | T5 | Reutilización de código (Capas Services, Repositories y Patrones GoF) | 1.0 | 4 | 4.0 |
@@ -231,13 +231,13 @@ $$\text{UUCP (Puntos sin Ajustar)} = \text{UAW} + \text{UUCW} = 11 + 150 = \math
 | T11 | Objetivos especiales de seguridad (JWT, Bcrypt, PDO, RBAC, Auditoría T06) | 1.0 | 5 | 5.0 |
 | T12 | Provisión de acceso directo a componentes de terceros (Google OAuth / Chart.js) | 1.0 | 2 | 2.0 |
 | T13 | Facilidades especiales de entrenamiento a usuarios | 1.0 | 1 | 1.0 |
-| **$\sum \text{TFactor}$** |  |  |  | **52.5** |
+| **∑ TFactor** |  |  |  | **52.5** |
 
-$$\text{TCF} = 0.6 + (0.01 \times \sum \text{TFactor}) = 0.6 + (0.01 \times 52.5) = \mathbf{1.125}$$
+**TCF = 0.6 + (0.01 × ∑ TFactor) = 0.6 + (0.01 × 52.5) = 1.125**
 
-**D) Factor de Complejidad Ambiental ($\text{ECF}$ — *Environmental Complexity Factor*):**
+**D) Factor de Complejidad Ambiental (ECF — *Environmental Complexity Factor*):**
 
-| Factor | Descripción Ambiental | Peso (${W}_{i}$) | Valor (${F}_{i}\in [0..5]$) | Producto (${W}_{i}\times {F}_{i}$) |
+| Factor | Descripción Ambiental | Peso (Wᵢ) | Valor (Fᵢ ∈ [0..5]) | Producto (Wᵢ × Fᵢ) |
 | :---: | :---- | :---: | :---: | :---: |
 | E1 | Familiaridad con el proceso metodológico de la cátedra (ICONIX / UML) | 1.5 | 4 | 6.0 |
 | E2 | Experiencia en el dominio de la aplicación (Ámbito universitario) | 0.5 | 5 | 2.5 |
@@ -247,14 +247,14 @@ $$\text{TCF} = 0.6 + (0.01 \times \sum \text{TFactor}) = 0.6 + (0.01 \times 52.5
 | E6 | Estabilidad de los requerimientos a lo largo de las iteraciones | 2.0 | 4 | 8.0 |
 | E7 | Dedicación a tiempo parcial (compatible con cursado académico) | \-1.0 | 3 | \-3.0 |
 | E8 | Dificultad de los lenguajes y tecnologías empleadas | \-1.0 | 2 | \-2.0 |
-| **$\sum \text{EFactor}$** |  |  |  | **22.5** |
+| **∑ EFactor** |  |  |  | **22.5** |
 
-$$\text{ECF} = 1.4 + (-0.03 \times \sum \text{EFactor}) = 1.4 - (0.03 \times 22.5) = \mathbf{0.725}$$
+**ECF = 1.4 + (-0.03 × ∑ EFactor) = 1.4 - (0.03 × 22.5) = 0.725**
 
 #### **3\. Resultado de la Métrica y Distribución de Tiempos**
 
-$$\text{UCP} = \text{UUCP} \times \text{TCF} \times \text{ECF} = 161 \times 1.125 \times 0.725 = \mathbf{131.32\text{ UCP}}$$
-Considerando un factor de productividad calibrado para desarrollo individual asistido por herramientas de integración continua de **$3.2\text{ horas hombre por UCP}$**, el esfuerzo total estimado es de **$420\text{ horas hombre}$**, distribuidas de la siguiente manera:
+**UCP = UUCP × TCF × ECF = 161 × 1.125 × 0.725 = 131.32 UCP**
+Considerando un factor de productividad calibrado para desarrollo individual asistido por herramientas de integración continua de **3.2 horas hombre por UCP**, el esfuerzo total estimado es de **420 horas hombre**, distribuidas de la siguiente manera:
 
 | Fase del Proyecto | Porcentaje | Horas Estimadas (hh) | Entregables Principales |
 | :---- | :---: | :---: | :---- |
@@ -269,17 +269,17 @@ Considerando un factor de productividad calibrado para desarrollo individual asi
 
 ### **10.2. Gestión de Riesgos del Proyecto (PUNTO G05)** {#10.2.-gestión-de-riesgos-del-proyecto-(punto-g05)}
 
-Cada riesgo se cuantifica según su **Probabilidad de Ocurrencia ($P\in [1..5]$)** y su **Impacto o Efecto ($I\in [1..5]$)**, determinando la **Exposición al Riesgo ($ER=P\times I$, escala de 1 a 25\)**.
+Cada riesgo se cuantifica según su **Probabilidad de Ocurrencia (P ∈ [1..5])** y su **Impacto o Efecto (I ∈ [1..5])**, determinando la **Exposición al Riesgo (ER = P × I, escala de 1 a 25\)**.
 
-* **Definición de Línea Base (Corte de Gestión Activa):** Se fija la línea base en **$ER\geq 9$**. Todo riesgo cuya exposición iguale o supere 9 puntos exige estrategias activas de **Prevención** (reducir probabilidad), **Minimización** (reducir impacto), **Plan de Contingencia** (acción reactiva si el riesgo se materializa) e **Indicadores de Monitoreo (KRI)**.
+* **Definición de Línea Base (Corte de Gestión Activa):** Se fija la línea base en **ER ≥ 9**. Todo riesgo cuya exposición iguale o supere 9 puntos exige estrategias activas de **Prevención** (reducir probabilidad), **Minimización** (reducir impacto), **Plan de Contingencia** (acción reactiva si el riesgo se materializa) e **Indicadores de Monitoreo (KRI)**.
 
-| ID | Riesgo Identificado | Categoría | $P$ | $I$ | Exposición ($P\times I$) | Sobre Línea Base ($\geq 9$) | Estrategia de Prevención | Estrategia de Minimización | Plan de Contingencia | Indicador de Monitoreo (KRI) |
+| ID | Riesgo Identificado | Categoría | P | I | Exposición (P × I) | Sobre Línea Base (≥ 9) | Estrategia de Prevención | Estrategia de Minimización | Plan de Contingencia | Indicador de Monitoreo (KRI) |
 | :---: | :---- | :---- | :---: | :---: | :---: | :---: | :---- | :---- | :---- | :---- |
 | **R01** | **Inyección SQL o acceso no autorizado a endpoints administrativos** | Seguridad Técnica | 3 | 5 | **15** | **SÍ (Crítico)** | Prohibición de SQL concatenado; uso obligatorio de `PDO::prepare` y validación de firma JWT en `AuthMiddleware`. | Verificación de permisos por rol y grupo RBAC en `SeguridadService` antes de cada operación sensible. | Rotación inmediata de `JWT_SECRET`, bloqueo de la cuenta intrusa desde el panel de Moderación y restauración desde backup verificado con SHA-256. | Cantidad de respuestas HTTP 401/403 y eventos `LOGIN_FALLIDO` en `log_auditoria`. |
-| **R02** | **Falsa identidad académica (usuarios publicando Experiencias sin pertenecer a la universidad)** | Negocio / Reputación | 4 | 3 | **12** | **SÍ (Alto)** | Restricción de creación de `Experiencia` exclusivamente a perfiles con rol académico validado (`Estudiante` / `Docente`). | Verificación de pertenencia institucional y supervisión comunitaria mediante cola de moderación (CU6). | Baja lógica inmediata de la publicación (`DELETE_PUBLICACION`) y degradación del rol del usuario a `Postulante` con registro en bitácora. | Porcentaje de experiencias reportadas o dadas de baja por moderación ($< 2\%$). |
+| **R02** | **Falsa identidad académica (usuarios publicando Experiencias sin pertenecer a la universidad)** | Negocio / Reputación | 4 | 3 | **12** | **SÍ (Alto)** | Restricción de creación de `Experiencia` exclusivamente a perfiles con rol académico validado (`Estudiante` / `Docente`). | Verificación de pertenencia institucional y supervisión comunitaria mediante cola de moderación (CU6). | Baja lógica inmediata de la publicación (`DELETE_PUBLICACION`) y degradación del rol del usuario a `Postulante` con registro en bitácora. | Porcentaje de experiencias reportadas o dadas de baja por moderación (< 2%). |
 | **R03** | **Desfase entre el esquema de base de datos local y el servidor de producción en despliegues** | Infraestructura / DevOps | 3 | 4 | **12** | **SÍ (Alto)** | Consolidación de estructura y datos en dos únicos scripts maestros (`database/01_schema.sql` y `02_seed.sql`) y consultas tolerantes a esquemas. | Pipeline CI/CD en GitHub Actions que ejecuta `php -l` sobre todo el backend y `vite build` antes de transferir por FTPS. | Rollback inmediato al commit anterior en Git y restauración del volcado SQL generado desde el módulo de Resguardo (Punto T07). | Estado `success` del workflow en GitHub Actions y verificación HTTP 200 en `/universidades/1/muro`. |
 | **R04** | **Envío de spam o acoso a través de la mensajería privada** | Negocio / Privacidad | 3 | 3 | **9** | **SÍ (Medio-Alto)** | Regla de **Vínculo Habilitante** en `MensajeService::enviar` (requiere amistad aceptada o consulta vocacional habilitada). | Interfaz guiada en `MensajesView.vue` que canaliza contactos no vinculados hacia una solicitud formal de amistad. | Bloqueo de la cuenta infractora (`PUT /usuarios/{id}/estado`) y ocultamiento de mensajes en la bandeja afectada. | Tasa de rechazos por falta de vínculo habilitante en el endpoint `POST /mensajes`. |
-| **R05** | **Caída temporal del servicio de hosting en la nube durante la defensa** | Infraestructura | 2 | 4 | **8** | No (Bajo Línea Base) | Uso de proveedor cloud estable (Alwaysdata) con conexión PDO Singleton que evita saturar el límite de conexiones. | Compresión de bundles JS/CSS en Vite para minimizar tiempos de carga. | Ejecución local inmediata sobre entorno XAMPP preconfigurado con idéntica base de datos MySQL. | Latencia promedio de respuesta de la API ($< 500\text{ ms}$). |
+| **R05** | **Caída temporal del servicio de hosting en la nube durante la defensa** | Infraestructura | 2 | 4 | **8** | No (Bajo Línea Base) | Uso de proveedor cloud estable (Alwaysdata) con conexión PDO Singleton que evita saturar el límite de conexiones. | Compresión de bundles JS/CSS en Vite para minimizar tiempos de carga. | Ejecución local inmediata sobre entorno XAMPP preconfigurado con idéntica base de datos MySQL. | Latencia promedio de respuesta de la API (< 500 ms). |
 | **R06** | **Baja cantidad inicial de reseñas en ciertas carreras** | Adopción | 3 | 2 | **6** | No (Bajo Línea Base) | Precarga completa de universidades, sedes y oferta académica de Rosario en `02_seed.sql`. | Difusión inicial en comisiones de estudiantes avanzados de las facultades locales. | Destacar hilos de `Consulta` abiertos para incentivar respuestas de alumnos y docentes. | Cantidad semanal de nuevas publicaciones en el Tablero Ejecutivo BI. |
 
 ---
@@ -302,7 +302,7 @@ Cada riesgo se cuantifica según su **Probabilidad de Ocurrencia ($P\in [1..5]$)
 
 * **Fecha y Lugar:** 18 de agosto de 2026 — Sede UAI Rosario  
 * **Participantes:** Arik Yelin (Analista/Desarrollador), usuarios de prueba (postulantes y estudiantes verificados).  
-* **Temas Tratados:** 1.Necesidad de habilitar consultas directas uno a uno sin exponer a los usuarios a correo no deseado (*spam*). 2\. Definición de la regla de negocio de **Vínculo Habilitante**: el envío de mensajes privados requiere amistad mutua activa (CU11) o perfil de Postulante contactando con fines de orientación académica. 3\. Definición del ciclo de estados del mensaje (`Enviado` $\rightarrow$ `Entregado` $\rightarrow$ `Leído`) y del borrado unilateral («Eliminar para mí») mediante banderas de visibilidad independientes por participante (`ocultoEmisor`, `ocultoReceptor`).  
+* **Temas Tratados:** 1.Necesidad de habilitar consultas directas uno a uno sin exponer a los usuarios a correo no deseado (*spam*). 2\. Definición de la regla de negocio de **Vínculo Habilitante**: el envío de mensajes privados requiere amistad mutua activa (CU11) o perfil de Postulante contactando con fines de orientación académica. 3\. Definición del ciclo de estados del mensaje (`Enviado` → `Entregado` → `Leído`) y del borrado unilateral («Eliminar para mí») mediante banderas de visibilidad independientes por participante (`ocultoEmisor`, `ocultoReceptor`).  
 * **Acuerdos:** Se aprueba el módulo de **Mensajería Privada y Conversaciones (CU12, CU13)** como Requerimiento CORE de la Iteración 2\.
 
 #### **Minuta de Reunión N.º 3 — Revisión de Diseño UML y Módulos de Trabajo de Diploma**
@@ -809,7 +809,7 @@ En cumplimiento del **Punto T01** de la cátedra (*«Al menos tres patrones de d
 
 ### **A. Patrón Creacional: Factory Method (`PublicacionFactory`) y Singleton (`db`)**
 
-* **Problema y Justificación:** En la Iteración 1 (CU3), el sistema debe crear publicaciones polimórficas que pueden ser de tipo **Consulta** (hilo abierto con estado `resuelta`) o **Experiencia** (reseña calificada que exige normalizar y acotar en el rango $[1.0..5.0]$ los puntajes de *Clima*, *Infraestructura* y *Nivel Académico*). `PublicacionFactory` centraliza y desacopla esta lógica creacional de `PublicacionService`. Asimismo, la clase `db` implementa el patrón creacional **Singleton** para garantizar una única instancia de conexión PDO por petición HTTP.
+* **Problema y Justificación:** En la Iteración 1 (CU3), el sistema debe crear publicaciones polimórficas que pueden ser de tipo **Consulta** (hilo abierto con estado `resuelta`) o **Experiencia** (reseña calificada que exige normalizar y acotar en el rango [1.0 .. 5.0] los puntajes de *Clima*, *Infraestructura* y *Nivel Académico*). `PublicacionFactory` centraliza y desacopla esta lógica creacional de `PublicacionService`. Asimismo, la clase `db` implementa el patrón creacional **Singleton** para garantizar una única instancia de conexión PDO por petición HTTP.
 
 #### **Diagrama de Clases que Colaboran en el Patrón Creacional**
 
@@ -976,7 +976,7 @@ En cumplimiento del **Punto T06**, el subsistema de auditoría de **U-Tell** gar
 
 1. **Trazabilidad sobre elementos críticos (Estado Original y Transformaciones):** Cada vez que se modifica el rol de un usuario (`CAMBIAR_ROL`), se bloquea o reactiva una cuenta (`BLOQUEAR_USUARIO` / `REACTIVAR_USUARIO`), se altera un grupo de permisos (`MODIFICAR_GRUPO_PERMISO`) o se modera una publicación (`DELETE_PUBLICACION` / `CERRAR_PUBLICACION` / `REACTIVAR_PUBLICACION`), `SeguridadRepository` consulta previamente el registro en la base de datos, serializa el estado previo en formato JSON dentro del campo **`valorOriginal`** y almacena el estado resultante en **`valorNuevo`**, junto con el `idUsuario` responsable, la `tablaAfectada`, la `fechaHora` exacta y la dirección `ip`.  
 2. **Auditoría de Login-Logout:** `AuthService` y `auth.php` registran en `log_auditoria` cada inicio de sesión exitoso (`LOGIN`), intento fallido (`LOGIN_FALLIDO`), alta de cuenta (`REGISTRO_USUARIO`) y cierre de sesión (`LOGOUT`).  
-3. **Reportes de Auditoría Integrados:** La pestaña **«Auditoría T06»** dentro de `ModeracionView.vue` (`GET /moderacion/auditoria`) permite filtrar en tiempo real por categoría (*Login/Logout*, *Roles/Claves/Grupos*, *Moderación y Contenido*) y visualizar la comparativa **Antes (`valorOriginal`) $\rightarrow$ Después (`valorNuevo`)**.
+3. **Reportes de Auditoría Integrados:** La pestaña **«Auditoría T06»** dentro de `ModeracionView.vue` (`GET /moderacion/auditoria`) permite filtrar en tiempo real por categoría (*Login/Logout*, *Roles/Claves/Grupos*, *Moderación y Contenido*) y visualizar la comparativa **Antes (`valorOriginal`) → Después (`valorNuevo`)**.
 
 ### **17.1. Modelo de Datos de Auditoría (`database/01_schema.sql`)**
 
@@ -1012,9 +1012,9 @@ Para satisfacer el **Punto A02** (*«Al menos dos reportes/indicadores/estadíst
 ### **18.1. Reporte 1 (Gráfico y Multinivel): Tablero Ejecutivo de Calidad Institucional y Semaforización (`DashboardView.vue`)**
 
 * **Cruce de Datos para Toma de Decisiones:** Cruza las entidades `universidades`, `sedes`, `oferta_academica`, `carreras`, `publicaciones` (filtrando reseñas verificadas de tipo `Experiencia` vs. hilos de `Consulta`), `respuestas` y `favoritos`. Calcula el índice compuesto de satisfacción institucional sobre tres dimensiones (**Nivel Académico**, **Clima Universitario** e **Infraestructura**) y clasifica automáticamente a cada institución y carrera mediante un **Semáforo de Gestión**:  
-  * 🟢 **VERDE ($\geq 4.50$):** Excelencia institucional percibida.  
-  * 🟡 **AMARILLO ($3.50\text{ a }4.49$):** Desempeño satisfactorio con oportunidades de mejora edilicia o académica.  
-  * 🔴 **ROJO ($<3.50$):** Alerta temprana que requiere intervención de las autoridades académicas.  
+  * 🟢 **VERDE (≥ 4.50):** Excelencia institucional percibida.  
+  * 🟡 **AMARILLO (3.50 a 4.49):** Desempeño satisfactorio con oportunidades de mejora edilicia o académica.  
+  * 🔴 **ROJO (< 3.50):** Alerta temprana que requiere intervención de las autoridades académicas.  
 * **Gráficos Interactivos (Chart.js):**  
   1. **Gráfico de Barras Comparativo Multidimensional:** Contrasta los promedios de *Nivel Académico*, *Clima* e *Infraestructura* entre todas las universidades de Rosario.  
   2. **Gráfico de Distribución de Semaforización y Volumen Documental:** Visualiza la proporción de instituciones por estado de semáforo y la relación entre Experiencias calificadas y Consultas vocacionales.  
@@ -1141,22 +1141,22 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
 
 &nbsp;
 
-### **3\. Cálculo de la Complejidad Ciclomática $V(G)$**
+### **3\. Cálculo de la Complejidad Ciclomática V(G)**
 
-* **Cantidad de Nodos ($N$):** $11$ ($\text{N1}$ a $\text{N11}$).  
-* **Cantidad de Aristas ($E$):** $14$.  
-* **Nodos Predicado (${P}_{n}$):** $4$ ($\text{N2}, \text{N4}, \text{N6}, \text{N8}$).
-1. **Por Aristas y Nodos:** $V(G) = E - N + 2P = 14 - 11 + 2(1) = \mathbf{5}$
-2. **Por Nodos Predicado:** $V(G) = P_n + 1 = 4 + 1 = \mathbf{5}$
-3. **Por Regiones del Grafo:** $V(G) = 4\text{ regiones cerradas} + 1\text{ región exterior} = \mathbf{5}$
+* **Cantidad de Nodos (N):** 11 (N1 a N11).  
+* **Cantidad de Aristas (E):** 14.  
+* **Nodos Predicado (Pₙ):** 4 (N2, N4, N6, N8).
+1. **Por Aristas y Nodos:** **V(G) = E - N + 2P = 14 - 11 + 2(1) = 5**
+2. **Por Nodos Predicado:** **V(G) = Pₙ + 1 = 4 + 1 = 5**
+3. **Por Regiones del Grafo:** **V(G) = 4 regiones cerradas + 1 región exterior = 5**
 
 ### **4\. Conjunto Básico de 5 Rutas Linealmente Independientes y Ejecución**
 
-* **Ruta 1:** $\text{N1} \rightarrow \text{N2} \rightarrow \text{N3} \rightarrow \text{N11}$
-* **Ruta 2:** $\text{N1} \rightarrow \text{N2} \rightarrow \text{N4} \rightarrow \text{N5} \rightarrow \text{N11}$
-* **Ruta 3:** $\text{N1} \rightarrow \text{N2} \rightarrow \text{N4} \rightarrow \text{N6} \rightarrow \text{N7} \rightarrow \text{N11}$
-* **Ruta 4:** $\text{N1} \rightarrow \text{N2} \rightarrow \text{N4} \rightarrow \text{N6} \rightarrow \text{N8} \rightarrow \text{N9} \rightarrow \text{N11}$
-* **Ruta 5:** $\text{N1} \rightarrow \text{N2} \rightarrow \text{N4} \rightarrow \text{N6} \rightarrow \text{N8} \rightarrow \text{N10} \rightarrow \text{N11}$
+* **Ruta 1:** N1 → N2 → N3 → N11
+* **Ruta 2:** N1 → N2 → N4 → N5 → N11
+* **Ruta 3:** N1 → N2 → N4 → N6 → N7 → N11
+* **Ruta 4:** N1 → N2 → N4 → N6 → N8 → N9 → N11
+* **Ruta 5:** N1 → N2 → N4 → N6 → N8 → N10 → N11
 
 | Caso | Ruta | Entrada de Prueba (`idEmisor`, `idReceptor`, `texto`) | Condición de Vínculo | Resultado Esperado | Resultado Obtenido | Estado |
 | :---: | :---: | :---- | :---- | :---- | :---- | :---: |
@@ -1172,10 +1172,10 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
 
 ### **1\. Especificación Bajo Prueba: Creación y Parametrización de Publicaciones (`CU3` — `PublicacionFactory::crear()`)**
 
-* **Dominio de entrada 1 — Puntajes de Experiencia (`puntuacionClima`, `puntuacionInfraestructura`, `puntuacionAcademica`):** Rango válido definido por regla de negocio y restricción `CHECK` en BD: $[1.0..5.0]$.  
-  * *Partición Inválida Inferior (CE1):* Valores $<1.0$ (ej. $0,-2$).  
-  * *Partición Válida (CE2):* Valores reales/enteros en $[1.0..5.0]$.  
-  * *Partición Inválida Superior (CE3):* Valores $>5.0$ (ej. $6,10,99$).  
+* **Dominio de entrada 1 — Puntajes de Experiencia (`puntuacionClima`, `puntuacionInfraestructura`, `puntuacionAcademica`):** Rango válido definido por regla de negocio y restricción `CHECK` en BD: [1.0 .. 5.0].  
+  * *Partición Inválida Inferior (CE1):* Valores < 1.0 (ej. 0, -2).  
+  * *Partición Válida (CE2):* Valores reales/enteros en [1.0 .. 5.0].  
+  * *Partición Inválida Superior (CE3):* Valores > 5.0 (ej. 6, 10, 99).  
 * **Dominio de entrada 2 — Identificador de Autor (`idUsuario`) y Contenido (`titulo` / `texto`):**  
   * *Partición Inválida de Autor (CE4):* `idUsuario <= 0`.  
   * *Partición Inválida de Contenido (CE5):* `titulo === ""` y `texto === ""`.
@@ -1184,11 +1184,11 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
 
 | Caso | Técnica Aplicada | Entrada Evaluada | Frontera / Partición | Resultado Esperado | Resultado Obtenido (`php api/tests/PruebasSoftwareUAI.php`) | Estado |
 | :---: | :---- | :---- | :---- | :---- | :---- | :---: |
-| **CN-01** | AVL (Límite Inferior $-1$) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(0, -2, 0)` | CE1 ($x=0$, inmediato inferior a $1$) | Acotamiento defensivo al límite inferior permitido `(1.0, 1.0, 1.0)` | `Clima=1.0, Infra=1.0, Acad=1.0` | ✅ **PASS** |
-| **CN-02** | AVL (Límite Inferior Exacto) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(1, 1, 1)` | CE2 ($x=1.0$, frontera inferior exacta) | Aceptación con puntajes `(1.0, 1.0, 1.0)` y promedio `1.00` | `Promedio = 1.00` | ✅ **PASS** |
+| **CN-01** | AVL (Límite Inferior -1) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(0, -2, 0)` | CE1 (x = 0, inmediato inferior a 1) | Acotamiento defensivo al límite inferior permitido `(1.0, 1.0, 1.0)` | `Clima=1.0, Infra=1.0, Acad=1.0` | ✅ **PASS** |
+| **CN-02** | AVL (Límite Inferior Exacto) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(1, 1, 1)` | CE2 (x = 1.0, frontera inferior exacta) | Aceptación con puntajes `(1.0, 1.0, 1.0)` y promedio `1.00` | `Promedio = 1.00` | ✅ **PASS** |
 | **CN-03** | Partición Equivalente Válida | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(4, 5, 4)` | CE2 (Valores centrales nominales) | Aceptación con puntajes `(4.0, 5.0, 4.0)` | `Clima=4.0, Infra=5.0, Acad=4.0` | ✅ **PASS** |
-| **CN-04** | AVL (Límite Superior Exacto) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(5, 5, 5)` | CE2 ($x=5.0$, frontera superior exacta) | Aceptación con puntajes `(5.0, 5.0, 5.0)` y promedio `5.00` | `Promedio = 5.00` | ✅ **PASS** |
-| **CN-05** | AVL (Límite Superior $+1$) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(6, 10, 99)` | CE3 ($x=6$, inmediato superior a $5$) | Acotamiento defensivo al límite máximo permitido `(5.0, 5.0, 5.0)` | `Clima=5.0, Infra=5.0, Acad=5.0` | ✅ **PASS** |
+| **CN-04** | AVL (Límite Superior Exacto) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(5, 5, 5)` | CE2 (x = 5.0, frontera superior exacta) | Aceptación con puntajes `(5.0, 5.0, 5.0)` y promedio `5.00` | `Promedio = 5.00` | ✅ **PASS** |
+| **CN-05** | AVL (Límite Superior +1) | `idUsuario: 8`, Tipo: `Experiencia`, Puntajes: `(6, 10, 99)` | CE3 (x = 6, inmediato superior a 5) | Acotamiento defensivo al límite máximo permitido `(5.0, 5.0, 5.0)` | `Clima=5.0, Infra=5.0, Acad=5.0` | ✅ **PASS** |
 | **CN-06** | Partición Inválida Autor | `idUsuario: 0`, `titulo: "Test"`, `texto: "Contenido"` | CE4 (`idUsuario <= 0`) | Rechazo con `InvalidArgumentException` | `"El ID de usuario es obligatorio."` | ✅ **PASS** |
 | **CN-07** | Partición Inválida Contenido | `idUsuario: 5`, `titulo: "   "`, `texto: ""` | CE5 (Sin título ni texto) | Rechazo con `InvalidArgumentException` | `"La publicación debe contener un título o texto explicativo."` | ✅ **PASS** |
 
@@ -1199,7 +1199,7 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
 ### **21.1. Instructivo de Uso — Requerimiento CORE 1: Publicar Experiencias, Consultas e Interactuar en el Feed**
 
 1. **Ingreso a la Plataforma:** Acceda desde su navegador web o móvil a `https://utell.alwaysdata.net`. Ingrese su correo electrónico y contraseña, o utilice el botón **«Continuar con Google»**. En caso de haber olvidado su clave, presione **«¿Olvidaste tu contraseña?»** para restablecerla validando su fecha de nacimiento.  
-2. **Exploración del Feed Dinámico (`CU4`):** En la pantalla principal podrá alternar entre la pestaña **«Para Ti»** (contenido recomendado según su perfil académico) y **«Tu Red»** (publicaciones de sus amigos conectados). Puede reaccionar con **«Me gusta»** ($\heartsuit$) o ingresar a cualquier hilo para leer y publicar respuestas (**`CU7`**).  
+2. **Exploración del Feed Dinámico (`CU4`):** En la pantalla principal podrá alternar entre la pestaña **«Para Ti»** (contenido recomendado según su perfil académico) y **«Tu Red»** (publicaciones de sus amigos conectados). Puede reaccionar con **«Me gusta»** (♥) o ingresar a cualquier hilo para leer y publicar respuestas (**`CU7`**).  
 3. **Creación de una Consulta Vocacional (`CU3 — Flujo Consulta`):**  
    * Presione el botón **«Crear Publicación»** y elija la opción **«Consulta»**.  
    * Seleccione opcionalmente la Universidad, Sede y Carrera sobre la cual tiene dudas, redacte su pregunta y presione **«Publicar»**.  
@@ -1215,7 +1215,7 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
 2. **Inicio de Conversación y Vínculo Habilitante:**  
    * Seleccione un contacto de su lista de conversaciones o busque a un miembro de la comunidad.  
    * Por privacidad (**Regla de Vínculo Habilitante**), puede enviar mensajes directos si ambos son amigos en la plataforma o si usted posee perfil de Postulante realizando una consulta de orientación. Si aún no posee vínculo con el destinatario, el sistema desplegará un cuadro informativo con el botón **«Enviar Solicitud de Amistad»**.  
-3. **Envío y Confirmación de Lectura:** Escriba su mensaje en el cuadro inferior y presione **«Enviar»**. Cuando el destinatario abra el chat, el indicador cambiará automáticamente a **Leído** ($\checkmark\checkmark$).  
+3. **Envío y Confirmación de Lectura:** Escriba su mensaje en el cuadro inferior y presione **«Enviar»**. Cuando el destinatario abra el chat, el indicador cambiará automáticamente a **Leído** (✓✓).  
 4. **Eliminación Unilateral («Eliminar para mí»):** Para quitar un mensaje de su propia pantalla sin alterar el historial del otro usuario, presione el ícono de papelera ubicado junto a la burbuja del mensaje y confirme la acción.
 
 ### **21.3. Instructivo de Uso — Tablero Ejecutivo BI y Panel de Moderación / Seguridad**
@@ -1228,7 +1228,7 @@ public function enviar(int $idEmisor, int $idReceptor, string $texto): array {
    * **Publicaciones:** Filtre por estado y oculte, cierre o reactive publicaciones.  
    * **Usuarios y Claves:** Asigne roles de sistema, vincule usuarios a grupos de permisos, bloquee/reactive cuentas, agregue nuevos usuarios o ejecute **«🔑 Reset Clave»**.  
    * **Grupos y Permisos:** Cree o edite grupos de seguridad y tilde los permisos atómicos correspondientes.  
-   * **Auditoría T06:** Consulte la bitácora histórica con filtros rápidos y verifique la columna **Trazabilidad (Valor Original $\rightarrow$ Nuevo)**.  
+   * **Auditoría T06:** Consulte la bitácora histórica con filtros rápidos y verifique la columna **Trazabilidad (Valor Original → Nuevo)**.  
    * **Resguardo T07:** Presione **«⬇ Generar y Descargar Backup SQL \+ SHA-256»** para obtener al instante el volcado completo de la base de datos y su firma criptográfica de verificación.
 
 ---
