@@ -93,6 +93,68 @@ class SeguridadRepository {
         return $this->db->query("SELECT * FROM roles ORDER BY idRol ASC")->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function crearRol(string $nombreRol, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombreRol);
+        $stmt = $this->db->prepare("INSERT INTO roles (nombreRol) VALUES (:nombre)");
+        $stmt->execute([':nombre' => $nombreLimpio]);
+        $id = (int)$this->db->lastInsertId();
+        (new AuditoriaRepository())->registrar(
+            $idActor,
+            'ALTA_ROL',
+            "Rol '{$nombreLimpio}' (#{$id}) creado",
+            'roles',
+            null,
+            null,
+            json_encode(['idRol' => $id, 'nombreRol' => $nombreLimpio], JSON_UNESCAPED_UNICODE)
+        );
+        return $id;
+    }
+
+    public function actualizarRol(int $idRol, string $nombreRol, ?int $idActor = null): bool {
+        $stmtOld = $this->db->prepare("SELECT * FROM roles WHERE idRol = :id LIMIT 1");
+        $stmtOld->execute([':id' => $idRol]);
+        $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) return false;
+
+        $nombreLimpio = trim($nombreRol);
+        $stmt = $this->db->prepare("UPDATE roles SET nombreRol = :nombre WHERE idRol = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':id' => $idRol]);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'MODIFICAR_ROL',
+                "Rol #{$idRol} actualizado a '{$nombreLimpio}'",
+                'roles',
+                null,
+                json_encode($old, JSON_UNESCAPED_UNICODE),
+                json_encode(['idRol' => $idRol, 'nombreRol' => $nombreLimpio], JSON_UNESCAPED_UNICODE)
+            );
+        }
+        return $ok;
+    }
+
+    public function eliminarRol(int $idRol, ?int $idActor = null): bool {
+        $stmtOld = $this->db->prepare("SELECT * FROM roles WHERE idRol = :id LIMIT 1");
+        $stmtOld->execute([':id' => $idRol]);
+        $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) return false;
+
+        $stmt = $this->db->prepare("DELETE FROM roles WHERE idRol = :id");
+        $ok = $stmt->execute([':id' => $idRol]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'BAJA_ROL',
+                "Rol #{$idRol} ('{$old['nombreRol']}') eliminado",
+                'roles',
+                null,
+                json_encode($old, JSON_UNESCAPED_UNICODE),
+                json_encode(['eliminado' => true])
+            );
+        }
+        return $ok;
+    }
+
     private function asegurarTablasRbac(): void {
         try {
             $this->db->exec("
@@ -135,6 +197,70 @@ class SeguridadRepository {
         } catch (Exception $e) {
             return [];
         }
+    }
+
+    public function crearPermiso(string $nombre, string $codigoAccion, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $codigoLimpio = strtoupper(trim($codigoAccion));
+        $stmt = $this->db->prepare("INSERT INTO permisos (nombre, codigoAccion) VALUES (:nombre, :codigo)");
+        $stmt->execute([':nombre' => $nombreLimpio, ':codigo' => $codigoLimpio]);
+        $id = (int)$this->db->lastInsertId();
+        (new AuditoriaRepository())->registrar(
+            $idActor,
+            'ALTA_PERMISO',
+            "Permiso '{$codigoLimpio}' (#{$id}) creado",
+            'permisos',
+            null,
+            null,
+            json_encode(['idPermiso' => $id, 'nombre' => $nombreLimpio, 'codigoAccion' => $codigoLimpio], JSON_UNESCAPED_UNICODE)
+        );
+        return $id;
+    }
+
+    public function actualizarPermiso(int $idPermiso, string $nombre, string $codigoAccion, ?int $idActor = null): bool {
+        $stmtOld = $this->db->prepare("SELECT * FROM permisos WHERE idPermiso = :id LIMIT 1");
+        $stmtOld->execute([':id' => $idPermiso]);
+        $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) return false;
+
+        $nombreLimpio = trim($nombre);
+        $codigoLimpio = strtoupper(trim($codigoAccion));
+        $stmt = $this->db->prepare("UPDATE permisos SET nombre = :nombre, codigoAccion = :codigo WHERE idPermiso = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':codigo' => $codigoLimpio, ':id' => $idPermiso]);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'MODIFICAR_PERMISO',
+                "Permiso #{$idPermiso} ('{$codigoLimpio}') actualizado",
+                'permisos',
+                null,
+                json_encode($old, JSON_UNESCAPED_UNICODE),
+                json_encode(['idPermiso' => $idPermiso, 'nombre' => $nombreLimpio, 'codigoAccion' => $codigoLimpio], JSON_UNESCAPED_UNICODE)
+            );
+        }
+        return $ok;
+    }
+
+    public function eliminarPermiso(int $idPermiso, ?int $idActor = null): bool {
+        $stmtOld = $this->db->prepare("SELECT * FROM permisos WHERE idPermiso = :id LIMIT 1");
+        $stmtOld->execute([':id' => $idPermiso]);
+        $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) return false;
+
+        $stmt = $this->db->prepare("DELETE FROM permisos WHERE idPermiso = :id");
+        $ok = $stmt->execute([':id' => $idPermiso]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'BAJA_PERMISO',
+                "Permiso #{$idPermiso} ('{$old['codigoAccion']}') eliminado",
+                'permisos',
+                null,
+                json_encode($old, JSON_UNESCAPED_UNICODE),
+                json_encode(['eliminado' => true])
+            );
+        }
+        return $ok;
     }
 
     /**
@@ -361,6 +487,8 @@ class SeguridadRepository {
      */
     public function obtenerPublicacionesModerables(): array {
         $sql = "SELECT p.idPublicacion, p.idUsuario, p.tipoPublicacion, p.titulo, p.fecha, p.hora,
+                       p.idUniversidad, p.idSede, p.idCarrera,
+                       p.puntuacionClima, p.puntuacionInfraestructura, p.puntuacionAcademica,
                        p.texto, COALESCE(p.estado, 'activo') as estado, COALESCE(p.resuelta, 0) as resuelta,
                        u.nombre, u.apellido, u.email, u.fotoPerfil, u.tipoPerfil,
                        uni.nombre as nombreUniversidad,
@@ -380,7 +508,8 @@ class SeguridadRepository {
      * Listado de usuarios con roles y estados para el panel de administración (CU5 / CU8).
      */
     public function obtenerUsuariosAdmin(): array {
-        $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.tipoPerfil, u.idRol,
+        $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.celular, u.fNac,
+                       u.tipoPerfil, u.idRol, u.idUniversidad, u.idCarrera,
                        COALESCE(u.estadoCuenta, 'activo') as estadoCuenta,
                        COALESCE(r.nombreRol, u.tipoPerfil) as nombreRol,
                        u.fotoPerfil,
@@ -392,6 +521,73 @@ class SeguridadRepository {
                 ORDER BY u.idUsuario DESC
                 LIMIT 200";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Actualización integral de datos de un usuario desde el panel administrativo (ABM Usuarios + Auditoría T06).
+     */
+    public function actualizarUsuarioAdmin(int $idUsuario, array $datos, ?int $idActor = null): bool {
+        $stmtOld = $this->db->prepare("
+            SELECT idUsuario, nombre, apellido, email, celular, fNac, tipoPerfil, idRol, idUniversidad, idCarrera,
+                   COALESCE(estadoCuenta, 'activo') AS estadoCuenta
+            FROM usuarios
+            WHERE idUsuario = :id LIMIT 1
+        ");
+        $stmtOld->execute([':id' => $idUsuario]);
+        $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) {
+            return false;
+        }
+
+        $nombre        = trim((string)($datos['nombre'] ?? $old['nombre']));
+        $apellido      = trim((string)($datos['apellido'] ?? $old['apellido']));
+        $email         = trim((string)($datos['email'] ?? $old['email']));
+        $celular       = array_key_exists('celular', $datos) ? ($datos['celular'] ?: null) : $old['celular'];
+        $fNac          = !empty($datos['fNac']) ? $datos['fNac'] : $old['fNac'];
+        $tipoPerfil    = trim((string)($datos['tipoPerfil'] ?? $old['tipoPerfil']));
+        $idRol         = !empty($datos['idRol']) ? (int)$datos['idRol'] : (int)$old['idRol'];
+        $idUniversidad = array_key_exists('idUniversidad', $datos) ? (!empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null) : ($old['idUniversidad'] ? (int)$old['idUniversidad'] : null);
+        $idCarrera     = array_key_exists('idCarrera', $datos) ? (!empty($datos['idCarrera']) ? (int)$datos['idCarrera'] : null) : ($old['idCarrera'] ? (int)$old['idCarrera'] : null);
+        $estadoCuenta  = !empty($datos['estadoCuenta']) ? trim((string)$datos['estadoCuenta']) : $old['estadoCuenta'];
+
+        $sql = "UPDATE usuarios
+                SET nombre = :nombre, apellido = :apellido, email = :email, celular = :celular,
+                    fNac = :fNac, tipoPerfil = :tipoPerfil, idRol = :idRol,
+                    idUniversidad = :idUni, idCarrera = :idCar, estadoCuenta = :estado
+                WHERE idUsuario = :id";
+        $stmt = $this->db->prepare($sql);
+        $ok = $stmt->execute([
+            ':nombre'     => $nombre,
+            ':apellido'   => $apellido,
+            ':email'      => $email,
+            ':celular'    => $celular,
+            ':fNac'       => $fNac,
+            ':tipoPerfil' => $tipoPerfil,
+            ':idRol'      => $idRol,
+            ':idUni'      => $idUniversidad,
+            ':idCar'      => $idCarrera,
+            ':estado'     => $estadoCuenta,
+            ':id'         => $idUsuario,
+        ]);
+
+        if ($ok) {
+            $nuevo = [
+                'nombre' => $nombre, 'apellido' => $apellido, 'email' => $email,
+                'tipoPerfil' => $tipoPerfil, 'idRol' => $idRol,
+                'idUniversidad' => $idUniversidad, 'idCarrera' => $idCarrera,
+                'estadoCuenta' => $estadoCuenta,
+            ];
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'MODIFICAR_USUARIO_ADMIN',
+                "Usuario #{$idUsuario} ({$email}) modificado administrativamente",
+                'usuarios',
+                null,
+                json_encode($old, JSON_UNESCAPED_UNICODE),
+                json_encode($nuevo, JSON_UNESCAPED_UNICODE)
+            );
+        }
+        return $ok;
     }
 
     /**

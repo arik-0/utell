@@ -30,8 +30,32 @@ class SeguridadService {
         return $this->repo->obtenerRoles();
     }
 
+    public function crearRol(string $nombreRol, ?int $idActor = null): int {
+        return $this->repo->crearRol($nombreRol, $idActor);
+    }
+
+    public function actualizarRol(int $idRol, string $nombreRol, ?int $idActor = null): bool {
+        return $this->repo->actualizarRol($idRol, $nombreRol, $idActor);
+    }
+
+    public function eliminarRol(int $idRol, ?int $idActor = null): bool {
+        return $this->repo->eliminarRol($idRol, $idActor);
+    }
+
     public function obtenerPermisosCatalogo(): array {
         return $this->repo->obtenerPermisosCatalogo();
+    }
+
+    public function crearPermiso(string $nombre, string $codigoAccion, ?int $idActor = null): int {
+        return $this->repo->crearPermiso($nombre, $codigoAccion, $idActor);
+    }
+
+    public function actualizarPermiso(int $idPermiso, string $nombre, string $codigoAccion, ?int $idActor = null): bool {
+        return $this->repo->actualizarPermiso($idPermiso, $nombre, $codigoAccion, $idActor);
+    }
+
+    public function eliminarPermiso(int $idPermiso, ?int $idActor = null): bool {
+        return $this->repo->eliminarPermiso($idPermiso, $idActor);
     }
 
     public function obtenerGruposPermiso(): array {
@@ -64,6 +88,10 @@ class SeguridadService {
 
     public function obtenerUsuariosAdmin(): array {
         return $this->repo->obtenerUsuariosAdmin();
+    }
+
+    public function actualizarUsuarioAdmin(int $idUsuario, array $datos, ?int $idActor = null): bool {
+        return $this->repo->actualizarUsuarioAdmin($idUsuario, $datos, $idActor);
     }
 
     public function cambiarRolUsuario(int $idUsuario, int $idRol, ?int $idActor = null): bool {

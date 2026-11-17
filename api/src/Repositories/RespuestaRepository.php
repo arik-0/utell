@@ -48,4 +48,21 @@ class RespuestaRepository {
             }
         }
     }
+
+    public function obtenerPorId(int $idRespuesta): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM respuestas WHERE idRespuesta = :id LIMIT 1");
+        $stmt->execute([':id' => $idRespuesta]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function actualizarRespuesta(int $idRespuesta, string $texto): bool {
+        $stmt = $this->db->prepare("UPDATE respuestas SET texto = :texto WHERE idRespuesta = :id");
+        return $stmt->execute([':texto' => trim($texto), ':id' => $idRespuesta]);
+    }
+
+    public function eliminarRespuesta(int $idRespuesta): bool {
+        $stmt = $this->db->prepare("DELETE FROM respuestas WHERE idRespuesta = :id");
+        return $stmt->execute([':id' => $idRespuesta]) && $stmt->rowCount() > 0;
+    }
 }

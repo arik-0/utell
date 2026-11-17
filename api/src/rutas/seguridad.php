@@ -25,6 +25,61 @@ $app->get('/roles', function(Request $request, Response $response) {
     }
 });
 
+// POST Crear Rol
+$app->post('/roles', function(Request $request, Response $response) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para crear roles.', 403);
+    }
+    $nombreRol = trim((string)($request->getParam('nombreRol') ?? ''));
+    if ($nombreRol === '') {
+        return errorResponse($response, 'El nombreRol es obligatorio.', 400);
+    }
+    try {
+        $id = SeguridadService::getInstance()->crearRol($nombreRol, getAuthUserId($request));
+        return jsonResponse($response, ['success' => true, 'idRol' => $id, 'mensaje' => 'Rol creado exitosamente.'], 201);
+    } catch (Exception $e) {
+        return errorResponse($response, 'No se pudo crear el rol (posible nombre duplicado).', 400, $e);
+    }
+})->add(new AuthMiddleware());
+
+// PUT Modificar Rol
+$app->put('/roles/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para modificar roles.', 403);
+    }
+    $idRol     = (int)$args['id'];
+    $nombreRol = trim((string)($request->getParam('nombreRol') ?? ''));
+    if ($idRol <= 0 || $nombreRol === '') {
+        return errorResponse($response, 'ID y nombreRol son obligatorios.', 400);
+    }
+    try {
+        $ok = SeguridadService::getInstance()->actualizarRol($idRol, $nombreRol, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol actualizado.']);
+        }
+        return errorResponse($response, 'Rol no encontrado.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al modificar el rol.', 400, $e);
+    }
+})->add(new AuthMiddleware());
+
+// DELETE Eliminar Rol
+$app->delete('/roles/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para eliminar roles.', 403);
+    }
+    $idRol = (int)$args['id'];
+    try {
+        $ok = SeguridadService::getInstance()->eliminarRol($idRol, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol eliminado.']);
+        }
+        return errorResponse($response, 'Rol no encontrado.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'No se pudo eliminar el rol porque hay usuarios asignados a él.', 400, $e);
+    }
+})->add(new AuthMiddleware());
+
 // GET Catálogo de permisos atómicos (Puntos T02/T03)
 $app->get('/permisos', function(Request $request, Response $response) {
     try {
@@ -33,6 +88,63 @@ $app->get('/permisos', function(Request $request, Response $response) {
         return errorResponse($response, 'Error al consultar el catálogo de permisos.', 500, $e);
     }
 });
+
+// POST Crear permiso atómico
+$app->post('/permisos', function(Request $request, Response $response) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para crear permisos.', 403);
+    }
+    $nombre       = trim((string)($request->getParam('nombre') ?? ''));
+    $codigoAccion = trim((string)($request->getParam('codigoAccion') ?? ''));
+    if ($nombre === '' || $codigoAccion === '') {
+        return errorResponse($response, 'nombre y codigoAccion son obligatorios.', 400);
+    }
+    try {
+        $id = SeguridadService::getInstance()->crearPermiso($nombre, $codigoAccion, getAuthUserId($request));
+        return jsonResponse($response, ['success' => true, 'idPermiso' => $id, 'mensaje' => 'Permiso creado exitosamente.'], 201);
+    } catch (Exception $e) {
+        return errorResponse($response, 'No se pudo crear el permiso (posible código duplicado).', 400, $e);
+    }
+})->add(new AuthMiddleware());
+
+// PUT Modificar permiso atómico
+$app->put('/permisos/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para modificar permisos.', 403);
+    }
+    $idPermiso    = (int)$args['id'];
+    $nombre       = trim((string)($request->getParam('nombre') ?? ''));
+    $codigoAccion = trim((string)($request->getParam('codigoAccion') ?? ''));
+    if ($idPermiso <= 0 || $nombre === '' || $codigoAccion === '') {
+        return errorResponse($response, 'ID, nombre y codigoAccion son obligatorios.', 400);
+    }
+    try {
+        $ok = SeguridadService::getInstance()->actualizarPermiso($idPermiso, $nombre, $codigoAccion, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Permiso actualizado.']);
+        }
+        return errorResponse($response, 'Permiso no encontrado.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al actualizar el permiso.', 400, $e);
+    }
+})->add(new AuthMiddleware());
+
+// DELETE Eliminar permiso atómico
+$app->delete('/permisos/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para eliminar permisos.', 403);
+    }
+    $idPermiso = (int)$args['id'];
+    try {
+        $ok = SeguridadService::getInstance()->eliminarPermiso($idPermiso, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Permiso eliminado.']);
+        }
+        return errorResponse($response, 'Permiso no encontrado.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'No se pudo eliminar el permiso.', 400, $e);
+    }
+})->add(new AuthMiddleware());
 
 // GET Grupos de permiso con sus permisos y cantidad de usuarios (Puntos T02/T03)
 $app->get('/grupos-permiso', function(Request $request, Response $response) {
@@ -225,6 +337,24 @@ $app->get('/moderacion/usuarios', function(Request $request, Response $response)
         return jsonResponse($response, $usuarios);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al consultar usuarios para administración.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// PUT Editar datos completos de un usuario desde administración (ABM Usuarios)
+$app->put('/moderacion/usuarios/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdminOrMod($request)) {
+        return errorResponse($response, 'Se requieren permisos administrativos para modificar usuarios.', 403);
+    }
+    $idUsuario = (int)$args['id'];
+    $datos     = (array)($request->getParsedBody() ?: []);
+    try {
+        $ok = SeguridadService::getInstance()->actualizarUsuarioAdmin($idUsuario, $datos, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Usuario actualizado correctamente.']);
+        }
+        return errorResponse($response, 'Usuario no encontrado.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error al modificar el usuario (verifique que el email no esté duplicado).', 400, $e);
     }
 })->add(new AuthMiddleware());
 

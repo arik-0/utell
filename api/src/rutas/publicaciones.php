@@ -108,6 +108,60 @@ $crearPublicacionHandler = function(Request $request, Response $response) {
 $app->post('/publicacion/nuevo', $crearPublicacionHandler)->add(new AuthMiddleware());
 $app->post('/publicaciones/nuevo', $crearPublicacionHandler)->add(new AuthMiddleware());
 
+// PUT /publicacion/{id} y /publicaciones/{id} — modificar publicación (requiere JWT, autor o staff)
+$actualizarPublicacionHandler = function(Request $request, Response $response, array $args) {
+    $idPublicacion = (int)$args['id'];
+    $idActor       = getAuthUserId($request);
+    $esStaff       = isAuthAdminOrMod($request);
+    $datos         = (array)($request->getParsedBody() ?: []);
+
+    if (!empty($datos['universidad']) || !empty($datos['sede']) || !empty($datos['carrera'])) {
+        $ids = InstitucionService::getInstance()->resolverIdsAcademicos(
+            !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null,
+            !empty($datos['idSede'])        ? (int)$datos['idSede']        : null,
+            !empty($datos['idCarrera'])     ? (int)$datos['idCarrera']     : null,
+            $datos['universidad'] ?? null,
+            $datos['sede'] ?? null,
+            $datos['carrera'] ?? null
+        );
+        $datos['idUniversidad'] = $ids['idUniversidad'];
+        $datos['idSede']        = $ids['idSede'];
+        $datos['idCarrera']     = $ids['idCarrera'];
+    }
+
+    try {
+        $ok = PublicacionService::getInstance()->actualizar($idPublicacion, $idActor, $esStaff, $datos);
+        return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Publicación actualizada exitosamente.']);
+    } catch (InvalidArgumentException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error interno al actualizar la publicación.', 500, $e);
+    }
+};
+$app->put('/publicacion/{id:[0-9]+}', $actualizarPublicacionHandler)->add(new AuthMiddleware());
+$app->put('/publicaciones/{id:[0-9]+}', $actualizarPublicacionHandler)->add(new AuthMiddleware());
+
+// DELETE /publicacion/{id} y /publicaciones/{id} — baja lógica de publicación (requiere JWT, autor o staff)
+$eliminarPublicacionHandler = function(Request $request, Response $response, array $args) {
+    $idPublicacion = (int)$args['id'];
+    $idActor       = getAuthUserId($request);
+    $esStaff       = isAuthAdminOrMod($request);
+    try {
+        $ok = PublicacionService::getInstance()->eliminar($idPublicacion, $idActor, $esStaff);
+        return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Publicación eliminada correctamente.']);
+    } catch (InvalidArgumentException $e) {
+        return errorResponse($response, $e->getMessage(), 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error interno al eliminar la publicación.', 500, $e);
+    }
+};
+$app->delete('/publicacion/{id:[0-9]+}', $eliminarPublicacionHandler)->add(new AuthMiddleware());
+$app->delete('/publicaciones/{id:[0-9]+}', $eliminarPublicacionHandler)->add(new AuthMiddleware());
+
 // POST /publicacion/{id}/like y /publicaciones/{id}/like — toggle like (requiere JWT)
 $toggleLikeHandler = function(Request $request, Response $response, array $args) {
     $idPublicacion = (int)$args['id'];

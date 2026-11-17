@@ -82,8 +82,51 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>{{ respuestas.length }} respuestas</span>
           </div>
+          <template v-if="canManageItem(post.idUsuario)">
+            <button class="action-btn" @click="openEditPostModal" style="margin-left:auto;">
+              ✏️ Editar
+            </button>
+            <button class="action-btn danger-action-btn" @click="deleteCurrentPost">
+              🗑️ Eliminar
+            </button>
+          </template>
         </div>
       </article>
+
+      <!-- Edit Post Modal -->
+      <div v-if="showEditPostModal" class="detail-modal-backdrop" @click.self="showEditPostModal = false">
+        <div class="detail-modal-card">
+          <h3 style="margin:0 0 12px; font-size:16px; font-weight:700;">Editar Publicación</h3>
+          <form @submit.prevent="savePostEdit">
+            <div style="margin-bottom:10px;">
+              <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Título</label>
+              <input type="text" v-model="editPostForm.titulo" class="detail-edit-input" />
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Texto</label>
+              <textarea v-model="editPostForm.texto" rows="4" required class="detail-edit-input"></textarea>
+            </div>
+            <div v-if="post.tipoPublicacion === 'Experiencia'" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;">
+              <div>
+                <label style="display:block; font-size:11px; font-weight:600;">Clima (1-5)</label>
+                <input type="number" min="1" max="5" v-model.number="editPostForm.puntuacionClima" class="detail-edit-input" />
+              </div>
+              <div>
+                <label style="display:block; font-size:11px; font-weight:600;">Infra (1-5)</label>
+                <input type="number" min="1" max="5" v-model.number="editPostForm.puntuacionInfraestructura" class="detail-edit-input" />
+              </div>
+              <div>
+                <label style="display:block; font-size:11px; font-weight:600;">Académica (1-5)</label>
+                <input type="number" min="1" max="5" v-model.number="editPostForm.puntuacionAcademica" class="detail-edit-input" />
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="action-btn" @click="showEditPostModal = false">Cancelar</button>
+              <button type="submit" class="action-btn primary-action-btn">Guardar Cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Responses Section -->
       <section class="responses-section">
@@ -121,9 +164,22 @@
                 <router-link :to="`/perfil/${res.idUsuario}`" class="res-user clickable-author">
                   {{ res.nombre }} {{ res.apellido }}
                 </router-link>
-                <span class="res-time">{{ timeAgo(res.fecha, res.hora) }}</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="res-time">{{ timeAgo(res.fecha, res.hora) }}</span>
+                  <template v-if="canManageItem(res.idUsuario) && editingReplyId !== res.idRespuesta">
+                    <button class="res-inline-btn" @click="startEditReply(res)" title="Editar respuesta">✏️</button>
+                    <button class="res-inline-btn res-inline-danger" @click="deleteReply(res)" title="Eliminar respuesta">🗑️</button>
+                  </template>
+                </div>
               </div>
-              <p class="res-text">{{ res.texto }}</p>
+              <div v-if="editingReplyId === res.idRespuesta" style="margin-top:6px;">
+                <input type="text" v-model="editReplyText" class="detail-edit-input" @keyup.enter="saveEditReply(res)" />
+                <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:6px;">
+                  <button type="button" class="res-inline-btn" @click="editingReplyId = null">Cancelar</button>
+                  <button type="button" class="res-inline-btn res-inline-primary" @click="saveEditReply(res)">Guardar</button>
+                </div>
+              </div>
+              <p v-else class="res-text">{{ res.texto }}</p>
             </div>
           </div>
         </div>
@@ -180,6 +236,82 @@ const newReply            = ref('')
 const isLoadingPost       = ref(true)
 const isLoadingRespuestas = ref(true)
 const isSubmitting        = ref(false)
+
+const showEditPostModal   = ref(false)
+const editPostForm        = ref({ titulo: '', texto: '', puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
+const editingReplyId      = ref(null)
+const editReplyText       = ref('')
+
+const canManageItem = (ownerId) => {
+  const user = authStore.user
+  if (!user) return false
+  const isOwner = Number(user.idUsuario) === Number(ownerId)
+  const isStaff = ['Administrador', 'Moderador'].includes(user.tipoPerfil) || [1, 3].includes(Number(user.idRol))
+  return isOwner || isStaff
+}
+
+const openEditPostModal = () => {
+  if (!post.value) return
+  editPostForm.value = {
+    titulo: post.value.titulo || '',
+    texto: post.value.texto || '',
+    puntuacionClima: post.value.puntuacionClima ? Number(post.value.puntuacionClima) : 5,
+    puntuacionInfraestructura: post.value.puntuacionInfraestructura ? Number(post.value.puntuacionInfraestructura) : 5,
+    puntuacionAcademica: post.value.puntuacionAcademica ? Number(post.value.puntuacionAcademica) : 5
+  }
+  showEditPostModal.value = true
+}
+
+const savePostEdit = async () => {
+  try {
+    await api.put(`/publicaciones/${post.value.idPublicacion}`, editPostForm.value)
+    toastStore.success('Publicación actualizada correctamente.')
+    showEditPostModal.value = false
+    await fetchPost()
+  } catch (e) {
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo actualizar la publicación.')
+  }
+}
+
+const deleteCurrentPost = async () => {
+  if (!confirm('¿Estás seguro de eliminar esta publicación?')) return
+  try {
+    await api.delete(`/publicaciones/${post.value.idPublicacion}`)
+    toastStore.success('Publicación eliminada.')
+    router.push('/home')
+  } catch (e) {
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo eliminar la publicación.')
+  }
+}
+
+const startEditReply = (res) => {
+  editingReplyId.value = res.idRespuesta
+  editReplyText.value  = res.texto || ''
+}
+
+const saveEditReply = async (res) => {
+  const txt = editReplyText.value.trim()
+  if (!txt) return
+  try {
+    await api.put(`/respuestas/${res.idRespuesta}`, { texto: txt })
+    toastStore.success('Respuesta actualizada.')
+    editingReplyId.value = null
+    await fetchRespuestas()
+  } catch (e) {
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo actualizar la respuesta.')
+  }
+}
+
+const deleteReply = async (res) => {
+  if (!confirm('¿Eliminar esta respuesta?')) return
+  try {
+    await api.delete(`/respuestas/${res.idRespuesta}`)
+    toastStore.success('Respuesta eliminada.')
+    await fetchRespuestas()
+  } catch (e) {
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo eliminar la respuesta.')
+  }
+}
 
 const fetchPost = async () => {
   isLoadingPost.value = true
@@ -773,4 +905,60 @@ onMounted(() => {
 
 .send-btn:active:not(:disabled) { transform: scale(0.92); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+.danger-action-btn { color: #DC2626; background: #FEF2F2; }
+.danger-action-btn:hover { background: #FEE2E2; color: #B91C1C; }
+.primary-action-btn { background: var(--primary); color: #FFFFFF; }
+.primary-action-btn:hover { opacity: 0.92; color: #FFFFFF; }
+
+.detail-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 200;
+}
+
+.detail-modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: var(--shadow-lg);
+}
+
+.detail-edit-input {
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13.5px;
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.detail-edit-input:focus {
+  border-color: var(--primary);
+  background: var(--bg-card);
+}
+
+.res-inline-btn {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.res-inline-danger { color: #DC2626; }
+.res-inline-primary { background: var(--primary); color: #FFFFFF; border-color: var(--primary); }
 </style>

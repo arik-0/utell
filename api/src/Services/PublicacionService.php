@@ -71,6 +71,72 @@ class PublicacionService {
         return false;
     }
 
+    public function actualizar(int $idPublicacion, int $idActor, bool $esStaff, array $datos): bool {
+        $prev = $this->publicacionRepository->obtenerFilaCruda($idPublicacion);
+        if (!$prev) {
+            throw new InvalidArgumentException("Publicación no encontrada.");
+        }
+        if ((int)$prev['idUsuario'] !== $idActor && !$esStaff) {
+            throw new DomainException("No tiene permisos para modificar esta publicación.");
+        }
+
+        $texto = trim((string)($datos['texto'] ?? $prev['texto']));
+        if ($texto === '') {
+            throw new InvalidArgumentException("El texto de la publicación es obligatorio.");
+        }
+
+        $payload = [
+            'tipoPublicacion'           => $datos['tipoPublicacion'] ?? $prev['tipoPublicacion'],
+            'titulo'                    => array_key_exists('titulo', $datos) ? trim((string)$datos['titulo']) : $prev['titulo'],
+            'texto'                     => $texto,
+            'idUniversidad'             => array_key_exists('idUniversidad', $datos) ? $datos['idUniversidad'] : $prev['idUniversidad'],
+            'idSede'                    => array_key_exists('idSede', $datos) ? $datos['idSede'] : $prev['idSede'],
+            'idCarrera'                 => array_key_exists('idCarrera', $datos) ? $datos['idCarrera'] : $prev['idCarrera'],
+            'puntuacionClima'           => $datos['puntuacionClima'] ?? $prev['puntuacionClima'],
+            'puntuacionInfraestructura' => $datos['puntuacionInfraestructura'] ?? $prev['puntuacionInfraestructura'],
+            'puntuacionAcademica'       => $datos['puntuacionAcademica'] ?? $prev['puntuacionAcademica'],
+            'resuelta'                  => $datos['resuelta'] ?? $prev['resuelta'],
+        ];
+
+        $ok = $this->publicacionRepository->actualizar($idPublicacion, $payload);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'MODIFICAR_PUBLICACION',
+                "Publicación #{$idPublicacion} modificada por usuario #{$idActor}",
+                'publicaciones',
+                null,
+                json_encode(['titulo' => $prev['titulo'], 'texto' => $prev['texto'], 'tipoPublicacion' => $prev['tipoPublicacion']], JSON_UNESCAPED_UNICODE),
+                json_encode(['titulo' => $payload['titulo'], 'texto' => $payload['texto'], 'tipoPublicacion' => $payload['tipoPublicacion']], JSON_UNESCAPED_UNICODE)
+            );
+        }
+        return $ok;
+    }
+
+    public function eliminar(int $idPublicacion, int $idActor, bool $esStaff): bool {
+        $prev = $this->publicacionRepository->obtenerFilaCruda($idPublicacion);
+        if (!$prev) {
+            throw new InvalidArgumentException("Publicación no encontrada.");
+        }
+        if ((int)$prev['idUsuario'] !== $idActor && !$esStaff) {
+            throw new DomainException("No tiene permisos para eliminar esta publicación.");
+        }
+
+        $ok = $this->publicacionRepository->eliminar($idPublicacion);
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'BAJA_PUBLICACION',
+                "Publicación #{$idPublicacion} dada de baja por usuario #{$idActor}",
+                'publicaciones',
+                null,
+                json_encode(['estado' => $prev['estado'] ?? 'activo', 'titulo' => $prev['titulo']], JSON_UNESCAPED_UNICODE),
+                json_encode(['estado' => 'eliminado'], JSON_UNESCAPED_UNICODE)
+            );
+        }
+        return $ok;
+    }
+
     public function toggleLike(int $idPublicacion, int $idUsuario): array {
         $favorito = $this->publicacionRepository->obtenerFavorito($idPublicacion, $idUsuario);
         $isLiking = true;

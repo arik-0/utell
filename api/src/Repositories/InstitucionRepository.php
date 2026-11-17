@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/AuditoriaRepository.php';
+
 class InstitucionRepository {
     private $db;
 
@@ -6,9 +8,100 @@ class InstitucionRepository {
         $this->db = db::getInstance()->getConnection();
     }
 
+    private function auditar(?int $idActor, string $accion, string $detalle, string $tabla, ?array $orig = null, ?array $nuevo = null): void {
+        (new AuditoriaRepository())->registrar(
+            $idActor,
+            $accion,
+            $detalle,
+            $tabla,
+            null,
+            $orig ? json_encode($orig, JSON_UNESCAPED_UNICODE) : null,
+            $nuevo ? json_encode($nuevo, JSON_UNESCAPED_UNICODE) : null
+        );
+    }
+
+    private function obtenerRegistroPorPk(string $tabla, string $pkCol, int $id): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM `{$tabla}` WHERE `{$pkCol}` = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function obtenerUniversidades() {
         $sql = "SELECT idUniversidad, nombre, email, celular, estado FROM universidades ORDER BY nombre ASC";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function crearUniversidad(string $nombre, ?string $email, ?string $celular, string $estado = 'activo', ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $emailLimpio  = trim((string)$email);
+        if ($emailLimpio === '') {
+            $slug = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nombreLimpio)) ?: 'uni';
+            $emailLimpio = "{$slug}_" . time() . "@utell.edu.ar";
+        }
+        $hashDefault = password_hash('UtellUni2026!', PASSWORD_BCRYPT);
+        $sql = "INSERT INTO universidades (nombre, email, password, celular, estado)
+                VALUES (:nombre, :email, :pass, :celular, :estado)";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':nombre'  => $nombreLimpio,
+            ':email'   => $emailLimpio,
+            ':pass'    => $hashDefault,
+            ':celular' => $celular ?: null,
+            ':estado'  => $estado ?: 'activo',
+        ]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_UNIVERSIDAD', "Universidad '{$nombreLimpio}' (#{$id}) creada", 'universidades', null, [
+            'idUniversidad' => $id, 'nombre' => $nombreLimpio, 'email' => $emailLimpio, 'estado' => $estado
+        ]);
+        return $id;
+    }
+
+    public function actualizarUniversidad(int $id, string $nombre, ?string $email, ?string $celular, string $estado = 'activo', ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('universidades', 'idUniversidad', $id);
+        if (!$old) {
+            return false;
+        }
+        $emailFinal = trim((string)$email) !== '' ? trim((string)$email) : $old['email'];
+        $sql = "UPDATE universidades
+                SET nombre = :nombre, email = :email, celular = :celular, estado = :estado
+                WHERE idUniversidad = :id";
+        $stmt = $this->db->prepare($sql);
+        $ok = $stmt->execute([
+            ':nombre'  => trim($nombre),
+            ':email'   => $emailFinal,
+            ':celular' => $celular ?: null,
+            ':estado'  => $estado ?: 'activo',
+            ':id'      => $id,
+        ]);
+        if ($ok) {
+            unset($old['password']);
+            $this->auditar($idActor, 'MODIFICAR_UNIVERSIDAD', "Universidad #{$id} ('{$nombre}') actualizada", 'universidades', $old, [
+                'idUniversidad' => $id, 'nombre' => trim($nombre), 'email' => $emailFinal, 'celular' => $celular, 'estado' => $estado
+            ]);
+        }
+        return $ok;
+    }
+
+    public function eliminarUniversidad(int $id, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('universidades', 'idUniversidad', $id);
+        if (!$old) {
+            return false;
+        }
+        unset($old['password']);
+        try {
+            $stmt = $this->db->prepare("DELETE FROM universidades WHERE idUniversidad = :id");
+            $ok = $stmt->execute([':id' => $id]) && $stmt->rowCount() > 0;
+            $modo = 'fisica';
+        } catch (Exception $e) {
+            $stmt = $this->db->prepare("UPDATE universidades SET estado = 'inactivo' WHERE idUniversidad = :id");
+            $ok = $stmt->execute([':id' => $id]);
+            $modo = 'logica';
+        }
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_UNIVERSIDAD', "Universidad #{$id} ('{$old['nombre']}') dada de baja ({$modo})", 'universidades', $old, ['eliminado' => true, 'modo' => $modo]);
+        }
+        return $ok;
     }
 
     /**
@@ -155,9 +248,130 @@ class InstitucionRepository {
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function crearCarrera(string $nombre, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("INSERT INTO carreras (nombre) VALUES (:nombre)");
+        $stmt->execute([':nombre' => $nombreLimpio]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_CARRERA', "Carrera '{$nombreLimpio}' (#{$id}) creada", 'carreras', null, ['idCarrera' => $id, 'nombre' => $nombreLimpio]);
+        return $id;
+    }
+
+    public function actualizarCarrera(int $idCarrera, string $nombre, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('carreras', 'idCarrera', $idCarrera);
+        if (!$old) return false;
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("UPDATE carreras SET nombre = :nombre WHERE idCarrera = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':id' => $idCarrera]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_CARRERA', "Carrera #{$idCarrera} ('{$nombreLimpio}') actualizada", 'carreras', $old, ['idCarrera' => $idCarrera, 'nombre' => $nombreLimpio]);
+        }
+        return $ok;
+    }
+
+    public function eliminarCarrera(int $idCarrera, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('carreras', 'idCarrera', $idCarrera);
+        if (!$old) return false;
+        $stmt = $this->db->prepare("DELETE FROM carreras WHERE idCarrera = :id");
+        $ok = $stmt->execute([':id' => $idCarrera]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_CARRERA', "Carrera #{$idCarrera} ('{$old['nombre']}') eliminada", 'carreras', $old, ['eliminado' => true]);
+        }
+        return $ok;
+    }
+
     public function obtenerSedes() {
-        $sql = "SELECT * FROM sedes ORDER BY nombre ASC";
+        $sql = "SELECT s.*, u.nombre AS nombreUniversidad, ci.nombre AS nombreCiudad
+                FROM sedes s
+                LEFT JOIN universidades u ON s.idUniversidad = u.idUniversidad
+                LEFT JOIN ciudades ci ON s.idCiudad = ci.idCiudad
+                ORDER BY s.nombre ASC";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function crearSede(
+        int $idUniversidad,
+        string $nombre,
+        ?int $idCiudad = null,
+        ?string $telefono = null,
+        ?string $email = null,
+        ?string $web = null,
+        string $estado = 'activo',
+        ?int $idActor = null
+    ): int {
+        $nombreLimpio = trim($nombre);
+        $sql = "INSERT INTO sedes (idUniversidad, idCiudad, nombre, telefono, email, web, estado)
+                VALUES (:idUni, :idCiu, :nombre, :tel, :email, :web, :estado)";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':idUni'  => $idUniversidad,
+            ':idCiu'  => ($idCiudad && $idCiudad > 0) ? $idCiudad : null,
+            ':nombre' => $nombreLimpio,
+            ':tel'    => $telefono ?: null,
+            ':email'  => $email ?: null,
+            ':web'    => $web ?: null,
+            ':estado' => $estado ?: 'activo',
+        ]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_SEDE', "Sede '{$nombreLimpio}' (#{$id}) creada en Universidad #{$idUniversidad}", 'sedes', null, [
+            'idSede' => $id, 'idUniversidad' => $idUniversidad, 'nombre' => $nombreLimpio
+        ]);
+        return $id;
+    }
+
+    public function actualizarSede(
+        int $idSede,
+        int $idUniversidad,
+        string $nombre,
+        ?int $idCiudad = null,
+        ?string $telefono = null,
+        ?string $email = null,
+        ?string $web = null,
+        string $estado = 'activo',
+        ?int $idActor = null
+    ): bool {
+        $old = $this->obtenerRegistroPorPk('sedes', 'idSede', $idSede);
+        if (!$old) return false;
+        $nombreLimpio = trim($nombre);
+        $sql = "UPDATE sedes
+                SET idUniversidad = :idUni, idCiudad = :idCiu, nombre = :nombre,
+                    telefono = :tel, email = :email, web = :web, estado = :estado
+                WHERE idSede = :id";
+        $stmt = $this->db->prepare($sql);
+        $ok = $stmt->execute([
+            ':idUni'  => $idUniversidad,
+            ':idCiu'  => ($idCiudad && $idCiudad > 0) ? $idCiudad : null,
+            ':nombre' => $nombreLimpio,
+            ':tel'    => $telefono ?: null,
+            ':email'  => $email ?: null,
+            ':web'    => $web ?: null,
+            ':estado' => $estado ?: 'activo',
+            ':id'     => $idSede,
+        ]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_SEDE', "Sede #{$idSede} ('{$nombreLimpio}') actualizada", 'sedes', $old, [
+                'idSede' => $idSede, 'idUniversidad' => $idUniversidad, 'nombre' => $nombreLimpio, 'estado' => $estado
+            ]);
+        }
+        return $ok;
+    }
+
+    public function eliminarSede(int $idSede, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('sedes', 'idSede', $idSede);
+        if (!$old) return false;
+        try {
+            $stmt = $this->db->prepare("DELETE FROM sedes WHERE idSede = :id");
+            $ok = $stmt->execute([':id' => $idSede]) && $stmt->rowCount() > 0;
+            $modo = 'fisica';
+        } catch (Exception $e) {
+            $stmt = $this->db->prepare("UPDATE sedes SET estado = 'inactivo' WHERE idSede = :id");
+            $ok = $stmt->execute([':id' => $idSede]);
+            $modo = 'logica';
+        }
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_SEDE', "Sede #{$idSede} ('{$old['nombre']}') dada de baja ({$modo})", 'sedes', $old, ['eliminado' => true, 'modo' => $modo]);
+        }
+        return $ok;
     }
 
     public function obtenerCarrerasPorSede(int $idSede): array {
@@ -194,19 +408,101 @@ class InstitucionRepository {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function crearOfertaAcademica(int $idCarrera, int $idSede, ?int $anio): bool {
-        $fecha = ($anio && $anio > 1800) ? sprintf('%04d-03-01', $anio) : null;
-        $sql  = "INSERT INTO oferta_academica (idCarrera, idSede, fechaImplementacion)
-                 VALUES (:car, :sede, :fecha)
-                 ON DUPLICATE KEY UPDATE fechaImplementacion = COALESCE(VALUES(fechaImplementacion), fechaImplementacion)";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([':car' => $idCarrera, ':sede' => $idSede, ':fecha' => $fecha]);
+    public function obtenerOfertaAcademica(): array {
+        $sql = "SELECT oa.idOfertaAcademica, oa.idCarrera, oa.idSede, oa.fechaImplementacion,
+                       YEAR(oa.fechaImplementacion) AS anioImplementacion,
+                       oa.descripcion, oa.web, oa.telefono,
+                       c.nombre AS nombreCarrera,
+                       s.nombre AS nombreSede,
+                       s.idUniversidad,
+                       u.nombre AS nombreUniversidad
+                FROM oferta_academica oa
+                INNER JOIN carreras c ON oa.idCarrera = c.idCarrera
+                INNER JOIN sedes s ON oa.idSede = s.idSede
+                LEFT JOIN universidades u ON s.idUniversidad = u.idUniversidad
+                ORDER BY u.nombre ASC, s.nombre ASC, c.nombre ASC";
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function eliminarOfertaAcademica(int $idOferta): bool {
+    public function crearOfertaAcademica(
+        int $idCarrera,
+        int $idSede,
+        ?int $anio,
+        ?string $descripcion = null,
+        ?string $web = null,
+        ?string $telefono = null,
+        ?int $idActor = null
+    ): bool {
+        $fecha = ($anio && $anio > 1800) ? sprintf('%04d-03-01', $anio) : null;
+        $sql  = "INSERT INTO oferta_academica (idCarrera, idSede, fechaImplementacion, descripcion, web, telefono)
+                 VALUES (:car, :sede, :fecha, :desc, :web, :tel)
+                 ON DUPLICATE KEY UPDATE
+                   fechaImplementacion = COALESCE(VALUES(fechaImplementacion), fechaImplementacion),
+                   descripcion = COALESCE(VALUES(descripcion), descripcion),
+                   web = COALESCE(VALUES(web), web),
+                   telefono = COALESCE(VALUES(telefono), telefono)";
+        $stmt = $this->db->prepare($sql);
+        $ok = $stmt->execute([
+            ':car'   => $idCarrera,
+            ':sede'  => $idSede,
+            ':fecha' => $fecha,
+            ':desc'  => $descripcion ?: null,
+            ':web'   => $web ?: null,
+            ':tel'   => $telefono ?: null,
+        ]);
+        if ($ok) {
+            $this->auditar($idActor, 'ALTA_OFERTA_ACADEMICA', "Oferta académica Carrera #{$idCarrera} en Sede #{$idSede} registrada", 'oferta_academica', null, [
+                'idCarrera' => $idCarrera, 'idSede' => $idSede, 'anioImplementacion' => $anio
+            ]);
+        }
+        return $ok;
+    }
+
+    public function actualizarOfertaAcademica(
+        int $idOferta,
+        int $idCarrera,
+        int $idSede,
+        ?int $anio,
+        ?string $descripcion = null,
+        ?string $web = null,
+        ?string $telefono = null,
+        ?int $idActor = null
+    ): bool {
+        $old = $this->obtenerRegistroPorPk('oferta_academica', 'idOfertaAcademica', $idOferta);
+        if (!$old) return false;
+        $fecha = ($anio && $anio > 1800) ? sprintf('%04d-03-01', $anio) : null;
+        $sql = "UPDATE oferta_academica
+                SET idCarrera = :car, idSede = :sede, fechaImplementacion = :fecha,
+                    descripcion = :desc, web = :web, telefono = :tel
+                WHERE idOfertaAcademica = :id";
+        $stmt = $this->db->prepare($sql);
+        $ok = $stmt->execute([
+            ':car'   => $idCarrera,
+            ':sede'  => $idSede,
+            ':fecha' => $fecha,
+            ':desc'  => $descripcion ?: null,
+            ':web'   => $web ?: null,
+            ':tel'   => $telefono ?: null,
+            ':id'    => $idOferta,
+        ]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} actualizada", 'oferta_academica', $old, [
+                'idOfertaAcademica' => $idOferta, 'idCarrera' => $idCarrera, 'idSede' => $idSede, 'fechaImplementacion' => $fecha
+            ]);
+        }
+        return $ok;
+    }
+
+    public function eliminarOfertaAcademica(int $idOferta, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('oferta_academica', 'idOfertaAcademica', $idOferta);
+        if (!$old) return false;
         $stmt = $this->db->prepare("DELETE FROM oferta_academica WHERE idOfertaAcademica = :id");
         $stmt->execute([':id' => $idOferta]);
-        return $stmt->rowCount() > 0;
+        $ok = $stmt->rowCount() > 0;
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_OFERTA_ACADEMICA', "Oferta académica #{$idOferta} eliminada", 'oferta_academica', $old, ['eliminado' => true]);
+        }
+        return $ok;
     }
 
     /**
@@ -272,13 +568,116 @@ class InstitucionRepository {
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function crearPais(string $nombre, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("INSERT INTO paises (nombre) VALUES (:nombre)");
+        $stmt->execute([':nombre' => $nombreLimpio]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_PAIS', "País '{$nombreLimpio}' (#{$id}) creado", 'paises', null, ['idPais' => $id, 'nombre' => $nombreLimpio]);
+        return $id;
+    }
+
+    public function actualizarPais(int $idPais, string $nombre, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('paises', 'idPais', $idPais);
+        if (!$old) return false;
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("UPDATE paises SET nombre = :nombre WHERE idPais = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':id' => $idPais]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_PAIS', "País #{$idPais} ('{$nombreLimpio}') actualizado", 'paises', $old, ['idPais' => $idPais, 'nombre' => $nombreLimpio]);
+        }
+        return $ok;
+    }
+
+    public function eliminarPais(int $idPais, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('paises', 'idPais', $idPais);
+        if (!$old) return false;
+        $stmt = $this->db->prepare("DELETE FROM paises WHERE idPais = :id");
+        $ok = $stmt->execute([':id' => $idPais]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_PAIS', "País #{$idPais} ('{$old['nombre']}') eliminado", 'paises', $old, ['eliminado' => true]);
+        }
+        return $ok;
+    }
+
     public function obtenerProvincias() {
-        $sql = "SELECT * FROM provincias ORDER BY nombre ASC";
+        $sql = "SELECT pr.*, p.nombre AS nombrePais
+                FROM provincias pr
+                LEFT JOIN paises p ON pr.idPais = p.idPais
+                ORDER BY pr.nombre ASC";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function crearProvincia(string $nombre, int $idPais, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("INSERT INTO provincias (nombre, idPais) VALUES (:nombre, :idPais)");
+        $stmt->execute([':nombre' => $nombreLimpio, ':idPais' => $idPais]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_PROVINCIA', "Provincia '{$nombreLimpio}' (#{$id}) creada", 'provincias', null, ['idProvincia' => $id, 'nombre' => $nombreLimpio, 'idPais' => $idPais]);
+        return $id;
+    }
+
+    public function actualizarProvincia(int $idProvincia, string $nombre, int $idPais, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('provincias', 'idProvincia', $idProvincia);
+        if (!$old) return false;
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("UPDATE provincias SET nombre = :nombre, idPais = :idPais WHERE idProvincia = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':idPais' => $idPais, ':id' => $idProvincia]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_PROVINCIA', "Provincia #{$idProvincia} ('{$nombreLimpio}') actualizada", 'provincias', $old, ['idProvincia' => $idProvincia, 'nombre' => $nombreLimpio, 'idPais' => $idPais]);
+        }
+        return $ok;
+    }
+
+    public function eliminarProvincia(int $idProvincia, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('provincias', 'idProvincia', $idProvincia);
+        if (!$old) return false;
+        $stmt = $this->db->prepare("DELETE FROM provincias WHERE idProvincia = :id");
+        $ok = $stmt->execute([':id' => $idProvincia]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_PROVINCIA', "Provincia #{$idProvincia} ('{$old['nombre']}') eliminada", 'provincias', $old, ['eliminado' => true]);
+        }
+        return $ok;
+    }
+
     public function obtenerCiudades() {
-        $sql = "SELECT * FROM ciudades ORDER BY nombre ASC";
+        $sql = "SELECT ci.*, pr.nombre AS nombreProvincia, pr.idPais, p.nombre AS nombrePais
+                FROM ciudades ci
+                LEFT JOIN provincias pr ON ci.idProvincia = pr.idProvincia
+                LEFT JOIN paises p ON pr.idPais = p.idPais
+                ORDER BY ci.nombre ASC";
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function crearCiudad(string $nombre, int $idProvincia, ?int $idActor = null): int {
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("INSERT INTO ciudades (nombre, idProvincia) VALUES (:nombre, :idProv)");
+        $stmt->execute([':nombre' => $nombreLimpio, ':idProv' => $idProvincia]);
+        $id = (int)$this->db->lastInsertId();
+        $this->auditar($idActor, 'ALTA_CIUDAD', "Ciudad '{$nombreLimpio}' (#{$id}) creada", 'ciudades', null, ['idCiudad' => $id, 'nombre' => $nombreLimpio, 'idProvincia' => $idProvincia]);
+        return $id;
+    }
+
+    public function actualizarCiudad(int $idCiudad, string $nombre, int $idProvincia, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('ciudades', 'idCiudad', $idCiudad);
+        if (!$old) return false;
+        $nombreLimpio = trim($nombre);
+        $stmt = $this->db->prepare("UPDATE ciudades SET nombre = :nombre, idProvincia = :idProv WHERE idCiudad = :id");
+        $ok = $stmt->execute([':nombre' => $nombreLimpio, ':idProv' => $idProvincia, ':id' => $idCiudad]);
+        if ($ok) {
+            $this->auditar($idActor, 'MODIFICAR_CIUDAD', "Ciudad #{$idCiudad} ('{$nombreLimpio}') actualizada", 'ciudades', $old, ['idCiudad' => $idCiudad, 'nombre' => $nombreLimpio, 'idProvincia' => $idProvincia]);
+        }
+        return $ok;
+    }
+
+    public function eliminarCiudad(int $idCiudad, ?int $idActor = null): bool {
+        $old = $this->obtenerRegistroPorPk('ciudades', 'idCiudad', $idCiudad);
+        if (!$old) return false;
+        $stmt = $this->db->prepare("DELETE FROM ciudades WHERE idCiudad = :id");
+        $ok = $stmt->execute([':id' => $idCiudad]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            $this->auditar($idActor, 'BAJA_CIUDAD', "Ciudad #{$idCiudad} ('{$old['nombre']}') eliminada", 'ciudades', $old, ['eliminado' => true]);
+        }
+        return $ok;
     }
 }

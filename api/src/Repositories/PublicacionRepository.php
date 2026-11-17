@@ -251,6 +251,57 @@ class PublicacionRepository {
         return $ok ? (int)$this->db->lastInsertId() : 0;
     }
 
+    public function obtenerFilaCruda(int $idPublicacion): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM publicaciones WHERE idPublicacion = :id LIMIT 1");
+        $stmt->execute([':id' => $idPublicacion]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function actualizar(int $idPublicacion, array $datos): bool {
+        $tipo   = $datos['tipoPublicacion'] ?? 'Consulta';
+        $titulo = $datos['titulo'] ?? '';
+        $texto  = $datos['texto'] ?? '';
+
+        $idUni     = !empty($datos['idUniversidad']) ? (int)$datos['idUniversidad'] : null;
+        $idSede    = !empty($datos['idSede']) ? (int)$datos['idSede'] : null;
+        $idCarrera = !empty($datos['idCarrera']) ? (int)$datos['idCarrera'] : null;
+        $this->asegurarRelacionesPredeterminadas($idUni, $idSede, $idCarrera);
+
+        $esExperiencia = ($tipo === 'Experiencia');
+        $clampScore = fn($v, $def = 5) => max(1, min(5, (int)($v !== null && $v !== '' ? $v : $def)));
+        $pClima = $esExperiencia ? $clampScore($datos['puntuacionClima'] ?? 5) : null;
+        $pInfra = $esExperiencia ? $clampScore($datos['puntuacionInfraestructura'] ?? 5) : null;
+        $pAcad  = $esExperiencia ? $clampScore($datos['puntuacionAcademica'] ?? 5) : null;
+        $resuelta = isset($datos['resuelta']) ? (int)$datos['resuelta'] : 0;
+
+        $sql = "UPDATE publicaciones
+                SET tipoPublicacion = :tipo, titulo = :titulo, texto = :texto,
+                    idUniversidad = :idUni, idSede = :idSede, idCarrera = :idCar,
+                    puntuacionClima = :pClima, puntuacionInfraestructura = :pInfra,
+                    puntuacionAcademica = :pAcad, resuelta = :resuelta
+                WHERE idPublicacion = :id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            ':tipo'     => $tipo,
+            ':titulo'   => $titulo,
+            ':texto'    => $texto,
+            ':idUni'    => $idUni,
+            ':idSede'   => $idSede,
+            ':idCar'    => $idCarrera,
+            ':pClima'   => $pClima,
+            ':pInfra'   => $pInfra,
+            ':pAcad'    => $pAcad,
+            ':resuelta' => $resuelta,
+            ':id'       => $idPublicacion,
+        ]);
+    }
+
+    public function eliminar(int $idPublicacion): bool {
+        $stmt = $this->db->prepare("UPDATE publicaciones SET estado = 'eliminado' WHERE idPublicacion = :id");
+        return $stmt->execute([':id' => $idPublicacion]) && $stmt->rowCount() > 0;
+    }
+
     public function obtenerFavorito(int $idPublicacion, int $idUsuario) {
         $stmt = $this->db->prepare("SELECT idFavorito, estado FROM favoritos WHERE idPublicacion = :idPub AND idUsuario = :idUsr");
         $stmt->execute([':idPub' => $idPublicacion, ':idUsr' => $idUsuario]);
