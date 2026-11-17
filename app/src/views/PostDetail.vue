@@ -278,7 +278,7 @@ const deleteCurrentPost = async () => {
   try {
     await api.delete(`/publicaciones/${post.value.idPublicacion}`)
     toastStore.success('Publicación eliminada.')
-    router.push('/home')
+    router.push('/feed')
   } catch (e) {
     toastStore.error(e?.response?.data?.mensaje || 'No se pudo eliminar la publicación.')
   }

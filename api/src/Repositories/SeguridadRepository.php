@@ -134,6 +134,9 @@ class SeguridadRepository {
     }
 
     public function eliminarRol(int $idRol, ?int $idActor = null): bool {
+        if (in_array($idRol, [1, 2, 3], true)) {
+            throw new DomainException("No se puede eliminar un rol base del sistema (#{$idRol}).");
+        }
         $stmtOld = $this->db->prepare("SELECT * FROM roles WHERE idRol = :id LIMIT 1");
         $stmtOld->execute([':id' => $idRol]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
@@ -164,19 +167,22 @@ class SeguridadRepository {
                   PRIMARY KEY (`idGrupoPermiso`, `idPermiso`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
-            $this->db->exec("
-                INSERT IGNORE INTO `permisos` (`idPermiso`, `nombre`, `codigoAccion`) VALUES
-                (1,  'Crear Publicaciones',              'POST_CREATE'),
-                (2,  'Responder Consultas',              'POST_REPLY'),
-                (3,  'Calificar Instituciones',          'RATE_UNIVERSITY'),
-                (4,  'Moderar Contenido',                'MODERATE_CONTENT'),
-                (5,  'Gestionar Usuarios',               'MANAGE_USERS'),
-                (6,  'Enviar Mensajes Directos',         'SEND_DIRECT_MESSAGE'),
-                (7,  'Ver Métricas Institucionales',     'VIEW_INSTITUTION_METRICS'),
-                (8,  'Insignia Oficial Verificada',      'OFFICIAL_BADGE'),
-                (9,  'Eliminar Cualquier Publicación',   'DELETE_ANY_POST'),
-                (10, 'Administración Total del Sistema', 'ADMIN_FULL')
-            ");
+            $cntPerms = (int)$this->db->query("SELECT COUNT(*) FROM permisos")->fetchColumn();
+            if ($cntPerms === 0) {
+                $this->db->exec("
+                    INSERT IGNORE INTO `permisos` (`idPermiso`, `nombre`, `codigoAccion`) VALUES
+                    (1,  'Crear Publicaciones',              'POST_CREATE'),
+                    (2,  'Responder Consultas',              'POST_REPLY'),
+                    (3,  'Calificar Instituciones',          'RATE_UNIVERSITY'),
+                    (4,  'Moderar Contenido',                'MODERATE_CONTENT'),
+                    (5,  'Gestionar Usuarios',               'MANAGE_USERS'),
+                    (6,  'Enviar Mensajes Directos',         'SEND_DIRECT_MESSAGE'),
+                    (7,  'Ver Métricas Institucionales',     'VIEW_INSTITUTION_METRICS'),
+                    (8,  'Insignia Oficial Verificada',      'OFFICIAL_BADGE'),
+                    (9,  'Eliminar Cualquier Publicación',   'DELETE_ANY_POST'),
+                    (10, 'Administración Total del Sistema', 'ADMIN_FULL')
+                ");
+            }
             $cnt = (int)$this->db->query("SELECT COUNT(*) FROM grupos_permiso_permisos")->fetchColumn();
             if ($cnt === 0) {
                 $this->db->exec("
@@ -246,6 +252,9 @@ class SeguridadRepository {
         $stmtOld->execute([':id' => $idPermiso]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
         if (!$old) return false;
+        if (($old['codigoAccion'] ?? '') === 'ADMIN_FULL') {
+            throw new DomainException("No se puede eliminar el permiso crítico ADMIN_FULL.");
+        }
 
         $stmt = $this->db->prepare("DELETE FROM permisos WHERE idPermiso = :id");
         $ok = $stmt->execute([':id' => $idPermiso]) && $stmt->rowCount() > 0;
@@ -351,6 +360,9 @@ class SeguridadRepository {
      * Elimina un grupo de permisos (Puntos T02/T03).
      */
     public function eliminarGrupoPermiso(int $idGrupo, ?int $idActor = null): bool {
+        if ($idGrupo === 1) {
+            throw new DomainException("No se puede eliminar el grupo base de Administradores Generales.");
+        }
         $stmtOld = $this->db->prepare("SELECT * FROM grupos_permiso WHERE idGrupoPermiso = :id LIMIT 1");
         $stmtOld->execute([':id' => $idGrupo]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);

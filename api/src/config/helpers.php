@@ -41,6 +41,15 @@ if (!function_exists('getAuthUserId')) {
     }
 }
 
+if (!function_exists('isAuthAdmin')) {
+    function isAuthAdmin(Request $request): bool {
+        $payload = getAuthPayload($request);
+        $rolId   = (int)($payload['idRol'] ?? 0);
+        $perfil  = trim((string)($payload['tipoPerfil'] ?? ''));
+        return $rolId === 1 || $perfil === 'Administrador';
+    }
+}
+
 if (!function_exists('isAuthAdminOrMod')) {
     function isAuthAdminOrMod(Request $request): bool {
         $payload = getAuthPayload($request);

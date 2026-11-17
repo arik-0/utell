@@ -27,8 +27,8 @@ $app->get('/roles', function(Request $request, Response $response) {
 
 // POST Crear Rol
 $app->post('/roles', function(Request $request, Response $response) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para crear roles.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para crear roles.', 403);
     }
     $nombreRol = trim((string)($request->getParam('nombreRol') ?? ''));
     if ($nombreRol === '') {
@@ -44,8 +44,8 @@ $app->post('/roles', function(Request $request, Response $response) {
 
 // PUT Modificar Rol
 $app->put('/roles/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para modificar roles.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para modificar roles.', 403);
     }
     $idRol     = (int)$args['id'];
     $nombreRol = trim((string)($request->getParam('nombreRol') ?? ''));
@@ -65,8 +65,8 @@ $app->put('/roles/{id:[0-9]+}', function(Request $request, Response $response, a
 
 // DELETE Eliminar Rol
 $app->delete('/roles/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para eliminar roles.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para eliminar roles.', 403);
     }
     $idRol = (int)$args['id'];
     try {
@@ -75,6 +75,8 @@ $app->delete('/roles/{id:[0-9]+}', function(Request $request, Response $response
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol eliminado.']);
         }
         return errorResponse($response, 'Rol no encontrado.', 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'No se pudo eliminar el rol porque hay usuarios asignados a él.', 400, $e);
     }
@@ -91,8 +93,8 @@ $app->get('/permisos', function(Request $request, Response $response) {
 
 // POST Crear permiso atómico
 $app->post('/permisos', function(Request $request, Response $response) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para crear permisos.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para crear permisos.', 403);
     }
     $nombre       = trim((string)($request->getParam('nombre') ?? ''));
     $codigoAccion = trim((string)($request->getParam('codigoAccion') ?? ''));
@@ -109,8 +111,8 @@ $app->post('/permisos', function(Request $request, Response $response) {
 
 // PUT Modificar permiso atómico
 $app->put('/permisos/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para modificar permisos.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para modificar permisos.', 403);
     }
     $idPermiso    = (int)$args['id'];
     $nombre       = trim((string)($request->getParam('nombre') ?? ''));
@@ -131,8 +133,8 @@ $app->put('/permisos/{id:[0-9]+}', function(Request $request, Response $response
 
 // DELETE Eliminar permiso atómico
 $app->delete('/permisos/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para eliminar permisos.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para eliminar permisos.', 403);
     }
     $idPermiso = (int)$args['id'];
     try {
@@ -141,6 +143,8 @@ $app->delete('/permisos/{id:[0-9]+}', function(Request $request, Response $respo
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Permiso eliminado.']);
         }
         return errorResponse($response, 'Permiso no encontrado.', 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'No se pudo eliminar el permiso.', 400, $e);
     }
@@ -157,7 +161,7 @@ $app->get('/grupos-permiso', function(Request $request, Response $response) {
 
 // POST Crear grupo de permisos (Puntos T02/T03)
 $app->post('/grupos-permiso', function(Request $request, Response $response) {
-    if (!isAuthAdminOrMod($request)) {
+    if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para gestionar grupos.', 403);
     }
     $nombre      = trim((string)($request->getParam('nombre') ?? ''));
@@ -176,7 +180,7 @@ $app->post('/grupos-permiso', function(Request $request, Response $response) {
 
 // PUT Modificar grupo de permisos (Puntos T02/T03)
 $app->put('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
+    if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para modificar grupos.', 403);
     }
     $idGrupo     = (int)$args['id'];
@@ -196,13 +200,15 @@ $app->put('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response $re
 
 // DELETE Eliminar grupo de permisos (Puntos T02/T03)
 $app->delete('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
+    if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para eliminar grupos.', 403);
     }
     $idGrupo = (int)$args['id'];
     try {
         $ok = SeguridadService::getInstance()->eliminarGrupoPermiso($idGrupo, getAuthUserId($request));
         return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Grupo de permisos eliminado.']);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al eliminar el grupo de permisos.', 500, $e);
     }
@@ -210,7 +216,7 @@ $app->delete('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response 
 
 // POST Asignar grupo de permiso a usuario (requiere JWT administrativo)
 $app->post('/usuarios/{id:[0-9]+}/grupos', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
+    if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para asignar grupos.', 403);
     }
 
@@ -230,8 +236,8 @@ $app->post('/usuarios/{id:[0-9]+}/grupos', function(Request $request, Response $
 
 // PUT Asignar rol a usuario (requiere JWT administrativo — CU5 / CU8 / Punto T06)
 $app->put('/usuarios/{id:[0-9]+}/rol', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para cambiar roles.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para cambiar roles.', 403);
     }
 
     $idUsuario = (int)$args['id'];
@@ -342,8 +348,8 @@ $app->get('/moderacion/usuarios', function(Request $request, Response $response)
 
 // PUT Editar datos completos de un usuario desde administración (ABM Usuarios)
 $app->put('/moderacion/usuarios/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
-    if (!isAuthAdminOrMod($request)) {
-        return errorResponse($response, 'Se requieren permisos administrativos para modificar usuarios.', 403);
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para modificar usuarios.', 403);
     }
     $idUsuario = (int)$args['id'];
     $datos     = (array)($request->getParsedBody() ?: []);

@@ -79,6 +79,9 @@ class SeguridadService {
     }
 
     public function moderarPublicacion(int $idModerador, int $idPublicacion, string $accion, ?string $motivo = null): array {
+        if (!$this->tienePermiso($idModerador, 'MODERATE_CONTENT')) {
+            throw new DomainException("Acceso denegado: Se requieren permisos de moderador o administrador.");
+        }
         return $this->repo->moderarPublicacion($idModerador, $idPublicacion, $accion, $motivo);
     }
 

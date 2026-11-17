@@ -39,7 +39,7 @@ class InstitucionRepository {
             $slug = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nombreLimpio)) ?: 'uni';
             $emailLimpio = "{$slug}_" . time() . "@utell.edu.ar";
         }
-        $hashDefault = password_hash('UtellUni2026!', PASSWORD_BCRYPT);
+        $hashDefault = password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
         $sql = "INSERT INTO universidades (nombre, email, password, celular, estado)
                 VALUES (:nombre, :email, :pass, :celular, :estado)";
         $stmt = $this->db->prepare($sql);
@@ -89,15 +89,26 @@ class InstitucionRepository {
             return false;
         }
         unset($old['password']);
-        try {
-            $stmt = $this->db->prepare("DELETE FROM universidades WHERE idUniversidad = :id");
-            $ok = $stmt->execute([':id' => $id]) && $stmt->rowCount() > 0;
-            $modo = 'fisica';
-        } catch (Exception $e) {
+
+        $stmtDeps = $this->db->prepare("
+            SELECT
+              (SELECT COUNT(*) FROM sedes WHERE idUniversidad = :id1) +
+              (SELECT COUNT(*) FROM publicaciones WHERE idUniversidad = :id2) +
+              (SELECT COUNT(*) FROM usuarios WHERE idUniversidad = :id3) AS totalDeps
+        ");
+        $stmtDeps->execute([':id1' => $id, ':id2' => $id, ':id3' => $id]);
+        $tieneDeps = ((int)$stmtDeps->fetchColumn()) > 0;
+
+        if ($tieneDeps) {
             $stmt = $this->db->prepare("UPDATE universidades SET estado = 'inactivo' WHERE idUniversidad = :id");
             $ok = $stmt->execute([':id' => $id]);
             $modo = 'logica';
+        } else {
+            $stmt = $this->db->prepare("DELETE FROM universidades WHERE idUniversidad = :id");
+            $ok = $stmt->execute([':id' => $id]) && $stmt->rowCount() > 0;
+            $modo = 'fisica';
         }
+
         if ($ok) {
             $this->auditar($idActor, 'BAJA_UNIVERSIDAD', "Universidad #{$id} ('{$old['nombre']}') dada de baja ({$modo})", 'universidades', $old, ['eliminado' => true, 'modo' => $modo]);
         }
@@ -355,7 +366,7 @@ class InstitucionRepository {
         } catch (Exception $e) {
             $sql = "INSERT INTO sedes (idUniversidad, idCiudad, nombre, password, telefono, email, web, estado)
                     VALUES (:idUni, :idCiu, :nombre, :pass, :tel, :email, :web, :estado)";
-            $params[':pass'] = password_hash('UtellSede2026!', PASSWORD_BCRYPT);
+            $params[':pass'] = password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
         }
@@ -406,15 +417,26 @@ class InstitucionRepository {
     public function eliminarSede(int $idSede, ?int $idActor = null): bool {
         $old = $this->obtenerRegistroPorPk('sedes', 'idSede', $idSede);
         if (!$old) return false;
-        try {
-            $stmt = $this->db->prepare("DELETE FROM sedes WHERE idSede = :id");
-            $ok = $stmt->execute([':id' => $idSede]) && $stmt->rowCount() > 0;
-            $modo = 'fisica';
-        } catch (Exception $e) {
+        unset($old['password']);
+
+        $stmtDeps = $this->db->prepare("
+            SELECT
+              (SELECT COUNT(*) FROM oferta_academica WHERE idSede = :id1) +
+              (SELECT COUNT(*) FROM publicaciones WHERE idSede = :id2) AS totalDeps
+        ");
+        $stmtDeps->execute([':id1' => $idSede, ':id2' => $idSede]);
+        $tieneDeps = ((int)$stmtDeps->fetchColumn()) > 0;
+
+        if ($tieneDeps) {
             $stmt = $this->db->prepare("UPDATE sedes SET estado = 'inactivo' WHERE idSede = :id");
             $ok = $stmt->execute([':id' => $idSede]);
             $modo = 'logica';
+        } else {
+            $stmt = $this->db->prepare("DELETE FROM sedes WHERE idSede = :id");
+            $ok = $stmt->execute([':id' => $idSede]) && $stmt->rowCount() > 0;
+            $modo = 'fisica';
         }
+
         if ($ok) {
             $this->auditar($idActor, 'BAJA_SEDE', "Sede #{$idSede} ('{$old['nombre']}') dada de baja ({$modo})", 'sedes', $old, ['eliminado' => true, 'modo' => $modo]);
         }
