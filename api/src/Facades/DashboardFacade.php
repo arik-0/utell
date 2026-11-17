@@ -68,8 +68,8 @@ class DashboardFacade {
         // 1.C: Validación de roles autorizados
         $perfil = trim($user['tipoPerfil'] ?? '');
         $rolId = intval($user['idRol'] ?? 0);
-        $rolesPermitidos = [1, 3, 5, 6];
-        $perfilesPermitidos = ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'];
+        $rolesPermitidos = [1, 3, 5, 6, 7];
+        $perfilesPermitidos = ['Dueño', 'Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'];
 
         if (!in_array($rolId, $rolesPermitidos) && !in_array($perfil, $perfilesPermitidos)) {
             throw new DomainException("Acceso Denegado: Su cuenta ({$perfil}) no posee permisos administrativos.");
@@ -79,7 +79,8 @@ class DashboardFacade {
             'idUsuario'  => (int)$user['idUsuario'],
             'email'      => $user['email'],
             'tipoPerfil' => $user['tipoPerfil'],
-            'idRol'      => (int)$user['idRol']
+            'idRol'      => (int)$user['idRol'],
+            'nombreRol'  => ($perfil === 'Dueño' || $rolId === 7) ? 'Dueño' : $perfil,
         ]);
         unset($user['password']);
         $user['token'] = $token;

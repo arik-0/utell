@@ -26,6 +26,14 @@ class SeguridadService {
         return $this->repo->tienePermiso($idUsuario, $codigoAccion);
     }
 
+    public function esUsuarioDueno(int $idUsuario): bool {
+        return $this->repo->esUsuarioDueno($idUsuario);
+    }
+
+    public function obtenerGruposUsuario(int $idUsuario): array {
+        return $this->repo->obtenerGruposUsuario($idUsuario);
+    }
+
     public function obtenerRoles(): array {
         return $this->repo->obtenerRoles();
     }
@@ -62,12 +70,12 @@ class SeguridadService {
         return $this->repo->obtenerGruposPermiso();
     }
 
-    public function crearGrupoPermiso(string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null): array {
-        return $this->repo->crearGrupoPermiso($nombre, $descripcion, $idsPermisos, $idActor);
+    public function crearGrupoPermiso(string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null, ?int $idGrupoPadre = null): array {
+        return $this->repo->crearGrupoPermiso($nombre, $descripcion, $idsPermisos, $idActor, $idGrupoPadre);
     }
 
-    public function actualizarGrupoPermiso(int $idGrupo, string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null): bool {
-        return $this->repo->actualizarGrupoPermiso($idGrupo, $nombre, $descripcion, $idsPermisos, $idActor);
+    public function actualizarGrupoPermiso(int $idGrupo, string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null, ?int $idGrupoPadre = null): bool {
+        return $this->repo->actualizarGrupoPermiso($idGrupo, $nombre, $descripcion, $idsPermisos, $idActor, $idGrupoPadre);
     }
 
     public function eliminarGrupoPermiso(int $idGrupo, ?int $idActor = null): bool {
@@ -76,6 +84,14 @@ class SeguridadService {
 
     public function asignarGrupo(int $idUsuario, int $idGrupoPermiso, ?int $idActor = null): bool {
         return $this->repo->asignarGrupoAUsuario($idUsuario, $idGrupoPermiso, $idActor);
+    }
+
+    public function revocarGrupo(int $idUsuario, int $idGrupoPermiso, ?int $idActor = null): bool {
+        return $this->repo->revocarGrupoDeUsuario($idUsuario, $idGrupoPermiso, $idActor);
+    }
+
+    public function sincronizarGruposUsuario(int $idUsuario, array $idsGrupos, ?int $idActor = null): void {
+        $this->repo->sincronizarGruposUsuario($idUsuario, $idsGrupos, $idActor);
     }
 
     public function moderarPublicacion(int $idModerador, int $idPublicacion, string $accion, ?string $motivo = null): array {

@@ -16,6 +16,8 @@
 
 require_once __DIR__ . '/../src/Factories/PublicacionFactory.php';
 require_once __DIR__ . '/../src/Models/Mensaje.php';
+require_once __DIR__ . '/../src/Models/GrupoPermiso.php';
+require_once __DIR__ . '/../src/Models/Rol.php';
 
 echo "================================================================================\n";
 echo " U-TELL — EJECUCION DE PRUEBAS DE CAJA BLANCA Y CAJA NEGRA (PUNTO T09 UAI)\n";
@@ -181,6 +183,58 @@ $cn5 = PublicacionFactory::crear([
 ]);
 $okCn5 = ($cn5['puntuacionClima'] === 5.0 && $cn5['puntuacionInfraestructura'] === 5.0 && $cn5['puntuacionAcademica'] === 5.0);
 registrarResultado('CN-05', 'AVL (Límite Superior + 1)', 'Puntajes (6, 10, 99) acotados al máximo permitido 5.0', $okCn5, "Clima={$cn5['puntuacionClima']}, Infra={$cn5['puntuacionInfraestructura']}, Acad={$cn5['puntuacionAcademica']}");
+
+// ============================================================================
+// PARTE 3: PRUEBAS DEL PATRÓN COMPOSITE RBAC Y MÚLTIPLES GRUPOS + ROL DUEÑO
+// ============================================================================
+echo "--- 3. PRUEBAS DE PATRON COMPOSITE (RBAC RECURSIVO Y MULTIPLES GRUPOS) ---\n\n";
+
+$permPost  = new Permiso('Crear Publicaciones', 'POST_CREATE', 1);
+$permMod   = new Permiso('Moderar Contenido', 'MODERATE_CONTENT', 4);
+$permOwner = new Permiso('Control Supremo de Dueño', 'OWNER_FULL', 11);
+
+$grupoMod = new GrupoPermiso('Moderadores', 'Grupo hoja-compuesto de moderación', 2);
+$grupoMod->agregarComponente($permMod);
+
+$grupoDueno = new GrupoPermiso('Dueños del Sistema', 'Grupo compuesto que hereda de Moderadores', 5, 2);
+$grupoDueno->agregarComponente($permOwner);
+$grupoDueno->agregarComponente($grupoMod); // Subgrupo compuesto anidado (Patrón Composite)
+
+$grupoEstudiante = new GrupoPermiso('Estudiantes Verificados', 'Segundo grupo asignado al usuario', 3);
+$grupoEstudiante->agregarComponente($permPost);
+
+// Un usuario con múltiples grupos simultáneos compuestos en un árbol raíz
+$arbolUsuario = new GrupoPermiso('Usuario_4', 'Composición de múltiples grupos');
+$arbolUsuario->agregarComponente($grupoDueno);
+$arbolUsuario->agregarComponente($grupoEstudiante);
+
+$codigos = $arbolUsuario->obtenerCodigosPermiso();
+$okComp01 = $grupoDueno->esCompuesto()
+    && !$permOwner->esCompuesto()
+    && $arbolUsuario->tienePermiso('POST_CREATE')
+    && $arbolUsuario->tienePermiso('MODERATE_CONTENT')
+    && $arbolUsuario->tienePermiso('OWNER_FULL')
+    && in_array('POST_CREATE', $codigos, true)
+    && in_array('MODERATE_CONTENT', $codigos, true)
+    && in_array('OWNER_FULL', $codigos, true);
+
+registrarResultado(
+    'CMP-01',
+    'Patrón GoF Composite',
+    'Resolución recursiva de múltiples grupos, subgrupo anidado y hojas Permiso',
+    $okComp01,
+    'Códigos consolidados: ' . implode(', ', $codigos)
+);
+
+$rolDueno = new Rol('Dueño', 100, 7);
+$okRolDueno = $rolDueno->esDueno() && $rolDueno->esAdministrativo();
+registrarResultado(
+    'CMP-02',
+    'Entidad Rol Dueño',
+    'Verificación de rol Dueño con derechos administrativos y supremos aumentados',
+    $okRolDueno,
+    json_encode(['rol' => $rolDueno->getNombreRol(), 'esDueno' => $rolDueno->esDueno(), 'esAdmin' => $rolDueno->esAdministrativo()])
+);
 
 echo "================================================================================\n";
 echo " RESUMEN DE EJECUCION: {$passedTests} / {$totalTests} CASOS DE PRUEBA EXITOSOS (100% PASS)\n";

@@ -15,17 +15,32 @@ export const useAuthStore = defineStore('auth', {
   },
 
   getters: {
+    isOwner(state) {
+      if (!state.user) return false
+      const rol = Number(state.user.idRol || 0)
+      const perfil = state.user.tipoPerfil || ''
+      const perms = Array.isArray(state.user.permisos) ? state.user.permisos : []
+      return Boolean(state.user.esDueno) || rol === 7 || perfil === 'Dueño' || perms.includes('OWNER_FULL')
+    },
     isStaffOrInstitution(state) {
       if (!state.user) return false
       const rol = Number(state.user.idRol || 0)
       const perfil = state.user.tipoPerfil || ''
-      return [1, 3, 5, 6].includes(rol) || ['Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
+      const perms = Array.isArray(state.user.permisos) ? state.user.permisos : []
+      return [1, 3, 5, 6, 7].includes(rol)
+        || ['Dueño', 'Administrador', 'Moderador', 'Universidad', 'Institución', 'Docente'].includes(perfil)
+        || perms.includes('OWNER_FULL')
+        || perms.includes('ADMIN_FULL')
     },
     isModeratorOrAdmin(state) {
       if (!state.user) return false
       const rol = Number(state.user.idRol || 0)
       const perfil = state.user.tipoPerfil || ''
-      return [1, 3].includes(rol) || ['Administrador', 'Moderador'].includes(perfil)
+      const perms = Array.isArray(state.user.permisos) ? state.user.permisos : []
+      return [1, 3, 7].includes(rol)
+        || ['Dueño', 'Administrador', 'Moderador'].includes(perfil)
+        || perms.includes('OWNER_FULL')
+        || perms.includes('ADMIN_FULL')
     }
   },
 

@@ -245,15 +245,28 @@
                   </select>
                 </td>
                 <td>
-                  <select
-                    class="role-select"
-                    @change="asignarGrupoUsuario(u, $event.target.value); $event.target.value = ''"
-                  >
-                    <option value="">+ Vincular grupo...</option>
-                    <option v-for="g in gruposPermiso" :key="g.idGrupoPermiso" :value="g.idGrupoPermiso">
-                      {{ g.nombre }}
-                    </option>
-                  </select>
+                  <div class="multi-groups-cell">
+                    <div class="group-chips" v-if="u.grupos && u.grupos.length">
+                      <span v-for="g in u.grupos" :key="g.idGrupoPermiso" class="group-chip">
+                        🛡️ {{ g.nombre }}
+                        <button
+                          type="button"
+                          class="chip-remove-btn"
+                          title="Desvincular grupo"
+                          @click="revocarGrupoUsuario(u, g)"
+                        >×</button>
+                      </span>
+                    </div>
+                    <select
+                      class="role-select"
+                      @change="asignarGrupoUsuario(u, $event.target.value); $event.target.value = ''"
+                    >
+                      <option value="">+ Añadir grupo...</option>
+                      <option v-for="g in gruposPermiso" :key="g.idGrupoPermiso" :value="g.idGrupoPermiso">
+                        {{ g.nombre }}
+                      </option>
+                    </select>
+                  </div>
                 </td>
                 <td>
                   <span class="badge" :class="u.estadoCuenta === 'activo' ? 'badge-success' : 'badge-danger'">
@@ -324,8 +337,11 @@
               <div>
                 <h4 class="card-title" style="margin-bottom:2px;">🛡️ {{ g.nombre }}</h4>
                 <span class="text-xs text-muted">ID Grupo: #{{ g.idGrupoPermiso }} • {{ g.totalUsuarios || 0 }} miembro(s)</span>
+                <span v-if="g.nombreGrupoPadre" class="text-xs d-block" style="color:var(--primary); font-weight:600;">
+                  ↳ Hereda (Composite): {{ g.nombreGrupoPadre }}
+                </span>
               </div>
-              <span class="badge badge-primary">{{ (g.permisos || []).length }} permisos</span>
+              <span class="badge badge-primary">{{ (g.codigosEfectivos || g.permisos || []).length }} efectivos</span>
             </div>
 
             <div class="card-body">
@@ -335,7 +351,24 @@
                   ✓ {{ p.codigoAccion }}
                 </span>
               </div>
-              <p v-else class="text-xs text-muted">Permisos heredados por política de rol.</p>
+              <div
+                class="academic-tags"
+                v-if="g.codigosEfectivos && g.codigosEfectivos.length > (g.permisos || []).length"
+                style="margin-top:6px;"
+              >
+                <span
+                  v-for="cod in g.codigosEfectivos.filter(c => !(g.permisos || []).some(p => p.codigoAccion === c))"
+                  :key="cod"
+                  class="tag-chip font-mono"
+                  style="opacity:0.8;"
+                  title="Heredado por Composite"
+                >
+                  ↳ {{ cod }}
+                </span>
+              </div>
+              <p v-if="!(g.permisos && g.permisos.length) && !(g.codigosEfectivos && g.codigosEfectivos.length)" class="text-xs text-muted">
+                Sin permisos asignados todavía.
+              </p>
             </div>
 
             <div class="card-actions">
@@ -642,6 +675,19 @@
             <input type="text" v-model="grupoForm.descripcion" class="search-input" style="padding-left:12px;" placeholder="Responsabilidades del grupo..." />
           </div>
           <div class="form-field">
+            <label>Grupo Heredado / Subgrupo Base (Patrón Composite, opcional)</label>
+            <select v-model="grupoForm.idGrupoPadre" class="search-input" style="padding-left:12px;">
+              <option :value="null">— Ninguno (grupo independiente) —</option>
+              <option
+                v-for="optG in gruposPermiso.filter(item => Number(item.idGrupoPermiso) !== Number(grupoForm.idGrupoPermiso))"
+                :key="optG.idGrupoPermiso"
+                :value="Number(optG.idGrupoPermiso)"
+              >
+                {{ optG.nombre }} (#{{ optG.idGrupoPermiso }})
+              </option>
+            </select>
+          </div>
+          <div class="form-field">
             <label>Permisos Asignados al Grupo</label>
             <div class="perms-checklist">
               <label v-for="p in catalogoPermisos" :key="p.idPermiso" class="perm-check-item">
@@ -693,6 +739,7 @@
               <option value="Docente">Docente</option>
               <option value="Moderador">Moderador</option>
               <option value="Administrador">Administrador</option>
+              <option v-if="authStore.isOwner" value="Dueño">👑 Dueño del Sistema</option>
             </select>
           </div>
           <div v-if="userForm.idUsuario" class="form-field">
@@ -700,6 +747,15 @@
             <select v-model="userForm.idRol" class="search-input" style="padding-left:12px;">
               <option v-for="rol in roles" :key="rol.idRol" :value="rol.idRol">{{ rol.nombreRol }}</option>
             </select>
+          </div>
+          <div v-if="userForm.idUsuario" class="form-field">
+            <label>Grupos de Permisos Asignados (Múltiples — Composite RBAC)</label>
+            <div class="perms-checklist">
+              <label v-for="g in gruposPermiso" :key="g.idGrupoPermiso" class="perm-check-item">
+                <input type="checkbox" :value="Number(g.idGrupoPermiso)" v-model="userForm.grupos" />
+                <span><strong>{{ g.nombre }}</strong> — {{ g.descripcion || 'Sin descripción' }}</span>
+              </label>
+            </div>
           </div>
           <div class="form-field">
             <label>Universidad (opcional)</label>
@@ -914,10 +970,10 @@ const searchLogs         = ref('')
 const filterLogCategoria = ref('todos')
 
 const showGrupoModal     = ref(false)
-const grupoForm          = ref({ idGrupoPermiso: null, nombre: '', descripcion: '', permisos: [] })
+const grupoForm          = ref({ idGrupoPermiso: null, nombre: '', descripcion: '', idGrupoPadre: null, permisos: [] })
 
 const showUserModal      = ref(false)
-const userForm           = ref({ idUsuario: null, nombre: '', apellido: '', email: '', password: '', celular: '', tipoPerfil: 'Estudiante', idRol: 2, idUniversidad: null, idCarrera: null, estadoCuenta: 'activo' })
+const userForm           = ref({ idUsuario: null, nombre: '', apellido: '', email: '', password: '', celular: '', tipoPerfil: 'Estudiante', idRol: 2, idUniversidad: null, idCarrera: null, estadoCuenta: 'activo', grupos: [] })
 
 const showPubModal       = ref(false)
 const pubForm            = ref({ idPublicacion: null, tipoPublicacion: 'Consulta', titulo: '', texto: '', idUniversidad: null, idSede: null, idCarrera: null, puntuacionClima: 5, puntuacionInfraestructura: 5, puntuacionAcademica: 5 })
@@ -1113,9 +1169,11 @@ const cambiarRol = async (user, nuevoIdRol) => {
     await api.put(`/usuarios/${user.idUsuario}/rol`, { idRol: rolId })
     user.idRol = rolId
     toastStore.success(`Rol de ${user.nombre} actualizado y auditado.`)
+    await fetchUsuarios()
     await fetchLogs()
   } catch (e) {
-    toastStore.error('No se pudo actualizar el rol.')
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo actualizar el rol.')
+    await fetchUsuarios()
   }
 }
 
@@ -1124,10 +1182,20 @@ const asignarGrupoUsuario = async (user, idGrupoPermiso) => {
   try {
     await api.post(`/usuarios/${user.idUsuario}/grupos`, { idGrupoPermiso: Number(idGrupoPermiso) })
     toastStore.success(`Usuario ${user.nombre} vinculado al grupo #${idGrupoPermiso}.`)
-    await fetchGruposYPermisos()
-    await fetchLogs()
+    await Promise.all([fetchUsuarios(), fetchGruposYPermisos(), fetchLogs()])
   } catch (e) {
-    toastStore.error('No se pudo asignar el grupo al usuario.')
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo asignar el grupo al usuario.')
+  }
+}
+
+const revocarGrupoUsuario = async (user, grupo) => {
+  if (!confirm(`¿Desvincular a ${user.nombre} del grupo "${grupo.nombre}"?`)) return
+  try {
+    await api.delete(`/usuarios/${user.idUsuario}/grupos/${grupo.idGrupoPermiso}`)
+    toastStore.success(`Grupo "${grupo.nombre}" desvinculado de ${user.nombre}.`)
+    await Promise.all([fetchUsuarios(), fetchGruposYPermisos(), fetchLogs()])
+  } catch (e) {
+    toastStore.error(e?.response?.data?.mensaje || 'No se pudo desvincular el grupo.')
   }
 }
 
@@ -1144,7 +1212,7 @@ const resetearClave = async (user) => {
     toastStore.success(`Contraseña de ${user.email} reseteada y registrada en auditoría.`)
     await fetchLogs()
   } catch (e) {
-    toastStore.error('Error al resetear la contraseña.')
+    toastStore.error(e?.response?.data?.mensaje || 'Error al resetear la contraseña.')
   }
 }
 
@@ -1161,7 +1229,7 @@ const cambiarEstadoUsuario = async (user, accion) => {
     toastStore.success(`Cuenta de ${user.nombre} actualizada a ${user.estadoCuenta}.`)
     await fetchLogs()
   } catch (e) {
-    toastStore.error('Error al cambiar estado de cuenta.')
+    toastStore.error(e?.response?.data?.mensaje || 'Error al cambiar estado de cuenta.')
   }
 }
 
@@ -1228,7 +1296,8 @@ const openUserModal = (user = null) => {
       idRol: user.idRol ? Number(user.idRol) : 2,
       idUniversidad: user.idUniversidad ? Number(user.idUniversidad) : null,
       idCarrera: user.idCarrera ? Number(user.idCarrera) : null,
-      estadoCuenta: user.estadoCuenta || 'activo'
+      estadoCuenta: user.estadoCuenta || 'activo',
+      grupos: Array.isArray(user.grupos) ? user.grupos.map(g => Number(g.idGrupoPermiso)) : []
     }
   } else {
     userForm.value = {
@@ -1242,7 +1311,8 @@ const openUserModal = (user = null) => {
       idRol: 2,
       idUniversidad: null,
       idCarrera: null,
-      estadoCuenta: 'activo'
+      estadoCuenta: 'activo',
+      grupos: []
     }
   }
   showUserModal.value = true
@@ -1264,24 +1334,24 @@ const guardarUsuarioModal = async () => {
       toastStore.success('Usuario creado exitosamente.')
     }
     showUserModal.value = false
-    await fetchUsuarios()
-    await fetchLogs()
+    await Promise.all([fetchUsuarios(), fetchGruposYPermisos(), fetchLogs()])
   } catch (e) {
     toastStore.error(e?.response?.data?.mensaje || 'Error al guardar el usuario.')
   }
 }
 
-// ─── ABM Grupos de Permisos (Puntos T02/T03) ──────────────────────────────────
+// ─── ABM Grupos de Permisos (Puntos T02/T03 + Composite) ──────────────────────
 const openGrupoModal = (grupo = null) => {
   if (grupo) {
     grupoForm.value = {
       idGrupoPermiso: grupo.idGrupoPermiso,
       nombre: grupo.nombre,
       descripcion: grupo.descripcion || '',
+      idGrupoPadre: grupo.idGrupoPadre ? Number(grupo.idGrupoPadre) : null,
       permisos: (grupo.permisos || []).map(p => Number(p.idPermiso))
     }
   } else {
-    grupoForm.value = { idGrupoPermiso: null, nombre: '', descripcion: '', permisos: [] }
+    grupoForm.value = { idGrupoPermiso: null, nombre: '', descripcion: '', idGrupoPadre: null, permisos: [] }
   }
   showGrupoModal.value = true
 }
@@ -2038,5 +2108,40 @@ const generarYDescargarBackup = async () => {
   gap: 8px;
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.multi-groups-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 170px;
+}
+
+.group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary-ghost);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.chip-remove-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
 }
 </style>

@@ -20,8 +20,12 @@ class Rol {
     public function getNombreRol(): string { return $this->nombreRol; }
     public function getNivelJerarquia(): int { return $this->nivelJerarquia; }
 
+    public function esDueno(): bool {
+        return $this->nombreRol === 'Dueño';
+    }
+
     public function esAdministrativo(): bool {
-        return in_array($this->nombreRol, ['Administrador', 'Moderador'], true);
+        return in_array($this->nombreRol, ['Dueño', 'Administrador', 'Moderador'], true);
     }
 
     /** @return Usuario[] */

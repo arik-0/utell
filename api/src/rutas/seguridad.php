@@ -9,8 +9,16 @@ require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 $app->get('/usuarios/{id:[0-9]+}/permisos', function(Request $request, Response $response, array $args) {
     $idUsuario = (int)$args['id'];
     try {
-        $permisos = SeguridadService::getInstance()->obtenerPermisosUsuario($idUsuario);
-        return jsonResponse($response, ['idUsuario' => $idUsuario, 'permisos' => $permisos]);
+        $svc      = SeguridadService::getInstance();
+        $permisos = $svc->obtenerPermisosUsuario($idUsuario);
+        $grupos   = $svc->obtenerGruposUsuario($idUsuario);
+        $esDueno  = $svc->esUsuarioDueno($idUsuario);
+        return jsonResponse($response, [
+            'idUsuario' => $idUsuario,
+            'permisos'  => $permisos,
+            'grupos'    => $grupos,
+            'esDueno'   => $esDueno,
+        ]);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al consultar los permisos del usuario.', 500, $e);
     }
@@ -58,6 +66,8 @@ $app->put('/roles/{id:[0-9]+}', function(Request $request, Response $response, a
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol actualizado.']);
         }
         return errorResponse($response, 'Rol no encontrado.', 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 400);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al modificar el rol.', 400, $e);
     }
@@ -161,39 +171,41 @@ $app->get('/grupos-permiso', function(Request $request, Response $response) {
     }
 });
 
-// POST Crear grupo de permisos (Puntos T02/T03)
+// POST Crear grupo de permisos (Puntos T02/T03 + Composite idGrupoPadre)
 $app->post('/grupos-permiso', function(Request $request, Response $response) {
     if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para gestionar grupos.', 403);
     }
-    $nombre      = trim((string)($request->getParam('nombre') ?? ''));
-    $descripcion = trim((string)($request->getParam('descripcion') ?? ''));
-    $permisos    = $request->getParam('permisos') ?? [];
+    $nombre       = trim((string)($request->getParam('nombre') ?? ''));
+    $descripcion  = trim((string)($request->getParam('descripcion') ?? ''));
+    $permisos     = $request->getParam('permisos') ?? [];
+    $idGrupoPadre = $request->getParam('idGrupoPadre') ? (int)$request->getParam('idGrupoPadre') : null;
     if ($nombre === '') {
         return errorResponse($response, 'El nombre del grupo es obligatorio.', 400);
     }
     try {
-        $grupo = SeguridadService::getInstance()->crearGrupoPermiso($nombre, $descripcion, is_array($permisos) ? $permisos : [], getAuthUserId($request));
+        $grupo = SeguridadService::getInstance()->crearGrupoPermiso($nombre, $descripcion, is_array($permisos) ? $permisos : [], getAuthUserId($request), $idGrupoPadre);
         return jsonResponse($response, ['success' => true, 'grupo' => $grupo], 201);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al crear el grupo de permisos.', 500, $e);
     }
 })->add(new AuthMiddleware());
 
-// PUT Modificar grupo de permisos (Puntos T02/T03)
+// PUT Modificar grupo de permisos (Puntos T02/T03 + Composite idGrupoPadre)
 $app->put('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response $response, array $args) {
     if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para modificar grupos.', 403);
     }
-    $idGrupo     = (int)$args['id'];
-    $nombre      = trim((string)($request->getParam('nombre') ?? ''));
-    $descripcion = trim((string)($request->getParam('descripcion') ?? ''));
-    $permisos    = $request->getParam('permisos') ?? [];
+    $idGrupo      = (int)$args['id'];
+    $nombre       = trim((string)($request->getParam('nombre') ?? ''));
+    $descripcion  = trim((string)($request->getParam('descripcion') ?? ''));
+    $permisos     = $request->getParam('permisos') ?? [];
+    $idGrupoPadre = $request->getParam('idGrupoPadre') ? (int)$request->getParam('idGrupoPadre') : null;
     if ($idGrupo <= 0 || $nombre === '') {
         return errorResponse($response, 'ID y nombre del grupo son obligatorios.', 400);
     }
     try {
-        $ok = SeguridadService::getInstance()->actualizarGrupoPermiso($idGrupo, $nombre, $descripcion, is_array($permisos) ? $permisos : [], getAuthUserId($request));
+        $ok = SeguridadService::getInstance()->actualizarGrupoPermiso($idGrupo, $nombre, $descripcion, is_array($permisos) ? $permisos : [], getAuthUserId($request), $idGrupoPadre);
         return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Grupo de permisos actualizado.']);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al modificar el grupo de permisos.', 500, $e);
@@ -216,7 +228,7 @@ $app->delete('/grupos-permiso/{id:[0-9]+}', function(Request $request, Response 
     }
 })->add(new AuthMiddleware());
 
-// POST Asignar grupo de permiso a usuario (requiere JWT administrativo)
+// POST Asignar grupo de permiso a usuario (acumula múltiples grupos por usuario)
 $app->post('/usuarios/{id:[0-9]+}/grupos', function(Request $request, Response $response, array $args) {
     if (!isAuthAdmin($request)) {
         return errorResponse($response, 'Se requieren permisos de administrador para asignar grupos.', 403);
@@ -233,6 +245,26 @@ $app->post('/usuarios/{id:[0-9]+}/grupos', function(Request $request, Response $
         return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Grupo de permiso asignado.']);
     } catch (Exception $e) {
         return errorResponse($response, 'Error interno al asignar el grupo de permiso.', 500, $e);
+    }
+})->add(new AuthMiddleware());
+
+// DELETE Desvincular un grupo de permiso de un usuario (mantiene sus demás grupos)
+$app->delete('/usuarios/{id:[0-9]+}/grupos/{idGrupo:[0-9]+}', function(Request $request, Response $response, array $args) {
+    if (!isAuthAdmin($request)) {
+        return errorResponse($response, 'Se requieren permisos de administrador para desvincular grupos.', 403);
+    }
+
+    $idUsuario      = (int)$args['id'];
+    $idGrupoPermiso = (int)$args['idGrupo'];
+
+    try {
+        $ok = SeguridadService::getInstance()->revocarGrupo($idUsuario, $idGrupoPermiso, getAuthUserId($request));
+        if ($ok) {
+            return jsonResponse($response, ['success' => true, 'mensaje' => 'Grupo desvinculado del usuario.']);
+        }
+        return errorResponse($response, 'El usuario no pertenecía a ese grupo.', 404);
+    } catch (Exception $e) {
+        return errorResponse($response, 'Error interno al desvincular el grupo de permiso.', 500, $e);
     }
 })->add(new AuthMiddleware());
 
@@ -254,6 +286,8 @@ $app->put('/usuarios/{id:[0-9]+}/rol', function(Request $request, Response $resp
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Rol actualizado exitosamente.']);
         }
         return errorResponse($response, 'No se pudo actualizar el rol.', 400);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al actualizar el rol del usuario.', 500, $e);
     }
@@ -293,7 +327,7 @@ $app->put('/usuarios/{id:[0-9]+}/reset-clave', function(Request $request, Respon
         $ok = SeguridadService::getInstance()->resetearClaveUsuario($idUsuario, $nuevaClave, getAuthUserId($request));
         return jsonResponse($response, ['success' => $ok, 'mensaje' => 'Contraseña reseteada correctamente.']);
     } catch (DomainException $e) {
-        return errorResponse($response, $e->getMessage(), 404);
+        return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
         return errorResponse($response, 'Error interno al resetear la contraseña.', 500, $e);
     }
@@ -363,6 +397,8 @@ $app->put('/moderacion/usuarios/{id:[0-9]+}', function(Request $request, Respons
             return jsonResponse($response, ['success' => true, 'mensaje' => 'Usuario actualizado correctamente.']);
         }
         return errorResponse($response, 'Usuario no encontrado.', 404);
+    } catch (DomainException $e) {
+        return errorResponse($response, $e->getMessage(), 403);
     } catch (Exception $e) {
         return errorResponse($response, 'Error al modificar el usuario (verifique que el email no esté duplicado).', 400, $e);
     }

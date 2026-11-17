@@ -6,65 +6,170 @@ require_once __DIR__ . '/AuditoriaRepository.php';
 
 class SeguridadRepository {
     private $db;
+    private bool $rbacVerificado = false;
 
     public function __construct() {
         $this->db = db::getInstance()->getConnection();
+    }
+
+    private function obtenerRolDuenoId(): int {
+        try {
+            $id = $this->db->query("SELECT idRol FROM roles WHERE nombreRol = 'Dueño' LIMIT 1")->fetchColumn();
+            if ($id) {
+                return (int)$id;
+            }
+        } catch (Exception $e) {}
+        return 7;
+    }
+
+    private function obtenerResumenUsuarioSeguridad(int $idUsuario): ?array {
+        $stmt = $this->db->prepare("
+            SELECT u.idUsuario, u.email, u.idRol, u.tipoPerfil, COALESCE(u.estadoCuenta, 'activo') AS estadoCuenta,
+                   r.nombreRol
+            FROM usuarios u
+            LEFT JOIN roles r ON u.idRol = r.idRol
+            WHERE u.idUsuario = :id LIMIT 1
+        ");
+        $stmt->execute([':id' => $idUsuario]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        $idRolDueno = $this->obtenerRolDuenoId();
+        $row['esDueno'] = ($row['tipoPerfil'] === 'Dueño' || $row['nombreRol'] === 'Dueño' || (int)$row['idRol'] === $idRolDueno);
+        $row['esAdmin'] = ($row['esDueno'] || (int)$row['idRol'] === 1 || $row['tipoPerfil'] === 'Administrador');
+        return $row;
+    }
+
+    public function esUsuarioDueno(int $idUsuario): bool {
+        $this->asegurarTablasRbac();
+        $info = $this->obtenerResumenUsuarioSeguridad($idUsuario);
+        if ($info && $info['esDueno']) {
+            return true;
+        }
+        try {
+            $arbol = $this->construirArbolCompositeUsuario($idUsuario);
+            return $arbol->tienePermiso('OWNER_FULL');
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Patrón GoF Composite RBAC: construye el árbol en memoria con todos los GrupoPermiso
+     * asignados al usuario (soporte de múltiples grupos por usuario y subgrupos anidados).
+     */
+    public function construirArbolCompositeUsuario(int $idUsuario): GrupoPermiso {
+        $this->asegurarTablasRbac();
+        $raizUsuario = new GrupoPermiso("Usuario_{$idUsuario}", "Composición RBAC de múltiples grupos");
+
+        try {
+            $rowsGrupos = $this->db->query("SELECT * FROM grupos_permiso ORDER BY idGrupoPermiso ASC")->fetchAll(PDO::FETCH_ASSOC);
+            $nodosGrupo = [];
+            foreach ($rowsGrupos as $g) {
+                $idG = (int)$g['idGrupoPermiso'];
+                $idPadre = !empty($g['idGrupoPadre']) ? (int)$g['idGrupoPadre'] : null;
+                $nodosGrupo[$idG] = new GrupoPermiso((string)$g['nombre'], (string)($g['descripcion'] ?? ''), $idG, $idPadre);
+            }
+
+            $rowsRel = $this->db->query("
+                SELECT gpp.idGrupoPermiso, p.idPermiso, p.nombre, p.codigoAccion
+                FROM grupos_permiso_permisos gpp
+                INNER JOIN permisos p ON gpp.idPermiso = p.idPermiso
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rowsRel as $rel) {
+                $idG = (int)$rel['idGrupoPermiso'];
+                if (isset($nodosGrupo[$idG])) {
+                    $nodosGrupo[$idG]->agregarComponente(
+                        new Permiso((string)$rel['nombre'], (string)$rel['codigoAccion'], (int)$rel['idPermiso'])
+                    );
+                }
+            }
+
+            // Enlazar jerarquía Composite entre grupos (herencia de subgrupos vía idGrupoPadre)
+            foreach ($rowsGrupos as $g) {
+                $idG = (int)$g['idGrupoPermiso'];
+                $idPadre = !empty($g['idGrupoPadre']) ? (int)$g['idGrupoPadre'] : 0;
+                if ($idPadre > 0 && $idPadre !== $idG && isset($nodosGrupo[$idG], $nodosGrupo[$idPadre])) {
+                    $nodosGrupo[$idG]->agregarComponente($nodosGrupo[$idPadre]);
+                }
+            }
+
+            $stmtUserGrupos = $this->db->prepare("SELECT idGrupoPermiso FROM detalle_grupo_permiso WHERE idUsuario = :id");
+            $stmtUserGrupos->execute([':id' => $idUsuario]);
+            $idsAsignados = $stmtUserGrupos->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($idsAsignados as $idG) {
+                $idGrupo = (int)$idG;
+                if (isset($nodosGrupo[$idGrupo])) {
+                    $raizUsuario->agregarComponente($nodosGrupo[$idGrupo]);
+                }
+            }
+        } catch (Exception $e) {
+            error_log("construirArbolCompositeUsuario: " . $e->getMessage());
+        }
+
+        return $raizUsuario;
+    }
+
+    public function obtenerGruposUsuario(int $idUsuario): array {
+        $this->asegurarTablasRbac();
+        try {
+            $stmt = $this->db->prepare("
+                SELECT gp.idGrupoPermiso, gp.nombre, gp.descripcion, dgp.fechaAsignacion
+                FROM detalle_grupo_permiso dgp
+                INNER JOIN grupos_permiso gp ON dgp.idGrupoPermiso = gp.idGrupoPermiso
+                WHERE dgp.idUsuario = :id
+                ORDER BY gp.idGrupoPermiso ASC
+            ");
+            $stmt->execute([':id' => $idUsuario]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     /**
      * Obtiene la lista consolidada de códigos de permiso para un usuario (RBAC Composite).
      */
     public function obtenerPermisosUsuario(int $idUsuario): array {
-        $stmtUser = $this->db->prepare("SELECT idRol, tipoPerfil FROM usuarios WHERE idUsuario = :id LIMIT 1");
-        $stmtUser->execute([':id' => $idUsuario]);
-        $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
-
+        $this->asegurarTablasRbac();
+        $user = $this->obtenerResumenUsuarioSeguridad($idUsuario);
         if (!$user) {
             return [];
         }
 
-        $permisos = [
+        $arbol    = $this->construirArbolCompositeUsuario($idUsuario);
+        $permisos = array_merge([
             'POST_CREATE',
             'POST_REPLY',
             'SEND_DIRECT_MESSAGE',
-        ];
+        ], $arbol->obtenerCodigosPermiso());
 
-        if (in_array($user['tipoPerfil'], ['Estudiante', 'Docente', 'Graduado'], true)) {
+        if (in_array($user['tipoPerfil'], ['Estudiante', 'Docente', 'Graduado', 'Dueño'], true)) {
             $permisos[] = 'RATE_UNIVERSITY';
         }
 
-        if (in_array($user['tipoPerfil'], ['Institución', 'Universidad', 'Facultad', 'Docente'], true) || (int)$user['idRol'] === 6) {
+        if (in_array($user['tipoPerfil'], ['Institución', 'Universidad', 'Facultad', 'Docente', 'Dueño'], true) || (int)$user['idRol'] === 6) {
             $permisos[] = 'VIEW_INSTITUTION_METRICS';
             $permisos[] = 'OFFICIAL_BADGE';
         }
 
-        try {
-            $stmtGrupos = $this->db->prepare("
-                SELECT DISTINCT p.codigoAccion 
-                FROM detalle_grupo_permiso dgp
-                INNER JOIN grupos_permiso gp ON dgp.idGrupoPermiso = gp.idGrupoPermiso
-                LEFT JOIN grupos_permiso_permisos gpp ON gp.idGrupoPermiso = gpp.idGrupoPermiso
-                LEFT JOIN permisos p ON (
-                    p.idPermiso = gpp.idPermiso OR
-                    (gp.idGrupoPermiso = 1) OR
-                    (gp.idGrupoPermiso = 2 AND p.codigoAccion IN ('MODERATE_CONTENT', 'MODERATE_COMMENT', 'POST_REPLY', 'POST_CREATE')) OR
-                    (gp.idGrupoPermiso = 3 AND p.codigoAccion IN ('POST_CREATE', 'POST_REPLY', 'RATE_UNIVERSITY', 'SEND_DIRECT_MESSAGE')) OR
-                    (gp.idGrupoPermiso = 4 AND p.codigoAccion IN ('POST_CREATE', 'POST_REPLY', 'RATE_UNIVERSITY', 'SEND_DIRECT_MESSAGE', 'VIEW_INSTITUTION_METRICS'))
-                )
-                WHERE dgp.idUsuario = :id AND p.codigoAccion IS NOT NULL
-            ");
-            $stmtGrupos->execute([':id' => $idUsuario]);
-            $rows = $stmtGrupos->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($rows as $r) {
-                $permisos[] = $r['codigoAccion'];
-            }
-        } catch (Exception $e) {
-            // Tolerancia si grupos_permiso_permisos no existe en algún entorno
-        }
-
-        // Superadministrador (Rol 1) o Moderador (Rol 3)
-        if ((int)$user['idRol'] === 1 || $user['tipoPerfil'] === 'Administrador') {
-            $permisos = [
+        if ($user['esDueno'] || $arbol->tienePermiso('OWNER_FULL')) {
+            try {
+                $todosCodigos = $this->db->query("SELECT codigoAccion FROM permisos")->fetchAll(PDO::FETCH_COLUMN);
+                $permisos = array_merge($permisos, $todosCodigos ?: []);
+            } catch (Exception $e) {}
+            $permisos = array_merge($permisos, [
+                'ADMIN_FULL',
+                'OWNER_FULL',
+                'MANAGE_ADMINS',
+                'MANAGE_OWNERS',
+                'SYSTEM_BACKUP',
+                'RBAC_COMPOSITE_ADMIN',
+            ]);
+        } elseif ($user['esAdmin'] || $arbol->tienePermiso('ADMIN_FULL')) {
+            $permisos = array_merge($permisos, [
                 'POST_CREATE',
                 'POST_REPLY',
                 'RATE_UNIVERSITY',
@@ -75,7 +180,7 @@ class SeguridadRepository {
                 'OFFICIAL_BADGE',
                 'DELETE_ANY_POST',
                 'ADMIN_FULL'
-            ];
+            ]);
         } elseif ((int)$user['idRol'] === 3 || $user['tipoPerfil'] === 'Moderador') {
             $permisos[] = 'MODERATE_CONTENT';
             $permisos[] = 'DELETE_ANY_POST';
@@ -85,11 +190,18 @@ class SeguridadRepository {
     }
 
     public function tienePermiso(int $idUsuario, string $codigoAccion): bool {
+        $arbol = $this->construirArbolCompositeUsuario($idUsuario);
+        if ($arbol->tienePermiso($codigoAccion)) {
+            return true;
+        }
         $permisos = $this->obtenerPermisosUsuario($idUsuario);
-        return in_array($codigoAccion, $permisos, true) || in_array('ADMIN_FULL', $permisos, true);
+        return in_array($codigoAccion, $permisos, true)
+            || in_array('OWNER_FULL', $permisos, true)
+            || in_array('ADMIN_FULL', $permisos, true);
     }
 
     public function obtenerRoles(): array {
+        $this->asegurarTablasRbac();
         return $this->db->query("SELECT * FROM roles ORDER BY idRol ASC")->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -115,6 +227,9 @@ class SeguridadRepository {
         $stmtOld->execute([':id' => $idRol]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
         if (!$old) return false;
+        if (($old['nombreRol'] ?? '') === 'Dueño' && trim($nombreRol) !== 'Dueño') {
+            throw new DomainException("No se puede renombrar el rol supremo Dueño.");
+        }
 
         $nombreLimpio = trim($nombreRol);
         $stmt = $this->db->prepare("UPDATE roles SET nombreRol = :nombre WHERE idRol = :id");
@@ -134,13 +249,14 @@ class SeguridadRepository {
     }
 
     public function eliminarRol(int $idRol, ?int $idActor = null): bool {
-        if (in_array($idRol, [1, 2, 3], true)) {
-            throw new DomainException("No se puede eliminar un rol base del sistema (#{$idRol}).");
-        }
         $stmtOld = $this->db->prepare("SELECT * FROM roles WHERE idRol = :id LIMIT 1");
         $stmtOld->execute([':id' => $idRol]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
         if (!$old) return false;
+
+        if (in_array($idRol, [1, 2, 3], true) || ($old['nombreRol'] ?? '') === 'Dueño') {
+            throw new DomainException("No se puede eliminar un rol base o protegido del sistema ('{$old['nombreRol']}').");
+        }
 
         $stmt = $this->db->prepare("DELETE FROM roles WHERE idRol = :id");
         $ok = $stmt->execute([':id' => $idRol]) && $stmt->rowCount() > 0;
@@ -159,6 +275,10 @@ class SeguridadRepository {
     }
 
     private function asegurarTablasRbac(): void {
+        if ($this->rbacVerificado) {
+            return;
+        }
+        $this->rbacVerificado = true;
         try {
             $this->db->exec("
                 CREATE TABLE IF NOT EXISTS `grupos_permiso_permisos` (
@@ -167,6 +287,13 @@ class SeguridadRepository {
                   PRIMARY KEY (`idGrupoPermiso`, `idPermiso`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
+            try {
+                $colsGp = $this->db->query("SHOW COLUMNS FROM `grupos_permiso` LIKE 'idGrupoPadre'")->fetchAll(PDO::FETCH_ASSOC);
+                if (empty($colsGp)) {
+                    $this->db->exec("ALTER TABLE `grupos_permiso` ADD COLUMN `idGrupoPadre` INT(11) DEFAULT NULL");
+                }
+            } catch (Exception $e) {}
+
             $cntPerms = (int)$this->db->query("SELECT COUNT(*) FROM permisos")->fetchColumn();
             if ($cntPerms === 0) {
                 $this->db->exec("
@@ -183,6 +310,7 @@ class SeguridadRepository {
                     (10, 'Administración Total del Sistema', 'ADMIN_FULL')
                 ");
             }
+
             $cnt = (int)$this->db->query("SELECT COUNT(*) FROM grupos_permiso_permisos")->fetchColumn();
             if ($cnt === 0) {
                 $this->db->exec("
@@ -193,7 +321,94 @@ class SeguridadRepository {
                     (4,1),(4,2),(4,3),(4,6),(4,7),(4,8)
                 ");
             }
-        } catch (Exception $e) {}
+
+            // Asegurar permiso supremo OWNER_FULL y rol Dueño (solo si aún no existen)
+            $stmtOwnerPerm = $this->db->prepare("SELECT idPermiso FROM permisos WHERE codigoAccion = 'OWNER_FULL' LIMIT 1");
+            $stmtOwnerPerm->execute();
+            $idPermOwner = (int)$stmtOwnerPerm->fetchColumn();
+            if ($idPermOwner === 0) {
+                $extras = [
+                    ['Control Supremo de Dueño del Sistema', 'OWNER_FULL'],
+                    ['Gestionar Administradores',            'MANAGE_ADMINS'],
+                    ['Gestionar Dueños del Sistema',         'MANAGE_OWNERS'],
+                    ['Generar Resguardos SQL',               'SYSTEM_BACKUP'],
+                    ['Administrar Jerarquía RBAC Composite', 'RBAC_COMPOSITE_ADMIN'],
+                ];
+                $stmtInsPerm = $this->db->prepare("INSERT IGNORE INTO permisos (nombre, codigoAccion) VALUES (:n, :c)");
+                foreach ($extras as $ex) {
+                    $stmtInsPerm->execute([':n' => $ex[0], ':c' => $ex[1]]);
+                }
+                $stmtOwnerPerm->execute();
+                $idPermOwner = (int)$stmtOwnerPerm->fetchColumn();
+            }
+
+            $stmtRolDueno = $this->db->prepare("SELECT idRol FROM roles WHERE nombreRol = 'Dueño' LIMIT 1");
+            $stmtRolDueno->execute();
+            $idRolDueno = (int)$stmtRolDueno->fetchColumn();
+            if ($idRolDueno === 0) {
+                try {
+                    $this->db->exec("INSERT INTO roles (idRol, nombreRol) VALUES (7, 'Dueño')");
+                    $idRolDueno = 7;
+                } catch (Exception $e) {
+                    $this->db->exec("INSERT IGNORE INTO roles (nombreRol) VALUES ('Dueño')");
+                    $stmtRolDueno->execute();
+                    $idRolDueno = (int)$stmtRolDueno->fetchColumn();
+                }
+            }
+
+            // Asegurar grupo compuesto 'Dueños del Sistema' heredando grupo 1 (Administradores Generales)
+            $stmtGrpDueno = $this->db->prepare("SELECT idGrupoPermiso FROM grupos_permiso WHERE nombre = 'Dueños del Sistema' LIMIT 1");
+            $stmtGrpDueno->execute();
+            $idGrpDueno = (int)$stmtGrpDueno->fetchColumn();
+            $grupoDuenoRecienCreado = false;
+            if ($idGrpDueno === 0) {
+                $grupoDuenoRecienCreado = true;
+                try {
+                    $stmtInsGrp = $this->db->prepare("INSERT INTO grupos_permiso (nombre, descripcion, idGrupoPadre) VALUES ('Dueños del Sistema', 'Propietarios con derechos aumentados (hereda Composite de Administradores Generales)', 1)");
+                    $stmtInsGrp->execute();
+                    $idGrpDueno = (int)$this->db->lastInsertId();
+                } catch (Exception $e) {
+                    $stmtInsGrp = $this->db->prepare("INSERT INTO grupos_permiso (nombre, descripcion) VALUES ('Dueños del Sistema', 'Propietarios con derechos aumentados')");
+                    $stmtInsGrp->execute();
+                    $idGrpDueno = (int)$this->db->lastInsertId();
+                }
+                $codigosOwner = ['OWNER_FULL', 'MANAGE_ADMINS', 'MANAGE_OWNERS', 'SYSTEM_BACKUP', 'RBAC_COMPOSITE_ADMIN'];
+                $inClause = "'" . implode("','", $codigosOwner) . "'";
+                $idsPermsOwner = $this->db->query("SELECT idPermiso FROM permisos WHERE codigoAccion IN ({$inClause})")->fetchAll(PDO::FETCH_COLUMN);
+                $stmtLink = $this->db->prepare("INSERT IGNORE INTO grupos_permiso_permisos (idGrupoPermiso, idPermiso) VALUES (:g, :p)");
+                foreach ($idsPermsOwner as $pid) {
+                    $stmtLink->execute([':g' => $idGrpDueno, ':p' => (int)$pid]);
+                }
+            }
+
+            // Promover inicialmente la cuenta de Arik Yelin (solo cuando se crea el grupo Dueños por primera vez y nadie tiene aún el rol Dueño)
+            if ($grupoDuenoRecienCreado && $idRolDueno > 0 && $idGrpDueno > 0) {
+                $cntDuenos = (int)$this->db->query("SELECT COUNT(*) FROM usuarios WHERE idRol = {$idRolDueno} OR tipoPerfil = 'Dueño'")->fetchColumn();
+                if ($cntDuenos === 0) {
+                    $stmtArik = $this->db->prepare("SELECT idUsuario FROM usuarios WHERE LOWER(email) = 'arikayelin@gmail.com' OR idUsuario = 4 ORDER BY CASE WHEN LOWER(email) = 'arikayelin@gmail.com' THEN 0 ELSE 1 END LIMIT 1");
+                    $stmtArik->execute();
+                    $idArik = (int)$stmtArik->fetchColumn();
+                    if ($idArik > 0) {
+                        $this->db->prepare("UPDATE usuarios SET idRol = :rol, tipoPerfil = 'Dueño' WHERE idUsuario = :id")
+                                 ->execute([':rol' => $idRolDueno, ':id' => $idArik]);
+                        foreach ([$idGrpDueno, 1, 3] as $gid) {
+                            $this->vincularGrupoSiNoExiste($idArik, (int)$gid);
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log("asegurarTablasRbac: " . $e->getMessage());
+        }
+    }
+
+    private function vincularGrupoSiNoExiste(int $idUsuario, int $idGrupoPermiso): void {
+        $stmtChk = $this->db->prepare("SELECT COUNT(*) FROM detalle_grupo_permiso WHERE idUsuario = :u AND idGrupoPermiso = :g");
+        $stmtChk->execute([':u' => $idUsuario, ':g' => $idGrupoPermiso]);
+        if ((int)$stmtChk->fetchColumn() === 0) {
+            $stmtIns = $this->db->prepare("INSERT INTO detalle_grupo_permiso (idUsuario, idGrupoPermiso, fechaAsignacion) VALUES (:u, :g, NOW())");
+            $stmtIns->execute([':u' => $idUsuario, ':g' => $idGrupoPermiso]);
+        }
     }
 
     public function obtenerPermisosCatalogo(): array {
@@ -231,8 +446,9 @@ class SeguridadRepository {
 
         $nombreLimpio = trim($nombre);
         $codigoLimpio = strtoupper(trim($codigoAccion));
-        if (($old['codigoAccion'] ?? '') === 'ADMIN_FULL' && $codigoLimpio !== 'ADMIN_FULL') {
-            throw new DomainException("No se puede modificar el código del permiso crítico ADMIN_FULL.");
+        $origCode = $old['codigoAccion'] ?? '';
+        if (in_array($origCode, ['ADMIN_FULL', 'OWNER_FULL'], true) && $codigoLimpio !== $origCode) {
+            throw new DomainException("No se puede modificar el código del permiso crítico {$origCode}.");
         }
         $stmt = $this->db->prepare("UPDATE permisos SET nombre = :nombre, codigoAccion = :codigo WHERE idPermiso = :id");
         $ok = $stmt->execute([':nombre' => $nombreLimpio, ':codigo' => $codigoLimpio, ':id' => $idPermiso]);
@@ -255,8 +471,8 @@ class SeguridadRepository {
         $stmtOld->execute([':id' => $idPermiso]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
         if (!$old) return false;
-        if (($old['codigoAccion'] ?? '') === 'ADMIN_FULL') {
-            throw new DomainException("No se puede eliminar el permiso crítico ADMIN_FULL.");
+        if (in_array($old['codigoAccion'] ?? '', ['ADMIN_FULL', 'OWNER_FULL'], true)) {
+            throw new DomainException("No se puede eliminar el permiso crítico {$old['codigoAccion']}.");
         }
 
         $stmt = $this->db->prepare("DELETE FROM permisos WHERE idPermiso = :id");
@@ -276,18 +492,53 @@ class SeguridadRepository {
     }
 
     /**
-     * Obtiene los grupos de permisos con sus permisos asignados y cantidad de usuarios (Puntos T02/T03).
+     * Obtiene los grupos de permisos con sus permisos directos, heredados por Composite y cantidad de usuarios.
      */
     public function obtenerGruposPermiso(): array {
         $this->asegurarTablasRbac();
         $grupos = $this->db->query("SELECT * FROM grupos_permiso ORDER BY idGrupoPermiso ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $nombresById = [];
+        $nodos = [];
+        foreach ($grupos as $row) {
+            $idG = (int)$row['idGrupoPermiso'];
+            $nombresById[$idG] = $row['nombre'];
+            $idPadre = !empty($row['idGrupoPadre']) ? (int)$row['idGrupoPadre'] : null;
+            $nodos[$idG] = new GrupoPermiso((string)$row['nombre'], (string)($row['descripcion'] ?? ''), $idG, $idPadre);
+        }
+
+        // Hidratar nodos Composite para resolver también permisos efectivos/heredados
+        try {
+            $rowsRel = $this->db->query("
+                SELECT gpp.idGrupoPermiso, p.idPermiso, p.nombre, p.codigoAccion
+                FROM grupos_permiso_permisos gpp
+                INNER JOIN permisos p ON gpp.idPermiso = p.idPermiso
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rowsRel as $rel) {
+                $idG = (int)$rel['idGrupoPermiso'];
+                if (isset($nodos[$idG])) {
+                    $nodos[$idG]->agregarComponente(new Permiso((string)$rel['nombre'], (string)$rel['codigoAccion'], (int)$rel['idPermiso']));
+                }
+            }
+            foreach ($grupos as $row) {
+                $idG = (int)$row['idGrupoPermiso'];
+                $idPadre = !empty($row['idGrupoPadre']) ? (int)$row['idGrupoPadre'] : 0;
+                if ($idPadre > 0 && $idPadre !== $idG && isset($nodos[$idG], $nodos[$idPadre])) {
+                    $nodos[$idG]->agregarComponente($nodos[$idPadre]);
+                }
+            }
+        } catch (Exception $e) {}
+
         foreach ($grupos as &$g) {
             $idGrupo = (int)$g['idGrupoPermiso'];
-            $g['totalUsuarios'] = 0;
-            $g['permisos'] = [];
+            $idPadre = !empty($g['idGrupoPadre']) ? (int)$g['idGrupoPadre'] : null;
+            $g['idGrupoPadre']     = $idPadre;
+            $g['nombreGrupoPadre'] = ($idPadre && isset($nombresById[$idPadre])) ? $nombresById[$idPadre] : null;
+            $g['totalUsuarios']    = 0;
+            $g['permisos']         = [];
+            $g['codigosEfectivos'] = isset($nodos[$idGrupo]) ? $nodos[$idGrupo]->obtenerCodigosPermiso() : [];
 
             try {
-                $stmtCount = $this->db->prepare("SELECT COUNT(*) FROM detalle_grupo_permiso WHERE idGrupoPermiso = :id");
+                $stmtCount = $this->db->prepare("SELECT COUNT(DISTINCT idUsuario) FROM detalle_grupo_permiso WHERE idGrupoPermiso = :id");
                 $stmtCount->execute([':id' => $idGrupo]);
                 $g['totalUsuarios'] = (int)$stmtCount->fetchColumn();
             } catch (Exception $e) {}
@@ -308,16 +559,23 @@ class SeguridadRepository {
     }
 
     /**
-     * Crea un nuevo grupo de permisos y le vincula permisos (Puntos T02/T03).
+     * Crea un nuevo grupo de permisos (compuesto Composite opcional vía idGrupoPadre).
      */
-    public function crearGrupoPermiso(string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null): array {
-        $stmt = $this->db->prepare("INSERT INTO grupos_permiso (nombre, descripcion) VALUES (:nombre, :desc)");
-        $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion)]);
+    public function crearGrupoPermiso(string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null, ?int $idGrupoPadre = null): array {
+        $this->asegurarTablasRbac();
+        $padreVal = ($idGrupoPadre && $idGrupoPadre > 0) ? $idGrupoPadre : null;
+        try {
+            $stmt = $this->db->prepare("INSERT INTO grupos_permiso (nombre, descripcion, idGrupoPadre) VALUES (:nombre, :desc, :padre)");
+            $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion), ':padre' => $padreVal]);
+        } catch (Exception $e) {
+            $stmt = $this->db->prepare("INSERT INTO grupos_permiso (nombre, descripcion) VALUES (:nombre, :desc)");
+            $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion)]);
+        }
         $idGrupo = (int)$this->db->lastInsertId();
 
         $this->sincronizarPermisosDeGrupo($idGrupo, $idsPermisos);
 
-        $valorNuevo = json_encode(['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'permisos' => $idsPermisos], JSON_UNESCAPED_UNICODE);
+        $valorNuevo = json_encode(['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'idGrupoPadre' => $padreVal, 'permisos' => $idsPermisos], JSON_UNESCAPED_UNICODE);
         (new AuditoriaRepository())->registrar(
             $idActor,
             'CREAR_GRUPO_PERMISO',
@@ -328,24 +586,31 @@ class SeguridadRepository {
             $valorNuevo
         );
 
-        return ['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'descripcion' => $descripcion];
+        return ['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'descripcion' => $descripcion, 'idGrupoPadre' => $padreVal];
     }
 
     /**
-     * Modifica un grupo de permisos existente y sus permisos asociados (Puntos T02/T03).
+     * Modifica un grupo de permisos existente, su grupo padre Composite y sus permisos asociados.
      */
-    public function actualizarGrupoPermiso(int $idGrupo, string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null): bool {
+    public function actualizarGrupoPermiso(int $idGrupo, string $nombre, string $descripcion, array $idsPermisos = [], ?int $idActor = null, ?int $idGrupoPadre = null): bool {
+        $this->asegurarTablasRbac();
         $stmtOld = $this->db->prepare("SELECT * FROM grupos_permiso WHERE idGrupoPermiso = :id LIMIT 1");
         $stmtOld->execute([':id' => $idGrupo]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
 
-        $stmt = $this->db->prepare("UPDATE grupos_permiso SET nombre = :nombre, descripcion = :desc WHERE idGrupoPermiso = :id");
-        $ok = $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion), ':id' => $idGrupo]);
+        $padreVal = ($idGrupoPadre && $idGrupoPadre > 0 && $idGrupoPadre !== $idGrupo) ? $idGrupoPadre : null;
+        try {
+            $stmt = $this->db->prepare("UPDATE grupos_permiso SET nombre = :nombre, descripcion = :desc, idGrupoPadre = :padre WHERE idGrupoPermiso = :id");
+            $ok = $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion), ':padre' => $padreVal, ':id' => $idGrupo]);
+        } catch (Exception $e) {
+            $stmt = $this->db->prepare("UPDATE grupos_permiso SET nombre = :nombre, descripcion = :desc WHERE idGrupoPermiso = :id");
+            $ok = $stmt->execute([':nombre' => trim($nombre), ':desc' => trim($descripcion), ':id' => $idGrupo]);
+        }
 
         $this->sincronizarPermisosDeGrupo($idGrupo, $idsPermisos);
 
         $valorOrig = $old ? json_encode($old, JSON_UNESCAPED_UNICODE) : null;
-        $valorNuevo = json_encode(['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'descripcion' => $descripcion, 'permisos' => $idsPermisos], JSON_UNESCAPED_UNICODE);
+        $valorNuevo = json_encode(['idGrupoPermiso' => $idGrupo, 'nombre' => $nombre, 'descripcion' => $descripcion, 'idGrupoPadre' => $padreVal, 'permisos' => $idsPermisos], JSON_UNESCAPED_UNICODE);
         (new AuditoriaRepository())->registrar(
             $idActor,
             'MODIFICAR_GRUPO_PERMISO',
@@ -363,18 +628,20 @@ class SeguridadRepository {
      * Elimina un grupo de permisos (Puntos T02/T03).
      */
     public function eliminarGrupoPermiso(int $idGrupo, ?int $idActor = null): bool {
-        if ($idGrupo === 1) {
-            throw new DomainException("No se puede eliminar el grupo base de Administradores Generales.");
-        }
         $stmtOld = $this->db->prepare("SELECT * FROM grupos_permiso WHERE idGrupoPermiso = :id LIMIT 1");
         $stmtOld->execute([':id' => $idGrupo]);
         $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+        if (!$old) return false;
+
+        if ($idGrupo === 1 || ($old['nombre'] ?? '') === 'Dueños del Sistema') {
+            throw new DomainException("No se puede eliminar un grupo base del sistema ('{$old['nombre']}').");
+        }
 
         $stmt = $this->db->prepare("DELETE FROM grupos_permiso WHERE idGrupoPermiso = :id");
         $ok = $stmt->execute([':id' => $idGrupo]);
 
         if ($ok) {
-            $valorOrig = $old ? json_encode($old, JSON_UNESCAPED_UNICODE) : null;
+            $valorOrig = json_encode($old, JSON_UNESCAPED_UNICODE);
             (new AuditoriaRepository())->registrar(
                 $idActor,
                 'ELIMINAR_GRUPO_PERMISO',
@@ -407,18 +674,27 @@ class SeguridadRepository {
         }
     }
 
+    /**
+     * Vincula un usuario a un grupo adicional sin sobrescribir los anteriores (1 usuario -> N grupos).
+     */
     public function asignarGrupoAUsuario(int $idUsuario, int $idGrupoPermiso, ?int $idActor = null): bool {
+        $stmtChk = $this->db->prepare("SELECT COUNT(*) FROM detalle_grupo_permiso WHERE idUsuario = :u AND idGrupoPermiso = :g");
+        $stmtChk->execute([':u' => $idUsuario, ':g' => $idGrupoPermiso]);
+        if ((int)$stmtChk->fetchColumn() > 0) {
+            $stmtUpd = $this->db->prepare("UPDATE detalle_grupo_permiso SET fechaAsignacion = NOW() WHERE idUsuario = :u AND idGrupoPermiso = :g");
+            return $stmtUpd->execute([':u' => $idUsuario, ':g' => $idGrupoPermiso]);
+        }
+
         $stmt = $this->db->prepare("
             INSERT INTO detalle_grupo_permiso (idUsuario, idGrupoPermiso, fechaAsignacion)
             VALUES (:user, :grupo, NOW())
-            ON DUPLICATE KEY UPDATE fechaAsignacion = NOW()
         ");
         $ok = $stmt->execute([':user' => $idUsuario, ':grupo' => $idGrupoPermiso]);
         if ($ok) {
             (new AuditoriaRepository())->registrar(
                 $idActor,
                 'ASIGNAR_GRUPO_PERMISO',
-                "Usuario ID {$idUsuario} asignado al grupo {$idGrupoPermiso}",
+                "Usuario ID {$idUsuario} vinculado al grupo {$idGrupoPermiso}",
                 'detalle_grupo_permiso',
                 null,
                 null,
@@ -426,6 +702,55 @@ class SeguridadRepository {
             );
         }
         return $ok;
+    }
+
+    /**
+     * Desvincula uno de los grupos asignados a un usuario conservando sus demás grupos.
+     */
+    public function revocarGrupoDeUsuario(int $idUsuario, int $idGrupoPermiso, ?int $idActor = null): bool {
+        $stmt = $this->db->prepare("DELETE FROM detalle_grupo_permiso WHERE idUsuario = :u AND idGrupoPermiso = :g");
+        $ok = $stmt->execute([':u' => $idUsuario, ':g' => $idGrupoPermiso]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'REVOCAR_GRUPO_PERMISO',
+                "Grupo #{$idGrupoPermiso} desvinculado del usuario #{$idUsuario}",
+                'detalle_grupo_permiso',
+                null,
+                json_encode(['idUsuario' => $idUsuario, 'idGrupoPermiso' => $idGrupoPermiso]),
+                json_encode(['revocado' => true])
+            );
+        }
+        return $ok;
+    }
+
+    /**
+     * Sincroniza la lista múltiple de grupos RBAC de un usuario.
+     */
+    public function sincronizarGruposUsuario(int $idUsuario, array $idsGrupos, ?int $idActor = null): void {
+        $stmtOld = $this->db->prepare("SELECT idGrupoPermiso FROM detalle_grupo_permiso WHERE idUsuario = :u");
+        $stmtOld->execute([':u' => $idUsuario]);
+        $prev = array_map('intval', $stmtOld->fetchAll(PDO::FETCH_COLUMN));
+
+        $nuevos = array_values(array_unique(array_filter(array_map('intval', $idsGrupos), static fn($v) => $v > 0)));
+        $this->db->prepare("DELETE FROM detalle_grupo_permiso WHERE idUsuario = :u")->execute([':u' => $idUsuario]);
+
+        $stmtIns = $this->db->prepare("INSERT INTO detalle_grupo_permiso (idUsuario, idGrupoPermiso, fechaAsignacion) VALUES (:u, :g, NOW())");
+        foreach ($nuevos as $gid) {
+            $stmtIns->execute([':u' => $idUsuario, ':g' => $gid]);
+        }
+
+        if ($prev !== $nuevos) {
+            (new AuditoriaRepository())->registrar(
+                $idActor,
+                'SINCRONIZAR_GRUPOS_USUARIO',
+                "Grupos múltiples del usuario #{$idUsuario} actualizados",
+                'detalle_grupo_permiso',
+                null,
+                json_encode($prev),
+                json_encode($nuevos)
+            );
+        }
     }
 
     /**
@@ -520,9 +845,36 @@ class SeguridadRepository {
     }
 
     /**
-     * Listado de usuarios con roles y estados para el panel de administración (CU5 / CU8).
+     * Valida derechos jerárquicos aumentados del rol Dueño vs Administrador común.
+     */
+    private function verificarAutoridadSobreUsuario(int $idObjetivo, ?int $idActor, ?int $nuevoIdRol = null, ?string $nuevoTipoPerfil = null): void {
+        $target = $this->obtenerResumenUsuarioSeguridad($idObjetivo);
+        if (!$target) {
+            return;
+        }
+        $actorEsDueno = ($idActor !== null && $idActor > 0) ? $this->esUsuarioDueno($idActor) : false;
+        $idRolDueno   = $this->obtenerRolDuenoId();
+
+        if ($target['esDueno'] && !$actorEsDueno) {
+            throw new DomainException("Acceso denegado: Solo un Dueño del sistema puede modificar o gestionar cuentas de Dueño.");
+        }
+
+        $targetEsAdmin = ((int)$target['idRol'] === 1 || $target['tipoPerfil'] === 'Administrador');
+        if ($targetEsAdmin && !$target['esDueno'] && !$actorEsDueno && $idActor !== $idObjetivo) {
+            throw new DomainException("Privilegio insuficiente: Solo el rol Dueño puede modificar, bloquear, resetear o cambiar el rol de un Administrador.");
+        }
+
+        $intentaPromoverDueno = ($nuevoIdRol !== null && $nuevoIdRol === $idRolDueno) || ($nuevoTipoPerfil === 'Dueño');
+        if ($intentaPromoverDueno && !$actorEsDueno) {
+            throw new DomainException("Solo un Dueño del sistema puede asignar el rol o perfil Dueño.");
+        }
+    }
+
+    /**
+     * Listado de usuarios con roles, múltiples grupos RBAC y estados para administración (CU5 / CU8).
      */
     public function obtenerUsuariosAdmin(): array {
+        $this->asegurarTablasRbac();
         $sql = "SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.celular, u.fNac,
                        u.tipoPerfil, u.idRol, u.idUniversidad, u.idCarrera,
                        COALESCE(u.estadoCuenta, 'activo') as estadoCuenta,
@@ -535,7 +887,29 @@ class SeguridadRepository {
                 LEFT JOIN universidades uni ON u.idUniversidad = uni.idUniversidad
                 ORDER BY u.idUsuario DESC
                 LIMIT 200";
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $usuarios = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+        $gruposPorUsuario = [];
+        try {
+            $rowsGrp = $this->db->query("
+                SELECT dgp.idUsuario, gp.idGrupoPermiso, gp.nombre
+                FROM detalle_grupo_permiso dgp
+                INNER JOIN grupos_permiso gp ON dgp.idGrupoPermiso = gp.idGrupoPermiso
+                ORDER BY gp.idGrupoPermiso ASC
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rowsGrp as $rg) {
+                $uid = (int)$rg['idUsuario'];
+                $gruposPorUsuario[$uid][] = [
+                    'idGrupoPermiso' => (int)$rg['idGrupoPermiso'],
+                    'nombre'         => $rg['nombre'],
+                ];
+            }
+        } catch (Exception $e) {}
+
+        foreach ($usuarios as &$u) {
+            $u['grupos'] = $gruposPorUsuario[(int)$u['idUsuario']] ?? [];
+        }
+        return $usuarios;
     }
 
     /**
@@ -565,6 +939,8 @@ class SeguridadRepository {
         $idCarrera     = array_key_exists('idCarrera', $datos) ? (!empty($datos['idCarrera']) ? (int)$datos['idCarrera'] : null) : ($old['idCarrera'] ? (int)$old['idCarrera'] : null);
         $estadoCuenta  = !empty($datos['estadoCuenta']) ? trim((string)$datos['estadoCuenta']) : $old['estadoCuenta'];
 
+        $this->verificarAutoridadSobreUsuario($idUsuario, $idActor, $idRol, $tipoPerfil);
+
         $sql = "UPDATE usuarios
                 SET nombre = :nombre, apellido = :apellido, email = :email, celular = :celular,
                     fNac = :fNac, tipoPerfil = :tipoPerfil, idRol = :idRol,
@@ -586,6 +962,9 @@ class SeguridadRepository {
         ]);
 
         if ($ok) {
+            if (isset($datos['grupos']) && is_array($datos['grupos'])) {
+                $this->sincronizarGruposUsuario($idUsuario, $datos['grupos'], $idActor);
+            }
             $nuevo = [
                 'nombre' => $nombre, 'apellido' => $apellido, 'email' => $email,
                 'tipoPerfil' => $tipoPerfil, 'idRol' => $idRol,
@@ -609,6 +988,8 @@ class SeguridadRepository {
      * Asignación de rol a un usuario con registro de valorOriginal y valorNuevo (CU5 / Punto T06).
      */
     public function cambiarRolUsuario(int $idUsuario, int $idRol, ?int $idActor = null): bool {
+        $this->verificarAutoridadSobreUsuario($idUsuario, $idActor, $idRol, null);
+
         $stmtPrev = $this->db->prepare("
             SELECT u.idRol, u.tipoPerfil, r.nombreRol
             FROM usuarios u
@@ -642,7 +1023,7 @@ class SeguridadRepository {
     }
 
     /**
-     * Bloquea o reactiva una cuenta de usuario con trazabilidad de estado original y nuevo (CU6 / Punto T02 / T06).
+     * Bloquea o reactiva una cuenta de usuario con trazabilidad y protección jerárquica (Dueño > Admin).
      */
     public function cambiarEstadoUsuario(int $idUsuario, string $accion, ?int $idActor = null): bool {
         $stmtPrev = $this->db->prepare("SELECT idUsuario, email, idRol, tipoPerfil, COALESCE(estadoCuenta, 'activo') AS estadoCuenta FROM usuarios WHERE idUsuario = :id LIMIT 1");
@@ -653,8 +1034,12 @@ class SeguridadRepository {
         if ($esBloquear && $idActor !== null && $idUsuario === $idActor) {
             throw new DomainException("No puedes bloquear tu propia cuenta activa.");
         }
+        $this->verificarAutoridadSobreUsuario($idUsuario, $idActor, null, null);
         if ($esBloquear && $prev && ((int)($prev['idRol'] ?? 0) === 1 || ($prev['tipoPerfil'] ?? '') === 'Administrador')) {
-            throw new DomainException("No está permitido bloquear una cuenta de Administrador.");
+            $actorEsDueno = ($idActor !== null && $idActor > 0) ? $this->esUsuarioDueno($idActor) : false;
+            if (!$actorEsDueno) {
+                throw new DomainException("Solo el rol Dueño puede bloquear una cuenta de Administrador.");
+            }
         }
 
         $nuevoEstado = $esBloquear ? 'inactivo' : 'activo';
@@ -679,7 +1064,7 @@ class SeguridadRepository {
     }
 
     /**
-     * Reseteo administrativo de clave de un usuario (Puntos T02 y T03: Resetear Clave).
+     * Reseteo administrativo de clave de un usuario (derechos aumentados de Dueño sobre Admins).
      */
     public function resetearClaveUsuario(int $idUsuario, string $nuevaClave, ?int $idActor = null): bool {
         $stmtPrev = $this->db->prepare("SELECT idUsuario, email, idRol, tipoPerfil FROM usuarios WHERE idUsuario = :id LIMIT 1");
@@ -688,6 +1073,7 @@ class SeguridadRepository {
         if (!$prev) {
             throw new DomainException("El usuario especificado no existe.");
         }
+        $this->verificarAutoridadSobreUsuario($idUsuario, $idActor, null, null);
 
         $hash = password_hash($nuevaClave, PASSWORD_BCRYPT);
         $stmt = $this->db->prepare("UPDATE usuarios SET password = :pass WHERE idUsuario = :id");

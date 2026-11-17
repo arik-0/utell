@@ -54,7 +54,10 @@ $app->put('/editarPerfil/{id:[0-9]+}', function(Request $request, Response $resp
     }
 
     $reqTipoPerfil = $request->getParam('tipoPerfil');
-    if (!$esAdmin && in_array(trim((string)$reqTipoPerfil), ['Administrador', 'Moderador'], true)) {
+    $perfilNorm = trim((string)$reqTipoPerfil);
+    if (!$esAdmin && in_array($perfilNorm, ['Dueño', 'Administrador', 'Moderador'], true)) {
+        $reqTipoPerfil = null;
+    } elseif ($perfilNorm === 'Dueño' && !isAuthOwner($request)) {
         $reqTipoPerfil = null;
     }
 

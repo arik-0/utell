@@ -41,8 +41,21 @@ if (!function_exists('getAuthUserId')) {
     }
 }
 
+if (!function_exists('isAuthOwner')) {
+    function isAuthOwner(Request $request): bool {
+        $payload   = getAuthPayload($request);
+        $rolId     = (int)($payload['idRol'] ?? 0);
+        $perfil    = trim((string)($payload['tipoPerfil'] ?? ''));
+        $nombreRol = trim((string)($payload['nombreRol'] ?? ''));
+        return $perfil === 'Dueño' || $nombreRol === 'Dueño' || $rolId === 7;
+    }
+}
+
 if (!function_exists('isAuthAdmin')) {
     function isAuthAdmin(Request $request): bool {
+        if (isAuthOwner($request)) {
+            return true;
+        }
         $payload = getAuthPayload($request);
         $rolId   = (int)($payload['idRol'] ?? 0);
         $perfil  = trim((string)($payload['tipoPerfil'] ?? ''));
@@ -52,6 +65,9 @@ if (!function_exists('isAuthAdmin')) {
 
 if (!function_exists('isAuthAdminOrMod')) {
     function isAuthAdminOrMod(Request $request): bool {
+        if (isAuthOwner($request)) {
+            return true;
+        }
         $payload = getAuthPayload($request);
         $rolId   = (int)($payload['idRol'] ?? 0);
         $perfil  = trim((string)($payload['tipoPerfil'] ?? ''));
@@ -62,6 +78,9 @@ if (!function_exists('isAuthAdminOrMod')) {
 
 if (!function_exists('isAuthStaff')) {
     function isAuthStaff(Request $request): bool {
+        if (isAuthOwner($request)) {
+            return true;
+        }
         $payload = getAuthPayload($request);
         $rolId   = (int)($payload['idRol'] ?? 0);
         $perfil  = trim((string)($payload['tipoPerfil'] ?? ''));

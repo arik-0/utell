@@ -102,6 +102,7 @@ $app->post('/auth/google', $googleLoginHandler);
 // ─── POST /usuarios/nuevo ─────────────────────────────────────────────────────
 $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
     $esAdminCreador = false;
+    $esDuenoCreador = false;
     $authHeader = $request->getHeaderLine('Authorization') ?: ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
     if ($authHeader === '' && function_exists('apache_request_headers')) {
         $hdrs = apache_request_headers();
@@ -109,28 +110,37 @@ $app->post('/usuarios/nuevo', function(Request $request, Response $response) {
     }
     if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
         $payload = JWTService::validarToken($m[1]);
-        if (is_array($payload) && ((int)($payload['idRol'] ?? 0) === 1 || ($payload['tipoPerfil'] ?? '') === 'Administrador')) {
-            $esAdminCreador = true;
+        if (is_array($payload)) {
+            $pRol    = (int)($payload['idRol'] ?? 0);
+            $pPerfil = trim((string)($payload['tipoPerfil'] ?? ''));
+            $pNomRol = trim((string)($payload['nombreRol'] ?? ''));
+            if ($pPerfil === 'Dueño' || $pNomRol === 'Dueño' || $pRol === 7) {
+                $esAdminCreador = true;
+                $esDuenoCreador = true;
+            } elseif ($pRol === 1 || $pPerfil === 'Administrador') {
+                $esAdminCreador = true;
+            }
         }
     }
 
     $datos = [
-        'nombre'        => $request->getParam('nombre'),
-        'apellido'      => $request->getParam('apellido'),
-        'fNac'          => $request->getParam('fNac'),
-        'email'         => $request->getParam('email'),
-        'password'      => $request->getParam('password'),
-        'fotoPerfil'    => $request->getParam('fotoPerfil')    ?? '',
-        'celular'       => $request->getParam('celular')       ?? '',
-        'tipoPerfil'    => $request->getParam('tipoPerfil'),
-        'descripcion'   => $request->getParam('descripcion')   ?? '',
-        'trayectoria'   => $request->getParam('trayectoria')   ?? '',
-        'pais'          => $request->getParam('pais'),
-        'provincia'     => $request->getParam('provincia'),
-        'ciudad'        => $request->getParam('ciudad'),
-        'idUniversidad' => $request->getParam('idUniversidad') ?? null,
-        'idCarrera'     => $request->getParam('idCarrera')     ?? null,
+        'nombre'         => $request->getParam('nombre'),
+        'apellido'       => $request->getParam('apellido'),
+        'fNac'           => $request->getParam('fNac'),
+        'email'          => $request->getParam('email'),
+        'password'       => $request->getParam('password'),
+        'fotoPerfil'     => $request->getParam('fotoPerfil')    ?? '',
+        'celular'        => $request->getParam('celular')       ?? '',
+        'tipoPerfil'     => $request->getParam('tipoPerfil'),
+        'descripcion'    => $request->getParam('descripcion')   ?? '',
+        'trayectoria'    => $request->getParam('trayectoria')   ?? '',
+        'pais'           => $request->getParam('pais'),
+        'provincia'      => $request->getParam('provincia'),
+        'ciudad'         => $request->getParam('ciudad'),
+        'idUniversidad'  => $request->getParam('idUniversidad') ?? null,
+        'idCarrera'      => $request->getParam('idCarrera')     ?? null,
         'esAdminCreador' => $esAdminCreador,
+        'esDuenoCreador' => $esDuenoCreador,
     ];
 
     if (empty(trim((string)$datos['nombre'])) || empty(trim((string)$datos['email'])) || empty($datos['password'])) {

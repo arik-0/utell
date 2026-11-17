@@ -51,6 +51,32 @@ class AuthService {
         return false;
     }
 
+    private function enriquecerSesionUsuario(object $user): object {
+        $seg      = SeguridadService::getInstance();
+        $idUsr    = (int)$user->idUsuario;
+        $permisos = $seg->obtenerPermisosUsuario($idUsr);
+
+        // Recargar por si asegurarTablasRbac() actualizó rol/perfil inicial en el primer login
+        $actualizado = $this->usuarioRepo->buscarPorIdRaw($idUsr);
+        if ($actualizado) {
+            $user = $actualizado;
+        }
+
+        $esDueno        = $seg->esUsuarioDueno($idUsr);
+        $user->permisos = $permisos;
+        $user->grupos   = $seg->obtenerGruposUsuario($idUsr);
+        $user->esDueno  = $esDueno;
+        $user->token    = JWTService::generarToken([
+            'idUsuario'  => $idUsr,
+            'email'      => $user->email,
+            'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
+            'idRol'      => (int)($user->idRol ?? 2),
+            'nombreRol'  => $esDueno ? 'Dueño' : ($user->tipoPerfil ?? 'Estudiante'),
+        ]);
+        unset($user->password);
+        return $user;
+    }
+
     // ─── Classic email/password login ─────────────────────────────────────────
     public function login(string $email, string $password) {
         $auditoria = new AuditoriaRepository();
@@ -80,17 +106,9 @@ class AuthService {
                     $this->usuarioRepo->actualizarPasswordHash((int)$user->idUsuario, $newHash);
                 }
 
-                $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
-                $user->token    = JWTService::generarToken([
-                    'idUsuario'  => (int)$user->idUsuario,
-                    'email'      => $user->email,
-                    'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
-                    'idRol'      => (int)($user->idRol ?? 2),
-                ]);
-
+                $user = $this->enriquecerSesionUsuario($user);
                 $auditoria->registrar((int)$user->idUsuario, 'LOGIN', "Inicio de sesión exitoso ({$user->email})", 'usuarios');
 
-                unset($user->password);
                 return [$user];
             }
         }
@@ -145,15 +163,8 @@ class AuthService {
             if (isset($user->estadoCuenta) && in_array($user->estadoCuenta, ['bloqueado', 'inactivo'], true)) {
                 throw new DomainException('Esta cuenta no se encuentra habilitada para iniciar sesión.');
             }
-            $user->permisos = SeguridadService::getInstance()->obtenerPermisosUsuario((int)$user->idUsuario);
-            $user->token    = JWTService::generarToken([
-                'idUsuario'  => (int)$user->idUsuario,
-                'email'      => $user->email,
-                'tipoPerfil' => $user->tipoPerfil ?? 'Estudiante',
-                'idRol'      => (int)($user->idRol ?? 2),
-            ]);
+            $user = $this->enriquecerSesionUsuario($user);
             $auditoria->registrar((int)$user->idUsuario, 'LOGIN_GOOGLE', "Inicio de sesión OAuth ({$user->email})", 'usuarios');
-            unset($user->password);
             return [$user];
         }
 
@@ -225,9 +236,12 @@ class AuthService {
             'Institución'   => 6,
             'Empresa'       => 6,
             'Administrador' => 1,
+            'Dueño'         => 7,
         ];
         if (empty($datos['esAdminCreador'])) {
-            unset($mapaRol['Administrador'], $mapaRol['Moderador']);
+            unset($mapaRol['Administrador'], $mapaRol['Moderador'], $mapaRol['Dueño']);
+        } elseif (empty($datos['esDuenoCreador'])) {
+            unset($mapaRol['Dueño']);
         }
         $idRol   = $mapaRol[$tipoPerfil] ?? 2;
         $mapaGrupo = [
@@ -235,6 +249,7 @@ class AuthService {
             3 => 2,
             5 => 4,
             6 => 4,
+            7 => 5,
         ];
         $idGrupo = $mapaGrupo[$idRol] ?? 3;
 

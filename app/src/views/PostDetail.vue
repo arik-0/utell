@@ -246,8 +246,7 @@ const canManageItem = (ownerId) => {
   const user = authStore.user
   if (!user) return false
   const isOwner = Number(user.idUsuario) === Number(ownerId)
-  const isStaff = ['Administrador', 'Moderador'].includes(user.tipoPerfil) || [1, 3].includes(Number(user.idRol))
-  return isOwner || isStaff
+  return isOwner || authStore.isModeratorOrAdmin
 }
 
 const openEditPostModal = () => {
