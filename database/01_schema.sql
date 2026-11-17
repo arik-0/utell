@@ -70,8 +70,10 @@ CREATE TABLE `grupos_permiso` (
 
 DROP TABLE IF EXISTS `grupos_permiso_permisos`;
 CREATE TABLE `grupos_permiso_permisos` (
-  `idGrupoPermiso` INT(11) NOT NULL,
-  `idPermiso`      INT(11) NOT NULL,
+  `idGrupoPermiso`  INT(11) NOT NULL,
+  `idPermiso`       INT(11) NOT NULL,
+  `fechaAsignacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `soloLectura`     TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`idGrupoPermiso`, `idPermiso`),
   KEY `fk_gpp_permiso` (`idPermiso`),
   CONSTRAINT `fk_gpp_grupo`
@@ -128,6 +130,8 @@ CREATE TABLE `oferta_academica` (
   `idCarrera`           INT(11) NOT NULL,
   `idSede`              INT(11) NOT NULL,
   `fechaImplementacion` DATE DEFAULT NULL,
+  `modalidad`           VARCHAR(60) NOT NULL DEFAULT 'Presencial',
+  `estado`              VARCHAR(30) NOT NULL DEFAULT 'activo',
   `descripcion`         TEXT DEFAULT NULL,
   `email`               VARCHAR(180) DEFAULT NULL,
   `web`                 VARCHAR(255) DEFAULT NULL,
@@ -208,6 +212,7 @@ CREATE TABLE `detalle_grupo_permiso` (
   `idUsuario`       INT(11) NOT NULL,
   `idGrupoPermiso`  INT(11) NOT NULL,
   `fechaAsignacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `asignadoPor`     VARCHAR(120) DEFAULT 'Sistema',
   PRIMARY KEY (`idDetalle`),
   UNIQUE KEY `uq_dgp_usuario_grupo` (`idUsuario`, `idGrupoPermiso`),
   KEY `fk_dgp_grupo` (`idGrupoPermiso`),
