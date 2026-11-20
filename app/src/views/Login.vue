@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page">
+  <div class="login-page" :class="{ 'is-dark': themeStore.isDark }">
     <button
       class="auth-theme-btn"
       @click="themeStore.toggle()"
@@ -10,13 +10,28 @@
       <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
-    <div class="top-section">
-      <img src="/img/logo.png" alt="U-Tell Logo" class="logo-cap" />
-    </div>
 
-    <div class="bottom-card">
-      <h1 class="welcome-title">Bienvenido</h1>
-      <p class="welcome-sub">Ingresa a tu cuenta universitaria</p>
+    <div class="login-shell">
+      <div class="top-section">
+        <div class="hero-brand-pill">
+          <img src="/img/logo.png" alt="U-Tell Logo" class="logo-cap" />
+          <span class="hero-brand-name">U-Tell</span>
+        </div>
+
+        <div class="hero-desktop-copy">
+          <h2 class="hero-desktop-title">Tu comunidad universitaria en un solo lugar</h2>
+          <p class="hero-desktop-desc">Explora experiencias reales, resuelve consultas de cursada y conecta con estudiantes de toda Argentina.</p>
+          <div class="hero-desktop-tags">
+            <span>Consultas</span>
+            <span>Experiencias</span>
+            <span>Universidades</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-card">
+        <h1 class="welcome-title">Bienvenido</h1>
+        <p class="welcome-sub">Ingresa a tu cuenta universitaria</p>
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="field-group">
@@ -80,10 +95,11 @@
         <span>{{ isLoadingGoogle ? 'Conectando...' : 'Continuar con Google' }}</span>
       </button>
 
-      <p class="register-prompt">
-        ¿No tienes cuenta?
-        <router-link to="/register" class="register-link">Crear cuenta</router-link>
-      </p>
+        <p class="register-prompt">
+          ¿No tienes cuenta?
+          <router-link to="/register" class="register-link">Crear cuenta</router-link>
+        </p>
+      </div>
     </div>
 
     <!-- Modal Recuperar Contraseña (Puntos T02 y T03) -->
@@ -114,7 +130,7 @@
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; margin-top:12px;">
+          <div class="recover-actions">
             <button type="button" class="btn btn-google" style="margin-bottom:0;" @click="showRecoverModal = false">Cancelar</button>
             <button type="submit" class="btn btn-primary" style="margin-bottom:0;" :disabled="isRecovering">
               {{ isRecovering ? 'Procesando...' : 'Restablecer Clave' }}
@@ -282,19 +298,30 @@ onUnmounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
   background: var(--bg-main);
+}
+
+.login-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex: 1;
 }
 
 .auth-theme-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(0, 0, 0, 0.3);
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: 14px;
+  background: rgba(15, 23, 42, 0.52);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #FFFFFF;
   width: 40px;
   height: 40px;
@@ -318,34 +345,77 @@ onUnmounted(() => {
 
 /* ─── Top Hero ─── */
 .top-section {
-  flex: 0 0 38vh;
-  background-image:
-    linear-gradient(rgba(229, 90, 43, 0.82), rgba(255, 107, 53, 0.78)),
-    url('/img/unsplash.png');
-  background-blend-mode: multiply;
+  flex: 0 0 auto;
+  width: 100%;
+  height: clamp(175px, 27dvh, 235px);
+  background-image: url('/img/login-bg.jpg');
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-bottom: 18px;
+}
+
+.login-page.is-dark .top-section {
+  background-image: linear-gradient(rgba(11, 15, 23, 0.28), rgba(11, 15, 23, 0.28)), url('/img/login-bg.jpg');
+}
+
+.hero-brand-pill {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+}
+
+.login-page.is-dark .hero-brand-pill {
+  background: rgba(15, 23, 42, 0.86);
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 .logo-cap {
-  width: 110px;
-  filter: brightness(0) invert(1);
-  drop-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  width: 40px;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(255, 107, 53, 0.25));
+}
+
+.hero-brand-name {
+  font-family: var(--font-family);
+  font-size: 22px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+}
+
+.login-page.is-dark .hero-brand-name {
+  color: #F8FAFC;
+}
+
+.hero-desktop-copy {
+  display: none;
 }
 
 /* ─── Bottom Card ─── */
 .bottom-card {
+  width: 100%;
   flex: 1;
   background: var(--bg-card);
-  border-radius: 32px 32px 0 0;
-  padding: 32px 24px 40px;
-  margin-top: -32px;
+  border-radius: 28px 28px 0 0;
+  padding: 26px 20px calc(32px + env(safe-area-inset-bottom, 0px));
+  margin-top: -24px;
   z-index: 10;
   position: relative;
-  box-shadow: 0 -6px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.14);
   display: flex;
   flex-direction: column;
 }
@@ -398,7 +468,7 @@ onUnmounted(() => {
   border: 1.5px solid var(--border-light);
   border-radius: var(--radius-md);
   font-family: var(--font-family);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-body);
   background: var(--bg-card);
   outline: none;
@@ -430,6 +500,8 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin-bottom: 20px;
 }
 
@@ -568,10 +640,24 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 20px;
-  padding: 26px 24px;
+  padding: 22px 18px;
   width: 100%;
   max-width: 420px;
+  max-height: 90dvh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
+}
+
+.recover-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+@media (max-width: 400px) {
+  .recover-actions {
+    flex-direction: column-reverse;
+  }
 }
 
 .recover-title {
@@ -591,36 +677,116 @@ onUnmounted(() => {
 /* ─── Desktop & Tablet Layout ─── */
 @media (min-width: 768px) {
   .login-page {
+    width: 100%;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    padding: 40px 20px;
+    padding: 32px 24px;
+    background-image: url('/img/login-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .login-page.is-dark {
+    background-image: linear-gradient(rgba(8, 13, 24, 0.58), rgba(8, 13, 24, 0.64)), url('/img/login-bg.jpg');
+  }
+
+  .login-shell {
+    flex-direction: row;
+    min-height: 550px;
+    max-height: calc(100dvh - 64px);
+    max-width: 820px;
     width: 100%;
+    flex: 0 1 820px;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 28px 68px rgba(15, 23, 42, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    z-index: 10;
+  }
+
+  .login-page.is-dark .login-shell {
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 28px 68px rgba(0, 0, 0, 0.6);
   }
 
   .top-section {
-    flex: 0 0 380px;
-    height: 560px;
-    border-radius: 28px 0 0 28px;
-    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex: 0 0 340px;
+    width: auto;
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 22px;
+    padding: 40px 32px;
+    background-image: linear-gradient(155deg, rgba(8, 42, 92, 0.94) 0%, rgba(14, 58, 118, 0.9) 62%, rgba(234, 88, 36, 0.88) 100%);
   }
 
-  .logo-cap {
-    width: 140px;
+  .login-page.is-dark .top-section {
+    background-image: linear-gradient(155deg, rgba(10, 25, 54, 0.96) 0%, rgba(18, 41, 82, 0.94) 65%, rgba(194, 65, 20, 0.88) 100%);
+  }
+
+  .hero-desktop-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hero-desktop-title {
+    color: #FFFFFF;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .hero-desktop-desc {
+    color: rgba(241, 245, 249, 0.88);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .hero-desktop-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .hero-desktop-tags span {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #FFFFFF;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 9999px;
   }
 
   .bottom-card {
-    flex: 0 0 460px;
-    height: 560px;
+    flex: 1;
+    width: auto;
+    height: auto;
     margin-top: 0;
-    border-radius: 0 28px 28px 0;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border-light);
-    border-left: none;
-    overflow-y: auto;
-    padding: 40px 36px;
+    border-radius: 0;
+    padding: 36px 36px 32px;
     background: var(--bg-card);
+    box-shadow: none;
+    overflow-y: auto;
+  }
+
+  .input-wrap input {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899px) {
+  .top-section {
+    flex: 0 0 290px;
+    padding: 32px 24px;
   }
 }
 </style>

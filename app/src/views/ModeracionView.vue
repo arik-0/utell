@@ -1823,7 +1823,7 @@ const generarYDescargarBackup = async () => {
 
 .items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 16px;
 }
 
@@ -2075,6 +2075,8 @@ const generarYDescargarBackup = async () => {
   padding: 22px;
   width: 100%;
   max-width: 480px;
+  max-height: 90dvh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
 }
 
@@ -2143,5 +2145,38 @@ const generarYDescargarBackup = async () => {
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
+}
+
+@media (max-width: 767px) {
+  .mod-page {
+    padding-bottom: 96px;
+  }
+
+  .mod-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 0;
+  }
+
+  .mod-title {
+    font-size: 1.12rem;
+  }
+
+  .mod-tabs-bar {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .mod-table th,
+  .mod-table td {
+    padding: 9px 10px;
+  }
+
+  .modal-card {
+    padding: 18px 16px;
+  }
 }
 </style>

@@ -483,6 +483,8 @@ const handleRegister = async () => {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  overflow-x: hidden;
   min-height: 100vh;
   background: var(--bg-main);
   font-family: var(--font-body);
@@ -658,18 +660,14 @@ const handleRegister = async () => {
 
 .form-input:focus {
   border-color: var(--primary);
-  background: var(--bg-card);
+  background-color: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-ghost);
 }
 
 .form-input::placeholder { color: var(--text-muted); }
 
 .select-control {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 36px;
+  cursor: pointer;
 }
 
 .password-input-wrap {
@@ -696,6 +694,18 @@ const handleRegister = async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .form-input {
+    font-size: 16px;
+  }
 }
 
 .academic-cascade {

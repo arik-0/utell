@@ -1961,4 +1961,50 @@ onUnmounted(() => {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 767px) {
+  .dashboard-page {
+    padding: 14px 12px 96px;
+  }
+
+  .dashboard-header,
+  .chart-section-card,
+  .table-card,
+  .context-hero-card {
+    padding: 16px 14px;
+    border-radius: 16px;
+  }
+
+  .header-user-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .toolbar-search {
+    width: 100%;
+  }
+
+  .score-box-big {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 12px;
+  }
+
+  .scores-triad-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-gate-card {
+    padding: 24px 18px;
+  }
+
+  .chart-canvas-wrap {
+    height: 230px;
+  }
+}
 </style>
