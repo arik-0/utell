@@ -30,8 +30,9 @@
       </div>
 
       <div class="bottom-card">
-        <h1 class="welcome-title">Bienvenido</h1>
-        <p class="welcome-sub">Ingresa a tu cuenta universitaria</p>
+        <div class="bottom-card-inner">
+          <h1 class="welcome-title">Bienvenido</h1>
+          <p class="welcome-sub">Ingresa a tu cuenta universitaria</p>
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="field-group">
@@ -95,10 +96,11 @@
         <span>{{ isLoadingGoogle ? 'Conectando...' : 'Continuar con Google' }}</span>
       </button>
 
-        <p class="register-prompt">
-          ¿No tienes cuenta?
-          <router-link to="/register" class="register-link">Crear cuenta</router-link>
-        </p>
+          <p class="register-prompt">
+            ¿No tienes cuenta?
+            <router-link to="/register" class="register-link">Crear cuenta</router-link>
+          </p>
+        </div>
       </div>
     </div>
 
@@ -343,24 +345,29 @@ onUnmounted(() => {
   transform: scale(0.95);
 }
 
-/* ─── Top Hero ─── */
+/* ─── Top Hero (Móvil: diseño clásico naranja con birrete blanco) ─── */
 .top-section {
-  flex: 0 0 auto;
+  flex: 0 0 36vh;
+  flex: 0 0 36dvh;
+  min-height: 210px;
   width: 100%;
-  height: clamp(175px, 27dvh, 235px);
-  background-image: url('/img/login-bg.jpg');
+  background-image:
+    linear-gradient(rgba(229, 90, 43, 0.82), rgba(255, 107, 53, 0.78)),
+    url('/img/unsplash.png');
+  background-blend-mode: multiply;
   background-size: cover;
   background-position: center;
-  background-repeat: no-repeat;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 18px;
+  padding-bottom: 24px;
 }
 
 .login-page.is-dark .top-section {
-  background-image: linear-gradient(rgba(11, 15, 23, 0.28), rgba(11, 15, 23, 0.28)), url('/img/login-bg.jpg');
+  background-image:
+    linear-gradient(rgba(204, 72, 28, 0.86), rgba(229, 90, 43, 0.82)),
+    url('/img/unsplash.png');
 }
 
 .hero-brand-pill {
@@ -368,37 +375,23 @@ onUnmounted(() => {
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
-}
-
-.login-page.is-dark .hero-brand-pill {
-  background: rgba(15, 23, 42, 0.86);
-  border-color: rgba(148, 163, 184, 0.3);
+  justify-content: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
 }
 
 .logo-cap {
-  width: 40px;
+  width: 110px;
   height: auto;
-  filter: drop-shadow(0 2px 6px rgba(255, 107, 53, 0.25));
+  filter: brightness(0) invert(1) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
 }
 
 .hero-brand-name {
-  font-family: var(--font-family);
-  font-size: 22px;
-  font-weight: 800;
-  color: #0F172A;
-  letter-spacing: -0.02em;
-}
-
-.login-page.is-dark .hero-brand-name {
-  color: #F8FAFC;
+  display: none;
 }
 
 .hero-desktop-copy {
@@ -410,12 +403,19 @@ onUnmounted(() => {
   width: 100%;
   flex: 1;
   background: var(--bg-card);
-  border-radius: 28px 28px 0 0;
-  padding: 26px 20px calc(32px + env(safe-area-inset-bottom, 0px));
-  margin-top: -24px;
+  border-radius: 32px 32px 0 0;
+  padding: 28px 20px calc(32px + env(safe-area-inset-bottom, 0px));
+  margin-top: -32px;
   z-index: 10;
   position: relative;
   box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.14);
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-card-inner {
+  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -681,7 +681,7 @@ onUnmounted(() => {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    padding: 32px 24px;
+    padding: 20px 24px;
     background-image: url('/img/login-bg.jpg');
     background-size: cover;
     background-position: center;
@@ -694,11 +694,11 @@ onUnmounted(() => {
 
   .login-shell {
     flex-direction: row;
-    min-height: 550px;
-    max-height: calc(100dvh - 64px);
-    max-width: 820px;
-    width: 100%;
-    flex: 0 1 820px;
+    flex: 0 0 auto;
+    width: min(94vw, max(780px, calc(0.56 * max(100vw, 179.33dvh))));
+    max-width: 1140px;
+    min-height: min(calc(100dvh - 40px), max(540px, calc(0.59 * max(100dvh, 55.76vw))));
+    max-height: calc(100dvh - 40px);
     border-radius: 28px;
     overflow: hidden;
     box-shadow: 0 28px 68px rgba(15, 23, 42, 0.28);
@@ -713,19 +713,58 @@ onUnmounted(() => {
 
   .top-section {
     display: flex;
-    flex: 0 0 340px;
+    flex: 0 0 42%;
+    max-width: 440px;
+    min-width: 280px;
     width: auto;
     height: auto;
+    min-height: 0;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     gap: 22px;
-    padding: 40px 32px;
+    padding: 40px 36px;
+    background-blend-mode: normal;
     background-image: linear-gradient(155deg, rgba(8, 42, 92, 0.94) 0%, rgba(14, 58, 118, 0.9) 62%, rgba(234, 88, 36, 0.88) 100%);
   }
 
   .login-page.is-dark .top-section {
     background-image: linear-gradient(155deg, rgba(10, 25, 54, 0.96) 0%, rgba(18, 41, 82, 0.94) 65%, rgba(194, 65, 20, 0.88) 100%);
+  }
+
+  .hero-brand-pill {
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  }
+
+  .login-page.is-dark .hero-brand-pill {
+    background: rgba(15, 23, 42, 0.86);
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  .logo-cap {
+    width: 40px;
+    height: auto;
+    filter: drop-shadow(0 2px 6px rgba(255, 107, 53, 0.25));
+  }
+
+  .hero-brand-name {
+    display: inline;
+    font-family: var(--font-family);
+    font-size: 22px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+  }
+
+  .login-page.is-dark .hero-brand-name {
+    color: #F8FAFC;
   }
 
   .hero-desktop-copy {
@@ -772,10 +811,17 @@ onUnmounted(() => {
     height: auto;
     margin-top: 0;
     border-radius: 0;
-    padding: 36px 36px 32px;
+    padding: 36px 40px 32px;
     background: var(--bg-card);
     box-shadow: none;
     overflow-y: auto;
+    justify-content: center;
+  }
+
+  .bottom-card-inner {
+    max-width: 400px;
+    margin: 0 auto;
+    flex: 0 1 auto;
   }
 
   .input-wrap input {
@@ -785,7 +831,6 @@ onUnmounted(() => {
 
 @media (min-width: 768px) and (max-width: 899px) {
   .top-section {
-    flex: 0 0 290px;
     padding: 32px 24px;
   }
 }
